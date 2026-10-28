@@ -51,6 +51,30 @@ Data is Yahoo adjusted hourly OHLCV, with 30 calendar days requested for indicat
 
 The [October 2026 example report](benchmark-2026-10.json) contains the individual decisions from a live run of this command on 28 October 2026.
 
+## Validated-data backtest
+
+Run a weekly backtest with a separately prepared, frozen dataset:
+
+```powershell
+uv run ft backtest --data-dir .\market-data --start 2026-01-19 --end 2026-01-27 --symbols AAPL --model jev-1.14.0 --output .\backtest-report.json
+```
+
+The command validates the entire input before making paid model requests and refuses to overwrite an existing report. It saves the decisions, trade ledger, daily close equity curve, daily-close maximum drawdown, portfolio and SPY returns, fees, model version, dataset-manifest hash and per-decision model-state hashes. BUY invests each symbol's independent share of $10,000; SELL exits its shares; HOLD leaves the position unchanged. Decisions use only candles completed by the decision time, and fill at the next session's open. Default commission is 5 basis points per side and slippage is 10 basis points per side; set `--fee-bps` and `--slippage-bps` to change them. SPY pays the same assumed entry costs. Ending values are marked at the last close without hypothetical liquidation costs. There is no liquidity, partial-fill, market-impact, financing, tax or portfolio-risk model.
+
+The `market-data` folder must contain:
+
+- `sessions.csv`, with timezone-aware `open,close` timestamps for every exchange session covering the warmup and test, plus at least one session after the end date. Session times must come from a trustworthy point-in-time exchange calendar, including holidays and early closes.
+- One unadjusted regular-session hourly OHLCV CSV per ticker and one `SPY.csv`, each with `timestamp,open,high,low,close,volume`. Timestamps mark bar starts and include a timezone; include at least 50 completed warmup candles. The final bar of a session may be shorter than an hour; the engine waits until its nominal hour has ended before asking the model.
+- `manifest.json`, attesting `price_basis` as `unadjusted` and `corporate_actions` as `none`, with SHA-256 hashes for `sessions.csv` and every ticker CSV. The no-corporate-actions attestation covers the entire dataset, including warmup and SPY; if any dividend, split, merger or other corporate action occurred, this backtest cannot correctly account for it and the dataset must not be used. This restriction makes many long equity periods unsuitable.
+
+For example, after independently verifying those conditions for AAPL and SPY, create the manifest in PowerShell:
+
+```powershell
+$hashes = @{}; 'sessions.csv','AAPL.csv','SPY.csv' | ForEach-Object { $hashes[$_] = (Get-FileHash -Algorithm SHA256 -LiteralPath (Join-Path .\market-data $_)).Hash.ToLower() }; @{ price_basis='unadjusted'; corporate_actions='none'; sha256=$hashes } | ConvertTo-Json -Depth 3 | Set-Content -Encoding utf8 .\market-data\manifest.json
+```
+
+Hashes make later changes detectable; they do not prove that the vendor's historical prices, calendar, or corporate-action attestation were correct or available at the time. Do not use Yahoo's retrospectively adjusted prices as raw prices. The engine does not check whether tickers were chosen with hindsight or whether the model's training included future events. These limitations mean the result cannot be certified free of all leakage. For stronger evidence, predefine the universe and rules, use point-in-time data and a model known to predate the test, and evaluate later out-of-sample periods. See the [CFA Institute's backtesting overview](https://www.cfainstitute.org/insights/professional-learning/refresher-readings/2026/backtesting-and-simulation) and [research on temporal leakage in language-model backtests](https://arxiv.org/abs/2608.02985).
+
 ## Local API
 
 Run `uv run ft`, then open the [interactive API reference](http://127.0.0.1:8765/docs) or [OpenAPI schema](http://127.0.0.1:8765/openapi.json).

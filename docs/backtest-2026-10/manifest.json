@@ -1,0 +1,14 @@
+{
+  "price_basis": "unadjusted",
+  "corporate_actions": "none",
+  "source": "Yahoo Finance via yfinance, auto_adjust=False; corporate actions checked through latest available day",
+  "calendar_source": "NYSE 2026 published trading calendar",
+  "retrieved_at": "2026-10-28T17:05:55.839099+00:00",
+  "sha256": {
+    "sessions.csv": "7a1a512a4baf0fe8f3ec5d0fc2416bbc47c72b44c6999ac077498dcc5963e71a",
+    "AAPL.csv": "e149648aa97bdb8490eb3afc547aed5a6e258323555956d5a9304f7cc6ba965f",
+    "MSFT.csv": "5c08da81d0a1f64d91234bc672d17e8ed584e5469e4a9a2bbd160b0350a745da",
+    "NVDA.csv": "0ceb76b37b793157362257b7f7752bf1e53d53eb1a66c3cd469a9417073355d6",
+    "SPY.csv": "bed3b43997ed4b9f51cc57295bf210a5ee08df27b7ec7240aaf4b1b030c64b57"
+  }
+}

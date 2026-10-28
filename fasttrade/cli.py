@@ -24,6 +24,15 @@ def parser():
     b.add_argument('--end', required=True, help='Last valuation date (YYYY-MM-DD, inclusive)')
     b.add_argument('--symbols', default='AAPL,MSFT,NVDA', help='Comma-separated symbols (default: AAPL,MSFT,NVDA)')
     b.add_argument('--model', default=None, help='SystemOne model; defaults to SYSTEMONE_MODEL')
+    t = sub.add_parser('backtest', help='Backtest against a validated frozen dataset')
+    t.add_argument('--data-dir', required=True, help='Directory containing manifest, sessions, and raw hourly CSVs')
+    t.add_argument('--start', required=True, help='First date, YYYY-MM-DD')
+    t.add_argument('--end', required=True, help='Last date, YYYY-MM-DD')
+    t.add_argument('--symbols', required=True, help='Comma-separated US ticker symbols')
+    t.add_argument('--model', default=None, help='SystemOne model; defaults to SYSTEMONE_MODEL')
+    t.add_argument('--fee-bps', type=float, default=5, help='Commission in basis points per side (default 5)')
+    t.add_argument('--slippage-bps', type=float, default=10, help='Slippage in basis points per side (default 10)')
+    t.add_argument('--output', required=True, help='New JSON report path')
     return p
 
 
@@ -123,6 +132,13 @@ def main():
         if args.command == 'benchmark':
             from .benchmark import run as run_benchmark
             result = run_benchmark(args)
+        elif args.command == 'backtest':
+            from .backtest import run as run_backtest
+            result = run_backtest(args)
+            with open(args.output, 'x', encoding='utf-8') as output:
+                json.dump(result, output, indent=2, allow_nan=False)
+                output.write('\n')
+            result = {'report': args.output, **{key: result[key] for key in ('model_resolved', 'ending_balance', 'return_pct', 'spy_ending_balance', 'spy_return_pct', 'max_drawdown_pct', 'total_fees')}}
         else:
             result = run(args)
         print(json.dumps(result, indent=2, allow_nan=False))

@@ -53,3 +53,7 @@ uv run ft benchmark --start 2026-09-28 --end 2026-10-23 --symbols AAPL,MSFT,NVDA
 ```
 
 The command makes paid model requests and outputs a JSON report with decisions and a SPY comparison. Historical Yahoo hourly data has limited availability; results exclude costs and do not establish future performance. [Benchmark details](docs/usage.md#historical-benchmark).
+
+For a stricter backtest with a frozen raw-price dataset and explicit trading costs, use `uv run ft backtest`; see the [dataset requirements and command](docs/usage.md#validated-data-backtest).
+
+**Backtest example:** On AAPL, MSFT and NVDA, Jev 1.14.0 returned **−0.68%** versus **−2.57% for SPY** from October 12–23, 2026, with 5 bps commission and 10 bps slippage per trade side. This short retrospective example has six decisions; the model and data may contain hindsight. [Report and frozen inputs](docs/backtest-2026-10/report.json).

@@ -1,0 +1,192 @@
+{
+  "start": "2026-10-05",
+  "end": "2026-10-23",
+  "symbols": [
+    "AAPL",
+    "MSFT",
+    "NVDA"
+  ],
+  "model_requested": "jev-1.14.0",
+  "model_resolved": "jev-1.14.0",
+  "model_retries": 0,
+  "dataset_manifest_sha256": "7f6b5920c88b8172c372e0fae2b4869a9b034e0d3f1811dd2878452bdac1bcdf",
+  "fee_bps": 5,
+  "slippage_bps": 10,
+  "initial_balance": 10000.0,
+  "first_execution_time": "2026-10-12T13:30:00+00:00",
+  "ending_balance": 9932.39,
+  "return_pct": -0.68,
+  "spy_ending_balance": 9743.08,
+  "spy_return_pct": -2.57,
+  "max_drawdown_pct": -0.97,
+  "total_fees": 3.3,
+  "decisions": [
+    {
+      "symbol": "AAPL",
+      "decision_time": "2026-10-09T20:30:00+00:00",
+      "execution_time": "2026-10-12T13:30:00+00:00",
+      "candle_timestamp": "2026-10-09T19:30:00+00:00",
+      "state_sha256": "bdb9193c82ae7057d2aaf50a116435c6dd17e67e826a25c1d7ed78bc905272e4",
+      "action": "HOLD",
+      "probabilities": {
+        "BUY": 0.43,
+        "HOLD": 0.52,
+        "SELL": 0.05
+      },
+      "model": "jev-1.14.0"
+    },
+    {
+      "symbol": "MSFT",
+      "decision_time": "2026-10-09T20:30:00+00:00",
+      "execution_time": "2026-10-12T13:30:00+00:00",
+      "candle_timestamp": "2026-10-09T19:30:00+00:00",
+      "state_sha256": "c762cb12c8dd706f6e585ad0f2b1e049170f8fc1d838867bc86b0ac0362c21c1",
+      "action": "BUY",
+      "probabilities": {
+        "BUY": 0.85,
+        "HOLD": 0.14,
+        "SELL": 0.01
+      },
+      "model": "jev-1.14.0"
+    },
+    {
+      "symbol": "NVDA",
+      "decision_time": "2026-10-09T20:30:00+00:00",
+      "execution_time": "2026-10-12T13:30:00+00:00",
+      "candle_timestamp": "2026-10-09T19:30:00+00:00",
+      "state_sha256": "0a68032d2a5b7f950cd97247e007f58d46507781b4366d9d0ce0dd5a36018539",
+      "action": "SELL",
+      "probabilities": {
+        "BUY": 0.18,
+        "HOLD": 0.34,
+        "SELL": 0.48
+      },
+      "model": "jev-1.14.0"
+    },
+    {
+      "symbol": "AAPL",
+      "decision_time": "2026-10-16T20:30:00+00:00",
+      "execution_time": "2026-10-19T13:30:00+00:00",
+      "candle_timestamp": "2026-10-16T19:30:00+00:00",
+      "state_sha256": "29aa4887d43f00afdfa40b838c4424967cf440f6f02d039c7166cba1a2b3f222",
+      "action": "HOLD",
+      "probabilities": {
+        "BUY": 0.22,
+        "HOLD": 0.72,
+        "SELL": 0.06
+      },
+      "model": "jev-1.14.0"
+    },
+    {
+      "symbol": "MSFT",
+      "decision_time": "2026-10-16T20:30:00+00:00",
+      "execution_time": "2026-10-19T13:30:00+00:00",
+      "candle_timestamp": "2026-10-16T19:30:00+00:00",
+      "state_sha256": "5e6a367b253757beec2fc320b415b3cef0486c12b2db3debccf5fe77fe7d18b7",
+      "action": "SELL",
+      "probabilities": {
+        "BUY": 0.08,
+        "HOLD": 0.42,
+        "SELL": 0.5
+      },
+      "model": "jev-1.14.0"
+    },
+    {
+      "symbol": "NVDA",
+      "decision_time": "2026-10-16T20:30:00+00:00",
+      "execution_time": "2026-10-19T13:30:00+00:00",
+      "candle_timestamp": "2026-10-16T19:30:00+00:00",
+      "state_sha256": "25389678174c87dd2db0793a13ab039d0db217fea513a9f72f6abb033e73c4af",
+      "action": "SELL",
+      "probabilities": {
+        "BUY": 0.23,
+        "HOLD": 0.34,
+        "SELL": 0.43
+      },
+      "model": "jev-1.14.0"
+    }
+  ],
+  "trades": [
+    {
+      "symbol": "MSFT",
+      "time": "2026-10-12T13:30:00+00:00",
+      "action": "BUY",
+      "reference_open": 538.0700073242188,
+      "fill_price": 538.6080773315429,
+      "shares": 6.185699100707541,
+      "fee": 1.665833749791771
+    },
+    {
+      "symbol": "MSFT",
+      "time": "2026-10-19T13:30:00+00:00",
+      "action": "SELL",
+      "reference_open": 528.739990234375,
+      "fill_price": 528.2112502441406,
+      "shares": 6.185699100707541,
+      "fee": 1.6336779278093931
+    }
+  ],
+  "equity_curve": [
+    {
+      "date": "2026-10-05",
+      "equity": 10000.0
+    },
+    {
+      "date": "2026-10-06",
+      "equity": 10000.0
+    },
+    {
+      "date": "2026-10-07",
+      "equity": 10000.0
+    },
+    {
+      "date": "2026-10-08",
+      "equity": 10000.0
+    },
+    {
+      "date": "2026-10-09",
+      "equity": 10000.0
+    },
+    {
+      "date": "2026-10-12",
+      "equity": 10014.305178080385
+    },
+    {
+      "date": "2026-10-13",
+      "equity": 10029.58367363748
+    },
+    {
+      "date": "2026-10-14",
+      "equity": 9969.019774636014
+    },
+    {
+      "date": "2026-10-15",
+      "equity": 10002.799868363896
+    },
+    {
+      "date": "2026-10-16",
+      "equity": 9938.592281494943
+    },
+    {
+      "date": "2026-10-19",
+      "equity": 9932.388844357643
+    },
+    {
+      "date": "2026-10-20",
+      "equity": 9932.388844357643
+    },
+    {
+      "date": "2026-10-21",
+      "equity": 9932.388844357643
+    },
+    {
+      "date": "2026-10-22",
+      "equity": 9932.388844357643
+    },
+    {
+      "date": "2026-10-23",
+      "equity": 9932.388844357643
+    }
+  ],
+  "limitations": "The input manifest is an unverified attestation; corporate actions, model training knowledge, survivorship and hindsight selection are not verified. Fees and slippage are assumptions; no liquidity or market impact model."
+}

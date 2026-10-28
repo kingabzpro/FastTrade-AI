@@ -37,8 +37,8 @@ def run(args):
     root = Path(args.data_dir)
     manifest_bytes = (root / 'manifest.json').read_bytes()
     manifest = json.loads(manifest_bytes)
-    if not isinstance(manifest, dict) or manifest.get('price_basis') != 'unadjusted' or manifest.get('corporate_actions') != 'none' or not isinstance(manifest.get('sha256'), dict):
-        raise ValueError('Manifest must attest unadjusted prices and no corporate actions over the dataset')
+    if not isinstance(manifest, dict) or manifest.get('price_basis') != 'unadjusted' or manifest.get('corporate_actions') not in ('none', 'cash_dividends_only') or not isinstance(manifest.get('sha256'), dict):
+        raise ValueError('Manifest must attest unadjusted prices and supported corporate actions over the dataset')
 
     def read_snapshot(name):
         data = (root / name).read_bytes()
@@ -66,6 +66,23 @@ def run(args):
         raise ValueError('Each session must open and close on the same New York date')
     if any(sessions.open.iloc[i] <= sessions.close.iloc[i-1] for i in range(1, len(sessions))):
         raise ValueError('Sessions must not overlap')
+    dividends = {}
+    if manifest['corporate_actions'] == 'cash_dividends_only':
+        events = read_snapshot('dividends.csv')
+        if not {'symbol', 'ex_date', 'pay_date', 'amount'} <= set(events.columns):
+            raise ValueError('Dividends require symbol, ex_date, pay_date and amount')
+        for event in events.itertuples():
+            try:
+                symbol = str(event.symbol).upper()
+                ex_date, pay_date = date.fromisoformat(str(event.ex_date)), date.fromisoformat(str(event.pay_date))
+                amount = float(event.amount)
+            except (TypeError, ValueError) as exc:
+                raise ValueError('Invalid dividend event') from exc
+            if symbol not in [*symbols, 'SPY'] or ex_date not in set(sessions.date) or pay_date <= ex_date or not math.isfinite(amount) or amount <= 0 or (symbol, ex_date) in dividends:
+                raise ValueError('Invalid or duplicate dividend event')
+            if start <= ex_date <= end and pay_date <= end:
+                raise ValueError('Dividend payment during the backtest is not supported')
+            dividends[(symbol, ex_date)] = (amount, pay_date)
     cutoff = pd.Timestamp(end + timedelta(days=1), tz='America/New_York').tz_convert('UTC')
     frames = {}
     for symbol in [*symbols, 'SPY']:
@@ -110,6 +127,8 @@ def run(args):
     resolved_model = None
     retries = 0
     spy_shares = 0.0
+    receivables = {s: 0.0 for s in [*symbols, 'SPY']}
+    dividend_ledger = []
     first_execution = None
     with tempfile.TemporaryDirectory(prefix='fasttrade-backtest-') as directory:
         paths = {}
@@ -119,6 +138,13 @@ def run(args):
         for i, session in enumerate(sessions.itertuples()):
             if not start <= session.date <= end:
                 continue
+            for symbol in [*symbols, 'SPY']:
+                event = dividends.get((symbol, session.date))
+                held = spy_shares if symbol == 'SPY' else shares[symbol]
+                if event and held:
+                    amount, pay_date = event
+                    receivables[symbol] += held * amount
+                    dividend_ledger.append({'symbol': symbol, 'ex_date': str(session.date), 'pay_date': str(pay_date), 'shares': held, 'amount_per_share': amount, 'receivable': held * amount})
             if pending:
                 if first_execution is None:
                     first_execution = session.open
@@ -141,7 +167,7 @@ def run(args):
                     trades.append({'symbol': symbol, 'time': session.open.isoformat(), 'action': action, 'reference_open': open_price, 'fill_price': price, 'shares': quantity, 'fee': commission})
                 pending = {}
             last_bar = pd.date_range(session.open, session.close, freq='h', inclusive='left')[-1]
-            equity = sum(cash[s] + shares[s] * float(frames[s].loc[last_bar, 'close']) for s in symbols)
+            equity = sum(cash[s] + shares[s] * float(frames[s].loc[last_bar, 'close']) + receivables[s] for s in symbols)
             curve.append({'date': str(session.date), 'equity': equity})
             if i in review:
                 decision_time = last_bar + pd.Timedelta(hours=1)
@@ -168,9 +194,9 @@ def run(args):
     if not curve or first_execution is None:
         raise ValueError('No executable decisions in the requested period')
     ending = curve[-1]['equity']
-    spy_ending = spy_shares * float(frames['SPY'].loc[last_bar, 'close'])
+    spy_ending = spy_shares * float(frames['SPY'].loc[last_bar, 'close']) + receivables['SPY']
     peak, drawdown = initial, 0.0
     for point in curve:
         peak = max(peak, point['equity'])
         drawdown = min(drawdown, point['equity'] / peak - 1)
-    return {'start': str(start), 'end': str(end), 'symbols': symbols, 'model_requested': model, 'model_resolved': resolved_model, 'model_retries': retries, 'dataset_manifest_sha256': hashlib.sha256(manifest_bytes).hexdigest(), 'fee_bps': args.fee_bps, 'slippage_bps': args.slippage_bps, 'initial_balance': initial, 'first_execution_time': first_execution.isoformat(), 'ending_balance': round(ending, 2), 'return_pct': round((ending / initial - 1) * 100, 2), 'spy_ending_balance': round(spy_ending, 2), 'spy_return_pct': round((spy_ending / initial - 1) * 100, 2), 'max_drawdown_pct': round(drawdown * 100, 2), 'total_fees': round(sum(t['fee'] for t in trades), 2), 'decisions': decisions, 'trades': trades, 'equity_curve': curve, 'limitations': 'The input manifest is an unverified attestation; corporate actions, model training knowledge, survivorship and hindsight selection are not verified. Fees and slippage are assumptions; no liquidity or market impact model.'}
+    return {'start': str(start), 'end': str(end), 'symbols': symbols, 'model_requested': model, 'model_resolved': resolved_model, 'model_retries': retries, 'dataset_manifest_sha256': hashlib.sha256(manifest_bytes).hexdigest(), 'fee_bps': args.fee_bps, 'slippage_bps': args.slippage_bps, 'initial_balance': initial, 'first_execution_time': first_execution.isoformat(), 'ending_balance': round(ending, 2), 'return_pct': round((ending / initial - 1) * 100, 2), 'spy_ending_balance': round(spy_ending, 2), 'spy_return_pct': round((spy_ending / initial - 1) * 100, 2), 'max_drawdown_pct': round(drawdown * 100, 2), 'total_fees': round(sum(t['fee'] for t in trades), 2), 'dividend_receivables': round(sum(receivables[s] for s in symbols), 2), 'spy_dividend_receivables': round(receivables['SPY'], 2), 'dividends': dividend_ledger, 'decisions': decisions, 'trades': trades, 'equity_curve': curve, 'limitations': 'The input manifest is an unverified attestation; corporate actions, model training knowledge, survivorship and hindsight selection are not verified. Only cash dividends payable after the test are supported; no split accounting. Fees and slippage are assumptions; no liquidity or market impact model.'}

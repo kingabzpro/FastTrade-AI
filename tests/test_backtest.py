@@ -136,3 +136,63 @@ def test_invalid_response_retries_without_inventing_decisions(tmp_path, monkeypa
     result = backtest.run(args)
     assert len(result['decisions']) == 1 and result['model_retries'] == 1
     assert result['trades'] == [] and result['ending_balance'] == 10000
+
+
+def test_unpaid_dividends_are_earned_only_on_shares_held_before_ex_date(tmp_path, monkeypatch):
+    from fasttrade import backtest
+    folder = tmp_path / 'data'
+    dataset(folder)
+    pd.DataFrame([
+        {'symbol': 'AAPL', 'ex_date': '2026-01-26', 'pay_date': '2026-02-10', 'amount': 50},
+        {'symbol': 'AAPL', 'ex_date': '2026-01-27', 'pay_date': '2026-02-10', 'amount': 2},
+        {'symbol': 'SPY', 'ex_date': '2026-01-27', 'pay_date': '2026-02-10', 'amount': 1},
+    ]).to_csv(folder / 'dividends.csv', index=False)
+    manifest_path = folder / 'manifest.json'
+    manifest = json.loads(manifest_path.read_text())
+    manifest['corporate_actions'] = 'cash_dividends_only'
+    manifest['sha256']['dividends.csv'] = hashlib.sha256((folder / 'dividends.csv').read_bytes()).hexdigest()
+    manifest_path.write_text(json.dumps(manifest))
+    monkeypatch.setattr(cli, 'predict', lambda *args: {'action': 'BUY', 'confidence': .8, 'probabilities': {'BUY': .8, 'HOLD': .1, 'SELL': .1}, 'model': 'test', 'latency_us': 1})
+    args = cli.parser().parse_args(['backtest', '--data-dir', str(folder), '--start', '2026-01-19', '--end', '2026-01-27', '--symbols', 'AAPL', '--model', 'test', '--output', str(folder / 'report.json')])
+    result = backtest.run(args)
+    shares = 10000 / (100 * 1.001 * 1.0005)
+    assert result['dividend_receivables'] == pytest.approx(shares * 2, abs=.01)
+    assert result['spy_dividend_receivables'] == pytest.approx(shares, abs=.01)
+    assert result['ending_balance'] == pytest.approx(shares * 102, abs=.01)
+    assert result['spy_ending_balance'] == pytest.approx(shares * 101, abs=.01)
+
+
+def test_dividends_payable_during_test_are_rejected(tmp_path, monkeypatch):
+    from fasttrade import backtest
+    folder = tmp_path / 'data'
+    dataset(folder)
+    pd.DataFrame([{'symbol': 'AAPL', 'ex_date': '2026-01-26', 'pay_date': '2026-01-27', 'amount': 2}]).to_csv(folder / 'dividends.csv', index=False)
+    manifest_path = folder / 'manifest.json'
+    manifest = json.loads(manifest_path.read_text())
+    manifest['corporate_actions'] = 'cash_dividends_only'
+    manifest['sha256']['dividends.csv'] = hashlib.sha256((folder / 'dividends.csv').read_bytes()).hexdigest()
+    manifest_path.write_text(json.dumps(manifest))
+    monkeypatch.setattr(cli, 'predict', lambda *args: pytest.fail('Model must not be called'))
+    args = cli.parser().parse_args(['backtest', '--data-dir', str(folder), '--start', '2026-01-19', '--end', '2026-01-27', '--symbols', 'AAPL', '--output', str(folder / 'report.json')])
+    with pytest.raises(ValueError, match='payment'):
+        backtest.run(args)
+
+
+def test_dividend_receivable_survives_a_later_sale(tmp_path, monkeypatch):
+    from fasttrade import backtest
+    folder = tmp_path / 'data'
+    dataset(folder)
+    pd.DataFrame([{'symbol': 'AAPL', 'ex_date': '2026-01-28', 'pay_date': '2026-02-10', 'amount': 2}]).to_csv(folder / 'dividends.csv', index=False)
+    manifest_path = folder / 'manifest.json'
+    manifest = json.loads(manifest_path.read_text())
+    manifest['corporate_actions'] = 'cash_dividends_only'
+    manifest['sha256']['dividends.csv'] = hashlib.sha256((folder / 'dividends.csv').read_bytes()).hexdigest()
+    manifest_path.write_text(json.dumps(manifest))
+    actions = iter(['BUY', 'SELL'])
+    monkeypatch.setattr(cli, 'predict', lambda *args: {'action': next(actions), 'confidence': .8, 'probabilities': {'BUY': .8, 'HOLD': .1, 'SELL': .1}, 'model': 'test', 'latency_us': 1})
+    args = cli.parser().parse_args(['backtest', '--data-dir', str(folder), '--start', '2026-01-19', '--end', '2026-02-03', '--symbols', 'AAPL', '--model', 'test', '--output', str(folder / 'report.json')])
+    result = backtest.run(args)
+    shares = 10000 / (100 * 1.001 * 1.0005)
+    assert result['dividend_receivables'] == pytest.approx(shares * 2, abs=.01)
+    assert result['ending_balance'] == pytest.approx(shares * (100 * .999 * .9995 + 2), abs=.01)
+    assert [trade['action'] for trade in result['trades']] == ['BUY', 'SELL']

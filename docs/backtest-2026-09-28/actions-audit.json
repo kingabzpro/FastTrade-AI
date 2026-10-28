@@ -1,0 +1,118 @@
+{
+  "AAPL": {
+    "checked_through": "2026-10-28",
+    "reported_events": []
+  },
+  "AMD": {
+    "checked_through": "2026-10-28",
+    "reported_events": []
+  },
+  "AMZN": {
+    "checked_through": "2026-10-28",
+    "reported_events": []
+  },
+  "BAC": {
+    "checked_through": "2026-10-28",
+    "reported_events": []
+  },
+  "COST": {
+    "checked_through": "2026-10-28",
+    "reported_events": []
+  },
+  "CVX": {
+    "checked_through": "2026-10-28",
+    "reported_events": []
+  },
+  "DIS": {
+    "checked_through": "2026-10-28",
+    "reported_events": []
+  },
+  "GOOGL": {
+    "checked_through": "2026-10-28",
+    "reported_events": []
+  },
+  "HD": {
+    "checked_through": "2026-10-28",
+    "reported_events": []
+  },
+  "IBM": {
+    "checked_through": "2026-10-28",
+    "reported_events": []
+  },
+  "INTC": {
+    "checked_through": "2026-10-28",
+    "reported_events": []
+  },
+  "JNJ": {
+    "checked_through": "2026-10-28",
+    "reported_events": []
+  },
+  "JPM": {
+    "checked_through": "2026-10-28",
+    "reported_events": [
+      {
+        "dividend": 1.65,
+        "ex_date": "2026-10-06",
+        "split": 0.0
+      }
+    ]
+  },
+  "KO": {
+    "checked_through": "2026-10-28",
+    "reported_events": []
+  },
+  "MCD": {
+    "checked_through": "2026-10-28",
+    "reported_events": []
+  },
+  "META": {
+    "checked_through": "2026-10-28",
+    "reported_events": []
+  },
+  "MSFT": {
+    "checked_through": "2026-10-28",
+    "reported_events": []
+  },
+  "NVDA": {
+    "checked_through": "2026-10-28",
+    "reported_events": []
+  },
+  "PEP": {
+    "checked_through": "2026-10-28",
+    "reported_events": []
+  },
+  "PG": {
+    "checked_through": "2026-10-28",
+    "reported_events": [
+      {
+        "dividend": 1.089,
+        "ex_date": "2026-10-23",
+        "split": 0.0
+      }
+    ]
+  },
+  "SPY": {
+    "checked_through": "2026-10-28",
+    "reported_events": []
+  },
+  "TSLA": {
+    "checked_through": "2026-10-28",
+    "reported_events": []
+  },
+  "UNH": {
+    "checked_through": "2026-10-28",
+    "reported_events": []
+  },
+  "V": {
+    "checked_through": "2026-10-28",
+    "reported_events": []
+  },
+  "WMT": {
+    "checked_through": "2026-10-28",
+    "reported_events": []
+  },
+  "XOM": {
+    "checked_through": "2026-10-28",
+    "reported_events": []
+  }
+}

@@ -56,4 +56,4 @@ The command makes paid model requests and outputs a JSON report with decisions a
 
 For a stricter backtest with a frozen raw-price dataset and explicit trading costs, use `uv run ft backtest`; see the [dataset requirements and command](docs/usage.md#validated-data-backtest).
 
-**Backtest example:** On AAPL, MSFT and NVDA, Jev 1.14.0 returned **−0.68%** versus **−2.57% for SPY** from October 12–23, 2026, with 5 bps commission and 10 bps slippage per trade side. This short retrospective example has six decisions; the model and data may contain hindsight. [Report and frozen inputs](docs/backtest-2026-10/report.json).
+**Recent backtest:** Across 25 stocks and four weekly reviews, Jev 1.14.0 returned **+2.31%** versus **−0.15% for SPY** from October 5–27, 2026, with 5 bps commission and 10 bps slippage per trade side. This short retrospective test may contain hindsight. [Report and frozen inputs](docs/backtest-2026-09-28/report.json).

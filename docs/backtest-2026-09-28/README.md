@@ -1,0 +1,13 @@
+# 25-stock backtest: September–October 2026
+
+This research run uses the same 25-stock universe as the earlier January–June benchmark, chosen retrospectively. It reviewed the period September 28–October 27, 2026, made 100 Jev 1.14.0 decisions over four weekly reviews, and traded from October 5 through October 27. Starting equity was $10,000; 5 bps commission and 10 bps slippage were charged on each executed side. Positions and unpaid dividend receivables were valued at the final close without liquidation costs.
+
+The snapshot contains September 22–October 27 hourly Yahoo Finance OHLCV fetched with yfinance `auto_adjust=False` and an NYSE session calendar. Yahoo's daily corporate-action data through its latest available day reported no splits; the two in-period dividends were JPM on October 6 and PG on October 23. JPM's declared $1.65 dividend is payable October 31 ([JPMorganChase](https://www.jpmorganchase.com/ir/news/2026/jpmc-declares-increased-common-stock-dividend-9-15)); PG's declared dividend is $1.0885 payable November 16 ([SEC filing](https://www.sec.gov/Archives/edgar/data/80424/000008042426000214/pg-20261013.htm)). Yahoo rounded the latter to $1.089 in its reported data; the declared amount is used for the simulation. The portfolio held no JPM shares before its ex-date; it earned a PG dividend receivable.
+
+The included checksums verify the snapshot used for this report; they do not establish that Yahoo's history or corporate-action list is complete and point-in-time. Yahoo may revise or split-adjust historical prices. The model may know subsequent events, and the universe was selected with hindsight. This short retrospective result cannot establish live performance or guarantee that all leakage is absent. The simulation does not model market impact, partial fills, taxes, portfolio risk limits, or dividends payable during the test.
+
+To rerun using the frozen dataset, choose a new output filename:
+
+```powershell
+$symbols = (Get-Content docs/backtest-2026-09-28/symbols.txt -Raw).Trim(); uv run ft backtest --data-dir docs/backtest-2026-09-28 --start 2026-09-28 --end 2026-10-27 --symbols $symbols --model jev-1.14.0 --output .\backtest-report.json
+```

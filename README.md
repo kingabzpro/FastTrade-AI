@@ -5,9 +5,9 @@
   <p>Market research powered by Jev, a System One decision model.</p>
   <p>
     <img src="https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&amp;logoColor=white" alt="Python 3.10 or newer">
-    <img src="https://img.shields.io/badge/Powered%20by-Jev-6750A4" alt="Powered by Jev">
+    <a href="https://typesafe.ai/"><img src="https://framerusercontent.com/images/aNFzSFxM4fjICmnibw7npfZjcQ.png" width="20" height="20" alt="TypeSafe logo"><img src="https://img.shields.io/badge/System%20One-Jev-D943AD" alt="Powered by Jev"></a>
+    <a href="https://finance.yahoo.com/"><img src="https://img.shields.io/badge/Market%20data-Yahoo%20Finance-6001D2" alt="Market data from Yahoo Finance"></a>
     <img src="https://img.shields.io/badge/Mode-Research%20only-087B59" alt="Research only">
-    <img src="https://img.shields.io/badge/License-Apache%202.0-blue" alt="Apache 2.0 license">
   </p>
 </div>
 

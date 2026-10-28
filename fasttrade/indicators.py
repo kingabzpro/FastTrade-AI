@@ -1,0 +1,19 @@
+import pandas as pd
+
+
+def features(frame, timezone):
+    close, high, low, volume = (frame[x] for x in ('close', 'high', 'low', 'volume'))
+    ema = lambda n: close.ewm(span=n, adjust=False, min_periods=n).mean()
+    change = close.diff()
+    gain = change.clip(lower=0).ewm(alpha=1/14, adjust=False, min_periods=14).mean().iloc[-1]
+    loss = (-change.clip(upper=0)).ewm(alpha=1/14, adjust=False, min_periods=14).mean().iloc[-1]
+    rsi = 50.0 if gain == loss == 0 else (100.0 if loss == 0 else 100 - 100 / (1 + gain / loss))
+    true_range = pd.concat([high-low, (high-close.shift()).abs(), (low-close.shift()).abs()], axis=1).max(axis=1)
+    session = frame.timestamp.dt.tz_convert(timezone).dt.date
+    today = frame[session == session.iloc[-1]]
+    total_volume = today.volume.sum()
+    if total_volume <= 0 or volume.tail(20).mean() <= 0:
+        raise ValueError('Volume is insufficient to calculate VWAP or volume ratio')
+    vwap = (((today.high + today.low + today.close) / 3) * today.volume).sum() / total_volume
+    macd = ema(12) - ema(26)
+    return {'price': float(close.iloc[-1]), 'ema_9': float(ema(9).iloc[-1]), 'ema_21': float(ema(21).iloc[-1]), 'ema_50': float(ema(50).iloc[-1]), 'rsi_14': float(rsi), 'macd': float(macd.iloc[-1]), 'macd_signal': float(macd.ewm(span=9, adjust=False, min_periods=9).mean().iloc[-1]), 'vwap': float(vwap), 'vwap_delta': float(close.iloc[-1] / vwap - 1), 'atr_14': float(true_range.ewm(alpha=1/14, adjust=False, min_periods=14).mean().iloc[-1]), 'volume_ratio': float(volume.iloc[-1] / volume.tail(20).mean()), **{f'return_{n}': float(close.iloc[-1] / close.iloc[-1-n] - 1) for n in (1,3,5)}, 'spread': None, 'liquidity': None}

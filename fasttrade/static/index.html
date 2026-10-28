@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>FastTrade AI — Research workspace</title>
+  <link rel="icon" type="image/svg+xml" href="/static/logo.svg">
+  <link rel="alternate icon" type="image/x-icon" href="/static/favicon.ico">
+  <link rel="stylesheet" href="/static/style.css">
+  <script src="/static/chart-math.js" defer></script>
+  <script src="/static/app.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#workspace">Skip to workspace</a>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <a class="brand" href="/" aria-label="FastTrade home" title="FastTrade AI · FT with fire"><img class="brand-mark" src="/static/logo.svg" alt="" width="44" height="44"><span><strong>FastTrade<span class="brand-ai"> AI</span></strong><small>MARKET INTELLIGENCE</small></span></a>
+      <div class="nav-label">WORKSPACE</div>
+      <a class="nav-item active" href="#workspace" aria-label="Overview" aria-current="location" title="Overview"><span class="nav-icon" aria-hidden="true">◫</span> Overview <span class="nav-end" aria-hidden="true">01</span></a>
+      <a class="nav-item" href="#chart-panel" aria-label="Market chart" title="Market chart"><span class="nav-icon" aria-hidden="true">⌁</span> Market chart</a>
+      <a class="nav-item" href="#history-panel" aria-label="Session history" title="Session history"><span class="nav-icon" aria-hidden="true">◷</span> Session history</a>
+      <a class="nav-item" href="/docs" aria-label="API reference (opens a new tab)" title="API reference (opens a new tab)" target="_blank" rel="noopener"><span class="nav-icon" aria-hidden="true">⌘</span> API reference <span class="nav-end" aria-hidden="true">↗</span></a>
+      <div class="side-note"><span class="pulse"></span><div><strong>Signal-only mode</strong><p>Research environment<br>No orders are placed</p></div></div>
+      <div class="side-footer">FASTTRADE AI <span>v0.1</span><br><span>Built for careful decisions.</span></div>
+    </aside>
+    <nav class="mobile-nav" aria-label="Mobile navigation">
+      <a href="#workspace" class="active" aria-current="location">Overview</a>
+      <a href="#chart-panel">Chart</a>
+      <a href="#history-panel">History</a>
+      <a href="/docs" target="_blank" rel="noopener">API ↗</a>
+    </nav>
+    <main id="workspace" class="main" tabindex="-1">
+      <header class="topbar"><div><span class="eyebrow"><span class="eyebrow-diamond">◆</span> RESEARCH WORKSPACE <span class="eyebrow-divider">/</span> OVERVIEW</span><h1>Clarity for your<br><span class="headline-accent">next decision.</span></h1><p class="intro">Market context, model preferences, and risk checks in one focused workspace.</p></div><div class="header-right"><a class="api-link" href="/docs" target="_blank" rel="noopener">API reference <span>↗</span></a><span class="top-sep"></span><span class="status-dot"></span><span>RESEARCH MODE</span></div></header>
+      <div class="workspace-strip" aria-label="Workspace status"><div><span class="strip-icon">◉</span><span>SOURCE SELECTED <strong id="strip-source">Yahoo Finance</strong></span></div><div><span class="strip-icon">✳</span><span>DECISION ENGINE <strong>SystemOne</strong></span></div><div><span class="strip-icon">◇</span><span>EXECUTION <strong>Signal only</strong></span></div><div class="strip-last">LOCAL WORKSPACE <span>●</span></div></div>
+      <section class="controls card" aria-label="Analysis controls">
+        <div class="control-heading"><div><div class="section-kicker">01 / MARKET INPUT</div><h2>Set your market</h2></div><span class="control-hint">Analysis starts only when you request it.</span></div>
+        <form id="analysis-form" aria-busy="false">
+          <div class="control-grid">
+            <label>SYMBOL<input id="symbol" name="symbol" placeholder="e.g. NVDA" value="NVDA" maxlength="20" pattern="[A-Za-z0-9.\^=\-]+" title="Enter a ticker such as NVDA, BRK-B, or ^GSPC" required autocomplete="off" spellcheck="false"></label>
+            <label>TIMEFRAME<select id="timeframe" name="timeframe"><option>1m</option><option>2m</option><option selected>5m</option><option>15m</option><option>30m</option><option>60m</option><option>90m</option></select></label>
+            <label>DATA SOURCE<select id="source"><option value="yahoo">Yahoo Finance</option><option value="sample">Synthetic sample · 5m</option></select></label>
+            <button id="analyze" type="submit"><span>Run analysis</span><span class="button-arrow">↗</span></button>
+          </div>
+          <p id="source-hint" class="form-note source-hint" hidden>Sample mode uses synthetic 5-minute candles. It still requests a model decision; its signal always stays HOLD.</p>
+          <details class="risk-settings"><summary><span>Portfolio &amp; risk settings</span><span class="summary-hint">Optional · required for an actionable signal</span></summary><div class="risk-grid" id="risk-fields"></div><p class="form-note">Dollar values use the instrument’s currency. Position and quantity are shares. A missing value blocks actionable BUY and SELL signals.</p></details>
+        </form>
+      </section>
+      <div id="notice" class="notice" role="status" aria-live="polite"><span class="notice-icon">✦</span><span>Ready when you are. Choose a market and run an analysis to begin.</span></div>
+      <section class="dashboard-grid">
+        <div class="left-stack">
+          <section class="card chart-card" id="chart-panel"><div class="card-heading"><div><div class="section-kicker">02 / PRICE ACTION</div><h2>Market chart</h2></div><span id="chart-badge" class="pill muted">AWAITING DATA</span></div><div class="chart-top"><div><div id="chart-symbol" class="chart-symbol">Your market, in focus</div><div id="chart-subtitle" class="chart-subtitle">Completed candles will appear here after analysis.</div></div><div id="chart-price" class="chart-price"></div></div><div class="chart-options"><label>WINDOW<select id="chart-window" aria-label="Chart window"><option value="30">30 bars</option><option value="60" selected>60 bars</option><option value="120">120 bars</option><option value="200">200 bars</option></select></label><label>OVERLAY<select id="chart-overlay" aria-label="Chart overlay"><option value="none">None</option><option value="ema_9">EMA 9</option><option value="ema_21">EMA 21</option><option value="ema_50">EMA 50</option><option value="vwap">VWAP</option></select></label></div><div id="chart-readout" class="chart-readout" hidden aria-live="polite"><span id="candle-time"></span><span>O <strong id="candle-open"></strong></span><span>H <strong id="candle-high"></strong></span><span>L <strong id="candle-low"></strong></span><span>C <strong id="candle-close"></strong></span><span>VOL <strong id="candle-volume"></strong></span><span id="candle-count"></span></div><div id="chart-wrap" class="chart-wrap"><canvas id="chart" tabindex="0" aria-label="Price and volume chart. Use left and right arrow keys to inspect completed candles." role="img"></canvas><div id="chart-empty" class="chart-empty"><div class="empty-icon">⌁</div><strong>No market data yet</strong><span>Run an analysis to see price and volume.</span></div></div><div class="chart-legend"><span><i class="legend-dot up"></i> Up candle</span><span><i class="legend-dot down"></i> Down candle</span><span><i class="legend-dot volume"></i> Volume</span><span><i class="legend-dot gap"></i> Time gap</span><span id="overlay-legend" hidden><i class="legend-dot overlay"></i> <span id="overlay-name"></span></span><span class="legend-right">COMPLETED CANDLES · UTC</span></div><p class="chart-hint">Hover or tap a candle to inspect it. Use arrow keys when the chart is focused.</p></section>
+          <section class="card indicators-card"><div class="card-heading"><div><div class="section-kicker">03 / MARKET CONTEXT</div><h2>Technical indicators</h2></div><span class="subtle">DESCRIPTIVE, NOT PREDICTIVE</span></div><div id="indicator-empty" class="empty-row">Indicator values will appear after analysis.</div><div id="indicators" class="indicator-grid" hidden></div></section>
+        </div>
+        <div class="right-stack">
+          <section class="card decision-card"><div class="card-heading"><div><div class="section-kicker">04 / MODEL OUTPUT</div><h2>Decision snapshot</h2></div><span id="decision-badge" class="pill muted">NOT ANALYZED</span></div><div id="decision-empty" class="decision-empty"><div class="decision-empty-mark">◇</div><strong>Awaiting a decision</strong><p>Run an analysis to see the model preference and risk-checked signal.</p></div><div id="decision-content" hidden><div class="decision-head"><div><div class="field-label">MODEL PREFERENCE</div><div id="model-action" class="action">—</div></div><div class="choice-stat"><div class="field-label">CHOICE PROBABILITY</div><strong id="top-prob">—</strong></div></div><p class="explain">Choice probabilities show model preferences, not the chance of a profitable trade.</p><div id="probabilities" class="probabilities"></div><div class="risk-result"><div class="risk-heading"><span>RISK-CHECKED SIGNAL</span><strong id="risk-action">HOLD</strong></div><div id="risk-reasons" class="risk-reasons"></div></div><div class="decision-meta"><div><span>MODEL</span><strong id="model-name"></strong></div><div><span>REQUEST TIME</span><strong id="model-latency"></strong></div></div></div></section>
+          <section class="card evidence-card"><div class="card-heading"><div><div class="section-kicker">05 / THE CONTEXT</div><h2>Indicator evidence</h2></div></div><p class="muted-copy">Deterministic observations, not the model’s internal reasoning.</p><div id="evidence-empty" class="empty-row">Evidence appears with your analysis.</div><ul id="evidence" class="evidence-list"></ul></section>
+          <section class="card news-card" id="news-panel" hidden><div class="card-heading"><div><div class="section-kicker">06 / HEADLINES</div><h2>Recent news</h2></div></div><ul id="news" class="news-list"></ul></section>
+        </div>
+      </section>
+      <section class="card history-card" id="history-panel"><div class="card-heading"><div><div class="section-kicker">07 / YOUR WORKSPACE</div><h2>Session history</h2></div><span class="subtle">THIS SESSION ONLY</span></div><div id="history-empty" class="empty-row">Your completed analyses will appear here.</div><div class="history-table-wrap"><table id="history" hidden><thead><tr><th>MARKET</th><th>MODEL</th><th>RISK-CHECKED</th><th>DATA TIME</th><th>LATENCY</th></tr></thead><tbody></tbody></table></div></section>
+      <footer class="footer"><span>FASTTRADE AI / RESEARCH WORKSPACE · <a href="/docs" target="_blank" rel="noopener">API REFERENCE ↗</a></span><span>Market data may be delayed. Signals are not validated trading advice.</span></footer>
+    </main>
+  </div>
+</body>
+</html>

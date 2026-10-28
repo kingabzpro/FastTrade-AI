@@ -1,0 +1,152 @@
+"""Local-only browser interface for the existing signal engine."""
+from pathlib import Path
+from typing import Any, Literal
+from urllib.parse import urlsplit
+
+from fastapi import FastAPI, Request
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+from starlette.concurrency import run_in_threadpool
+
+from .cli import parser, run as run_analysis
+from .market import INTERVALS
+
+ROOT = Path(__file__).resolve().parent
+PORT = 8765
+app = FastAPI(title='FastTrade AI API', version='0.1.0', description='Local signal-only market research API. It never places orders.')
+app.mount('/static', StaticFiles(directory=ROOT / 'static'), name='static')
+
+
+class AnalysisRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid', allow_inf_nan=False)
+    symbol: str = Field(min_length=1, max_length=20, pattern=r'^[A-Za-z0-9.\^=\-]+$', description='Yahoo Finance ticker symbol')
+    timeframe: Literal['1m', '2m', '5m', '15m', '30m', '60m', '90m'] = '5m'
+    sample: bool = Field(default=False, description='Use synthetic five-minute candles; the actionable signal is always HOLD')
+    position: float | None = Field(default=None, ge=0)
+    equity: float | None = Field(default=None, gt=0)
+    exposure: float | None = Field(default=None, ge=0)
+    daily_loss: float | None = Field(default=None, ge=0)
+    trade_count: int | None = Field(default=None, ge=0)
+    quantity: float | None = Field(default=None, gt=0)
+    max_position: float | None = Field(default=None, ge=0)
+    max_exposure: float | None = Field(default=None, ge=0)
+    max_daily_loss: float | None = Field(default=None, ge=0)
+    max_trades: int | None = Field(default=None, ge=0)
+    min_confidence: float | None = Field(default=None, ge=0, le=1)
+
+    @field_validator('timeframe')
+    @classmethod
+    def valid_timeframe(cls, value):
+        if value not in INTERVALS:
+            raise ValueError('Unsupported timeframe')
+        return value
+
+
+class DecisionResponse(BaseModel):
+    action: Literal['BUY', 'HOLD', 'SELL']
+    probabilities: dict[str, float]
+    confidence: float
+    model: str
+    latency_us: int
+
+
+class AnalysisResponse(BaseModel):
+    notice: str
+    market: dict[str, Any] = Field(description='Symbol, timeframe, candle timestamp, feature snapshot, ticker details, and headlines')
+    decision: DecisionResponse
+    indicator_interpretations: list[str]
+    risk_rejections: list[str]
+    actionable_signal: Literal['BUY', 'HOLD', 'SELL']
+    stale_preview: bool
+    candles: list[dict[str, Any]] = Field(description='Up to 200 completed OHLCV candles with EMA and VWAP values')
+    portfolio: dict[str, float | int | None]
+    source: str
+    timings_ms: dict[str, float]
+
+
+@app.middleware('http')
+async def local_only(request: Request, call_next):
+    if request.url.hostname not in ('127.0.0.1', 'localhost', '::1'):
+        return JSONResponse({'error': 'Local access only'}, status_code=403)
+    origin = request.headers.get('origin')
+    if origin:
+        parsed = urlsplit(origin)
+        if parsed.scheme != request.url.scheme or parsed.netloc != request.headers.get('host'):
+            return JSONResponse({'error': 'Origin not allowed'}, status_code=403)
+    response = await call_next(request)
+    response.headers['Cache-Control'] = 'no-store'
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    return response
+
+
+@app.get('/')
+def index():
+    return FileResponse(ROOT / 'static' / 'index.html')
+
+
+@app.get('/api/health', tags=['System'])
+def health():
+    """Report local server availability, without checking market or model connectivity."""
+    return {'status': 'ok', 'mode': 'signal-only'}
+
+
+@app.post('/api/analyze', tags=['Analysis'], responses={200: {'model': AnalysisResponse, 'description': 'Model preference and risk-checked signal'}, 503: {'description': 'Market or model unavailable; no actionable signal'}})
+async def analyze(body: AnalysisRequest):
+    """Analyze completed candles; missing risk inputs, stale data, and sample data hold the actionable signal."""
+    args = parser().parse_args(['tui', body.symbol.upper(), '--timeframe', body.timeframe])
+    for key, value in body.model_dump(exclude={'symbol', 'timeframe', 'sample'}).items():
+        setattr(args, key, value)
+    args.include_chart = True
+    args.allow_stale_preview = True
+    if body.sample:
+        if body.timeframe != '5m':
+            return JSONResponse({'error': 'The sample contains 5-minute candles only.', 'actionable_signal': 'HOLD'}, status_code=422)
+        args.csv = str(ROOT.parent / 'data' / 'candles.csv')
+        args.as_of = '2026-01-02T21:00:00Z'
+    errors = {
+        'Market data provider failed': 'Market data is unavailable. Check the symbol, timeframe, and connection.',
+        'Market data provider returned no candles': 'No candles returned. Check the symbol and timeframe.',
+        'At least 50 completed candles required': 'Not enough candles. Try another timeframe.',
+        'No completed candles': 'No completed candles are available.',
+        'SystemOne request failed': 'Model request failed. Check your key, endpoint, and connection.',
+        'SystemOne request failed: timeout': 'Model request timed out. Check the endpoint and retry.',
+        'Invalid SystemOne response': 'The model returned an invalid response.',
+        'TYPESAFE_API_KEY is missing': 'Add TYPESAFE_API_KEY to .env before analyzing.',
+    }
+    try:
+        result = await run_in_threadpool(run_analysis, args)
+        if body.sample:
+            result['source'] = 'Synthetic sample CSV'
+            result['risk_rejections'].append('Synthetic sample data: research preview only')
+            result['actionable_signal'] = 'HOLD'
+        return result
+    except ValueError as exc:
+        return JSONResponse({'error': errors.get(str(exc), 'Analysis failed. Check data and settings.'), 'actionable_signal': 'HOLD'}, status_code=503)
+    except Exception:
+        return JSONResponse({'error': 'Analysis failed. Check data and settings.', 'actionable_signal': 'HOLD'}, status_code=503)
+
+
+def serve():
+    import socket
+    import threading
+    import webbrowser
+    import uvicorn
+
+    url = f'http://127.0.0.1:{PORT}/'
+    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    try:
+        sock.bind(('127.0.0.1', PORT))
+        sock.listen(128)
+    except OSError:
+        sock.close()
+        raise SystemExit(f'Port {PORT} is already in use. Close the existing server and try again.')
+    print(f'FastTrade is available at {url} (Ctrl+C to stop).', flush=True)
+    opener = threading.Timer(1.0, lambda: webbrowser.open(url))
+    opener.daemon = True
+    opener.start()
+    try:
+        uvicorn.Server(uvicorn.Config(app, host='127.0.0.1', port=PORT, log_level='warning')).run(sockets=[sock])
+    finally:
+        opener.cancel()
+        sock.close()

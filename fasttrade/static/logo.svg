@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title">
+  <title id="title">FastTrade AI — FT with fire</title>
+  <defs>
+    <linearGradient id="tile" x1="7" y1="5" x2="57" y2="59" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#344778"/>
+      <stop offset="1" stop-color="#19233f"/>
+    </linearGradient>
+    <linearGradient id="fire" x1="47" y1="5" x2="47" y2="32" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#ffce45"/>
+      <stop offset=".5" stop-color="#ff8b2b"/>
+      <stop offset="1" stop-color="#ec4541"/>
+    </linearGradient>
+  </defs>
+  <rect x="2" y="2" width="60" height="60" rx="18" fill="url(#tile)"/>
+  <rect x="2.5" y="2.5" width="59" height="59" rx="17.5" fill="none" stroke="#7586b5" stroke-opacity=".35"/>
+  <path d="M12 50V25h19v6H19v4h10v6H19v9zm21-25h21v6h-7v19h-7V31h-7z" fill="#f5f7ff"/>
+  <path d="M47 29c-6 0-10-4-10-9 0-4 2-7 5-10-1 3 0 5 2 6 3-3 4-7 3-11 6 4 11 10 11 15 0 6-5 9-11 9z" fill="url(#fire)"/>
+  <path d="M47 27c-3 0-5-2-5-4 0-3 2-5 4-7 0 3 1 4 2 5 1-1 2-2 2-4 2 2 3 4 3 5 0 3-2 5-6 5z" fill="#ffe994"/>
+</svg>

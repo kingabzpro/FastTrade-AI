@@ -1,0 +1,43 @@
+import pandas as pd
+import pytest
+from fasttrade.market import validate_candles, headlines
+from fasttrade.indicators import features
+from fasttrade.decisions import normalize
+from fasttrade.risk import evaluate
+
+
+def candles():
+    ts = pd.date_range('2026-01-02 14:30', periods=60, freq='5min', tz='UTC')
+    return pd.DataFrame({'timestamp': ts, 'open': range(100, 160), 'high': range(101, 161), 'low': range(99, 159), 'close': range(100, 160), 'volume': [100] * 60})
+
+
+def test_features_and_validation():
+    frame = validate_candles(candles(), '5m', pd.Timestamp('2026-01-02 19:30', tz='UTC'), 300)
+    result = features(frame, 'America/New_York')
+    assert result['ema_9'] > result['ema_21'] > result['ema_50']
+    assert result['rsi_14'] == 100
+    assert result['atr_14'] == 2
+    assert result['volume_ratio'] == 1
+
+
+def test_stale_and_incomplete_rejected():
+    with pytest.raises(ValueError, match='stale'):
+        validate_candles(candles(), '5m', pd.Timestamp('2026-01-03', tz='UTC'), 300)
+    with pytest.raises(ValueError, match='completed'):
+        validate_candles(candles().iloc[:1], '5m', pd.Timestamp('2026-01-02 14:31', tz='UTC'), 300)
+
+
+def test_headlines_exclude_future_and_undated():
+    items = [{'title':'old','providerPublishTime':100,'publisher':'a'}, {'title':'future','providerPublishTime':300,'publisher':'b'}, {'title':'undated'}]
+    assert [x['title'] for x in headlines(items, pd.Timestamp(200, unit='s', tz='UTC'))] == ['old']
+
+
+def test_invalid_probabilities_rejected():
+    with pytest.raises(ValueError):
+        normalize({'model':'jev','answers':{'action':{'type':'choice','choice':'BUY','confidence':.5,'probabilities':{'BUY':.9,'HOLD':.9,'SELL':0}}}}, 1)
+
+
+def test_risk_rejects_oversize_and_short():
+    args = dict(position=0, equity=1000, exposure=0, daily_loss=0, trade_count=0, quantity=10, max_position=500, max_exposure=800, max_daily_loss=100, max_trades=5, min_confidence=.5)
+    assert evaluate('BUY', .8, 100, **args)
+    assert evaluate('SELL', .8, 100, **args)

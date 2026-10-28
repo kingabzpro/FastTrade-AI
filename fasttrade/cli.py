@@ -15,16 +15,20 @@ from .risk import evaluate
 
 
 def parser():
-    p = argparse.ArgumentParser(prog='fasttrade', description='Research-only signals; no orders are placed.')
+    p = argparse.ArgumentParser(prog='ft', description='Research-only signals; no orders are placed.')
     sub = p.add_subparsers(dest='command', required=True)
-    for command in ('analyze', 'tui'):
-        a = sub.add_parser(command, help='Analyze completed candles' if command == 'analyze' else 'Open the interactive dashboard')
-        add_analysis_arguments(a, optional_symbol=command == 'tui')
+    a = sub.add_parser('analyze', help='Analyze completed candles')
+    add_analysis_arguments(a)
+    b = sub.add_parser('benchmark', help='Run a weekly historical model benchmark')
+    b.add_argument('--start', required=True, help='First decision date (YYYY-MM-DD)')
+    b.add_argument('--end', required=True, help='Last valuation date (YYYY-MM-DD, inclusive)')
+    b.add_argument('--symbols', default='AAPL,MSFT,NVDA', help='Comma-separated symbols (default: AAPL,MSFT,NVDA)')
+    b.add_argument('--model', default=None, help='SystemOne model; defaults to SYSTEMONE_MODEL')
     return p
 
 
-def add_analysis_arguments(a, optional_symbol=False):
-    a.add_argument('symbol', nargs='?' if optional_symbol else None, default='NVDA' if optional_symbol else None)
+def add_analysis_arguments(a):
+    a.add_argument('symbol')
     a.add_argument('--timeframe', choices=INTERVALS, default='5m')
     a.add_argument('--csv', help='CSV with timezone-aware candle start timestamps')
     a.add_argument('--as-of', help='Timezone-aware evaluation time; defaults to now')
@@ -82,12 +86,13 @@ def run(args):
     decision = predict(state, url, getattr(args, 'systemone_model', None) or os.getenv('SYSTEMONE_MODEL', 'jev-latest'), key)
     risk_args = {name: getattr(args, name) for name in ('position', 'equity', 'exposure', 'daily_loss', 'trade_count', 'quantity', 'max_position', 'max_exposure', 'max_daily_loss', 'max_trades', 'min_confidence')}
     risk_start = time.perf_counter_ns()
-    reasons = evaluate(decision['action'], decision['confidence'], snapshot['price'], **risk_args)
+    risk_complete = all(value is not None for value in risk_args.values())
+    reasons = evaluate(decision['action'], decision['confidence'], snapshot['price'], **risk_args) if any(value is not None for value in risk_args.values()) else []
     if stale_preview:
         reasons.append('Stale market data: research preview only')
     interpretations = [f"Price {'above' if snapshot['price'] > snapshot['vwap'] else 'at or below'} session VWAP", f"MACD {'above' if snapshot['macd'] > snapshot['macd_signal'] else 'at or below'} its signal", f"Volume {'above' if snapshot['volume_ratio'] > 1 else 'at or below'} 20-bar average"]
     risk_ms = (time.perf_counter_ns() - risk_start) / 1e6
-    result = {'notice': 'Research only; model preferences are not probabilities of profitable trades.', 'market': state, 'decision': decision, 'indicator_interpretations': interpretations, 'risk_rejections': reasons, 'actionable_signal': decision['action'] if not reasons and decision['action'] != 'HOLD' else 'HOLD', 'stale_preview': stale_preview}
+    result = {'notice': 'Research only; model preferences are not probabilities of profitable trades.', 'market': state, 'decision': decision, 'indicator_interpretations': interpretations, 'risk_rejections': reasons, 'actionable_signal': (decision['action'] if not reasons else 'HOLD') if risk_complete else None, 'stale_preview': stale_preview}
     if getattr(args, 'include_chart', False):
         chart = frame.copy()
         for n in (9, 21, 50):
@@ -105,6 +110,8 @@ def run(args):
 
 
 def dashboard():
+    if len(sys.argv) > 1:
+        return main()
     from .web import serve
     serve()
     return 0
@@ -112,14 +119,15 @@ def dashboard():
 
 def main():
     args = parser().parse_args()
-    if args.command == 'tui':
-        from .tui import FastTradeApp
-        FastTradeApp(args).run()
-        return 0
     try:
-        print(json.dumps(run(args), indent=2, allow_nan=False))
+        if args.command == 'benchmark':
+            from .benchmark import run as run_benchmark
+            result = run_benchmark(args)
+        else:
+            result = run(args)
+        print(json.dumps(result, indent=2, allow_nan=False))
     except (ValueError, OSError, KeyError) as exc:
-        print(json.dumps({'actionable_signal': 'HOLD', 'error': str(exc)}), file=sys.stderr)
+        print(json.dumps({'actionable_signal': None, 'error': str(exc)}), file=sys.stderr)
         return 1
     return 0
 

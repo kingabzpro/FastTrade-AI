@@ -20,6 +20,12 @@ def test_features_and_validation():
     assert result['volume_ratio'] == 1
 
 
+def test_original_model_features_do_not_include_added_context():
+    result = features(candles(), 'America/New_York')
+    assert 'volatility_30_bars' not in result
+    assert 'distance_from_high_50_bars' not in result
+
+
 def test_stale_and_incomplete_rejected():
     with pytest.raises(ValueError, match='stale'):
         validate_candles(candles(), '5m', pd.Timestamp('2026-01-03', tz='UTC'), 300)

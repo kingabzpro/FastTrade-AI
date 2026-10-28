@@ -22,7 +22,7 @@ class AnalysisRequest(BaseModel):
     model_config = ConfigDict(extra='forbid', allow_inf_nan=False)
     symbol: str = Field(min_length=1, max_length=20, pattern=r'^[A-Za-z0-9.\^=\-]+$', description='Yahoo Finance ticker symbol')
     timeframe: Literal['1m', '2m', '5m', '15m', '30m', '60m', '90m'] = '5m'
-    sample: bool = Field(default=False, description='Use synthetic five-minute candles; the actionable signal is always HOLD')
+    sample: bool = Field(default=False, description='Use synthetic five-minute candles; portfolio actions are blocked')
     position: float | None = Field(default=None, ge=0)
     equity: float | None = Field(default=None, gt=0)
     exposure: float | None = Field(default=None, ge=0)
@@ -57,7 +57,7 @@ class AnalysisResponse(BaseModel):
     decision: DecisionResponse
     indicator_interpretations: list[str]
     risk_rejections: list[str]
-    actionable_signal: Literal['BUY', 'HOLD', 'SELL']
+    actionable_signal: Literal['BUY', 'HOLD', 'SELL'] | None = Field(description='Risk-checked signal, or null when portfolio and risk inputs are incomplete')
     stale_preview: bool
     candles: list[dict[str, Any]] = Field(description='Up to 200 completed OHLCV candles with EMA and VWAP values')
     portfolio: dict[str, float | int | None]
@@ -93,15 +93,15 @@ def health():
 
 @app.post('/api/analyze', tags=['Analysis'], responses={200: {'model': AnalysisResponse, 'description': 'Model preference and risk-checked signal'}, 503: {'description': 'Market or model unavailable; no actionable signal'}})
 async def analyze(body: AnalysisRequest):
-    """Analyze completed candles; missing risk inputs, stale data, and sample data hold the actionable signal."""
-    args = parser().parse_args(['tui', body.symbol.upper(), '--timeframe', body.timeframe])
+    """Analyze completed candles; incomplete risk inputs produce signal-only results."""
+    args = parser().parse_args(['analyze', body.symbol.upper(), '--timeframe', body.timeframe])
     for key, value in body.model_dump(exclude={'symbol', 'timeframe', 'sample'}).items():
         setattr(args, key, value)
     args.include_chart = True
     args.allow_stale_preview = True
     if body.sample:
         if body.timeframe != '5m':
-            return JSONResponse({'error': 'The sample contains 5-minute candles only.', 'actionable_signal': 'HOLD'}, status_code=422)
+            return JSONResponse({'error': 'The sample contains 5-minute candles only.', 'actionable_signal': None}, status_code=422)
         args.csv = str(ROOT.parent / 'data' / 'candles.csv')
         args.as_of = '2026-01-02T21:00:00Z'
     errors = {
@@ -119,18 +119,26 @@ async def analyze(body: AnalysisRequest):
         if body.sample:
             result['source'] = 'Synthetic sample CSV'
             result['risk_rejections'].append('Synthetic sample data: research preview only')
-            result['actionable_signal'] = 'HOLD'
+            if result['actionable_signal'] is not None:
+                result['actionable_signal'] = 'HOLD'
         return result
     except ValueError as exc:
-        return JSONResponse({'error': errors.get(str(exc), 'Analysis failed. Check data and settings.'), 'actionable_signal': 'HOLD'}, status_code=503)
+        return JSONResponse({'error': errors.get(str(exc), 'Analysis failed. Check data and settings.'), 'actionable_signal': None}, status_code=503)
     except Exception:
-        return JSONResponse({'error': 'Analysis failed. Check data and settings.', 'actionable_signal': 'HOLD'}, status_code=503)
+        return JSONResponse({'error': 'Analysis failed. Check data and settings.', 'actionable_signal': None}, status_code=503)
 
 
 def serve():
+    import os
     import socket
     import threading
     import webbrowser
+    from dotenv import load_dotenv
+    from rich import box
+    from rich.console import Console, Group
+    from rich.panel import Panel
+    from rich.table import Table
+    from rich.text import Text
     import uvicorn
 
     url = f'http://127.0.0.1:{PORT}/'
@@ -141,7 +149,29 @@ def serve():
     except OSError:
         sock.close()
         raise SystemExit(f'Port {PORT} is already in use. Close the existing server and try again.')
-    print(f'FastTrade is available at {url} (Ctrl+C to stop).', flush=True)
+    load_dotenv()
+    console = Console()
+    info = Table.grid(padding=(0, 2))
+    info.add_column(style='#aab7db', no_wrap=True)
+    info.add_column()
+    for label, value, style in (
+        ('Dashboard', url, 'bold #dce5ff'),
+        ('API docs', url + 'docs', '#dce5ff'),
+        ('Model', os.getenv('SYSTEMONE_MODEL', 'jev-latest'), '#b7c4ff'),
+        ('Market data', 'Yahoo Finance · synthetic sample available', '#b7c4ff'),
+    ):
+        info.add_row(label, Text(value, style=style))
+    console.print()
+    console.print(Panel(Group(
+        Text.from_markup('[bold #b7c4ff]FT[/bold #b7c4ff]  [bold white]FASTTRADE AI[/bold white]'),
+        Text('Research workspace  ·  Signal only', style='#aab7db'),
+        Text(''),
+        Text('YOUR WORKSPACE', style='bold #8799dc'),
+        info,
+        Text(''),
+        Text.from_markup('[bold #b7c4ff]Ctrl+C[/bold #b7c4ff]  [#aab7db]to stop  ·  Providers checked on analysis[/#aab7db]'),
+    ), box=box.ROUNDED, border_style='#7889d2', width=78, padding=(1, 2)))
+    console.print()
     opener = threading.Timer(1.0, lambda: webbrowser.open(url))
     opener.daemon = True
     opener.start()

@@ -1,0 +1,14 @@
+# Weekly benchmark: January–June 2026
+
+Run on 28 October 2026 using `jev-1.14.0`: 25 retrospectively selected stocks, reviewed at the end of each trading week from 2 January to 26 June (650 decisions). [Download the decision and trade ledger](benchmark-2026-h1.csv).
+
+| Metric | Method |
+| --- | --- |
+| Portfolio | Start with $10,000 split into 25 independent $400 stock allocations. A BUY invests the allocation's available cash at the next trading day's open; SELL liquidates that allocation's shares at the next open; HOLD keeps its existing cash or position. Each allocation stays assigned to its stock. Fractional shares are allowed, cash earns zero, and remaining positions are valued at the 30 June close. The investment period is 5 January–30 June 2026. |
+| SPY | Invest $10,000 at the 5 January open and value it at the 30 June close. Yahoo's adjusted prices were $681.219228 and $744.920227: $10,935.10. This baseline uses the same investment dates as the portfolio. |
+| Prices | The model received historical unadjusted Yahoo 60-minute candles through the last trading day of each week. Execution and valuation use Yahoo daily adjusted prices, an approximation that accounts for corporate actions and assumes reinvested distributions. Actual fills can differ. |
+| Directional accuracy | A BUY is correct if the stock's adjusted price rises from the next open to the next weekly execution open, and SELL is correct if it falls; the final week uses the 30 June close. Zero returns are incorrect and HOLDs are excluded. SELL means reducing an existing long position in the app, so this is a directional proxy rather than a trade-success rate. |
+| Speed | Model request latency was measured during concurrent local CSV analysis (up to six workers), including network time and excluding market-data download. |
+| Cost | 533,415 input tokens across 650 successful decisions and two invalid responses retried successfully, estimated at [TypeSafe's published rate](https://typesafe.ai/) of $0.042 per million input tokens. Actual billing can differ. |
+
+The hypothetical results exclude commissions, spreads, slippage, taxes and financing. Decisions are model preferences, not the app's risk-checked actionable signals: the simulation applies its own allocation rule and does not feed positions into the model. Without portfolio and risk inputs, the app displays the model preference as signal only. News and company details were omitted. The model was evaluated after the test period, so prior knowledge or model changes may affect results. The limited retrospective sample does not establish live accuracy or profitability, and historical prices may be revised.

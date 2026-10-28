@@ -35,8 +35,10 @@ function formatTime(value) {
   if (Number.isNaN(date.getTime())) return value;
   return new Intl.DateTimeFormat('en-GB', {timeZone: 'UTC', day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false}).format(date) + ' UTC';
 }
+const noticeIcons = {loading: 'i-spark', warning: 'i-alert', error: 'i-error'};
 function showNotice(message, state = '') {
   const notice = $('notice'); notice.className = `notice ${state}`.trim();
+  notice.querySelector('.notice-icon use').setAttribute('href', '#' + (noticeIcons[state] || 'i-spark'));
   notice.querySelector('span:last-child').textContent = message;
 }
 function clearResults() {
@@ -88,10 +90,12 @@ function render(result, record = true) {
     const value = document.createElement('span'); value.className = 'prob-value'; value.textContent = `${Math.round(probs[name] * 100)}%`;
     row.append(label, track, value); list.append(row);
   }
-  const blocked = result.risk_rejections.length > 0 && action !== 'HOLD';
+  const signalOnly = result.actionable_signal == null;
+  const blocked = !signalOnly && result.risk_rejections.length > 0 && action !== 'HOLD';
   document.querySelector('.risk-result').classList.toggle('blocked', blocked || stale);
-  setText('risk-action', blocked ? 'BLOCKED · HOLD' : result.actionable_signal);
-  setText('risk-reasons', result.risk_rejections.length ? result.risk_rejections.join(' · ') : 'No risk rejections. Signal only; no orders are placed.');
+  setText('risk-label', signalOnly ? 'PORTFOLIO' : 'RISK-CHECKED SIGNAL');
+  setText('risk-action', signalOnly ? 'SIGNAL ONLY' : blocked ? 'BLOCKED · HOLD' : result.actionable_signal);
+  setText('risk-reasons', result.risk_rejections.length ? result.risk_rejections.join(' · ') : signalOnly ? 'Add portfolio and risk settings for a risk-checked signal.' : 'No risk rejections. Signal only; no orders are placed.');
   setText('model-name', decision.model); setText('model-latency', `${number(decision.latency_us / 1000, 0)} ms`);
   const indicators = [
     ['RSI (14)', number(feature.rsi_14, 1), 'Momentum'], ['MACD', number(feature.macd, 3), 'Trend & momentum'],
@@ -119,7 +123,7 @@ function render(result, record = true) {
     const meta = document.createElement('small'); meta.textContent = `${headline.source} · ${formatTime(headline.published)}`;
     item.append(meta); $('news').append(item);
   }
-  if (stale) showNotice('The latest candle is stale. This is a historical research preview; actionable signals are held.', 'warning');
+  if (stale) showNotice('The latest candle is stale. This is a historical research preview; portfolio actions are blocked.', 'warning');
   else if (sample) showNotice('Synthetic sample candles are displayed. The model response is real; this is not live market data.', 'warning');
   else showNotice(`Analysis complete. Candle started ${time}. Model preferences are not trading outcomes.`);
   drawChart();
@@ -138,7 +142,7 @@ function renderHistory() {
     button.type = 'button'; button.className = 'history-link'; button.textContent = `${result.market.symbol} · ${result.market.timeframe}`;
     button.addEventListener('click', () => { render(result, false); $('chart-panel').scrollIntoView({behavior: 'smooth'}); });
     first.append(button); row.append(first);
-    const cells = [['Model', result.decision.action], ['Risk-checked', result.risk_rejections.length && result.decision.action !== 'HOLD' ? 'BLOCKED · HOLD' : result.actionable_signal], ['Data time', formatTime(result.market.candle_timestamp)], ['Latency', `${number(result.decision.latency_us / 1000, 0)} ms`]];
+    const cells = [['Model', result.decision.action], ['Risk-checked', result.actionable_signal == null ? 'SIGNAL ONLY' : result.risk_rejections.length && result.decision.action !== 'HOLD' ? 'BLOCKED · HOLD' : result.actionable_signal], ['Data time', formatTime(result.market.candle_timestamp)], ['Latency', `${number(result.decision.latency_us / 1000, 0)} ms`]];
     for (const [label, value] of cells) {
       const cell = document.createElement('td'); cell.dataset.label = label; cell.textContent = value; row.append(cell);
     }

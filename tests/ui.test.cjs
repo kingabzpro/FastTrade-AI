@@ -145,3 +145,18 @@ test('loading, chart inspection, history replay and failures restore usable cont
   assert.equal(await page.locator('#analysis-form').getAttribute('aria-busy'), 'false');
   assert.equal(await page.locator('.history-link').isEnabled(), true);
 });
+
+test('incomplete portfolio shows signal only in the decision and history', async () => {
+  const data = result();
+  data.source = 'Yahoo Finance';
+  data.actionable_signal = null;
+  data.risk_rejections = [];
+  await page.route('**/api/analyze', route => route.fulfill({ json: data }));
+  await page.locator('#analyze').click();
+  await page.waitForFunction(() => !document.getElementById('decision-content').hidden);
+  assert.equal(await page.locator('#model-action').innerText(), 'BUY');
+  assert.equal(await page.locator('#risk-action').innerText(), 'SIGNAL ONLY');
+  assert.match(await page.locator('#history tbody').innerText(), /SIGNAL ONLY/);
+  await page.locator('.history-link').click();
+  assert.equal(await page.locator('#risk-action').innerText(), 'SIGNAL ONLY');
+});

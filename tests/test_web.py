@@ -6,6 +6,46 @@ def test_web_launcher_uses_new_port():
     assert PORT == 8765
 
 
+def test_startup_banner_shows_local_settings_without_secrets(monkeypatch, capsys):
+    import socket
+    import threading
+    import uvicorn
+    from unittest.mock import MagicMock
+    from fasttrade import web
+
+    monkeypatch.setenv('SYSTEMONE_MODEL', 'test-model')
+    monkeypatch.setenv('TYPESAFE_API_KEY', 'private-test-key')
+    monkeypatch.setenv('NO_COLOR', '1')
+    monkeypatch.setattr(socket, 'socket', MagicMock())
+    monkeypatch.setattr(threading, 'Timer', MagicMock())
+    monkeypatch.setattr(uvicorn, 'Server', MagicMock())
+    web.serve()
+    output = capsys.readouterr().out
+    assert 'http://127.0.0.1:8765/' in output
+    assert 'http://127.0.0.1:8765/docs' in output
+    assert '/openapi.json' not in output and '/api/health' not in output
+    assert 'test-model' in output and 'Yahoo Finance' in output
+    assert 'API key' not in output and 'private-test-key' not in output and '\x1b[' not in output
+
+
+def test_startup_banner_uses_colors_on_a_terminal(monkeypatch, capsys):
+    import socket
+    import threading
+    import uvicorn
+    import rich.console
+    from unittest.mock import MagicMock
+    from fasttrade import web
+
+    console = rich.console.Console
+    monkeypatch.delenv('NO_COLOR', raising=False)
+    monkeypatch.setattr(rich.console, 'Console', lambda: console(force_terminal=True, color_system='standard'))
+    monkeypatch.setattr(socket, 'socket', MagicMock())
+    monkeypatch.setattr(threading, 'Timer', MagicMock())
+    monkeypatch.setattr(uvicorn, 'Server', MagicMock())
+    web.serve()
+    assert '\x1b[' in capsys.readouterr().out
+
+
 def test_local_api_exposes_health_and_schema_without_running_analysis(monkeypatch):
     from fasttrade import web
     monkeypatch.setattr(web, 'run_analysis', lambda args: (_ for _ in ()).throw(AssertionError('unexpected analysis')))
@@ -80,6 +120,7 @@ def test_analysis_uses_existing_engine_and_risk_inputs(monkeypatch):
     assert response.status_code == 200
     assert response.json()['actionable_signal'] == 'HOLD'
     assert seen[0].symbol == 'AAPL' and seen[0].position == 2
+    assert seen[0].command == 'analyze'
     assert seen[0].include_chart and seen[0].allow_stale_preview
 
 
@@ -101,7 +142,7 @@ def test_provider_error_has_safe_message(monkeypatch):
     client = TestClient(web.app, base_url='http://127.0.0.1:8765')
     response = client.post('/api/analyze', json={'symbol': 'NVDA'})
     assert response.status_code == 503
-    assert response.json()['actionable_signal'] == 'HOLD'
+    assert response.json()['actionable_signal'] is None
     assert 'timed out' in response.json()['error'].lower()
 
 
@@ -126,3 +167,13 @@ def test_sample_end_to_end_with_mocked_model(monkeypatch):
     assert result['decision']['action'] == 'BUY' and result['actionable_signal'] == 'HOLD'
     assert len(result['candles']) == 78
     assert result['source'] == 'Synthetic sample CSV'
+
+
+def test_sample_without_portfolio_is_signal_only(monkeypatch):
+    from fasttrade import cli, decisions, web
+    monkeypatch.setattr(cli, 'predict', lambda *args: decisions.normalize({'model': 'test', 'answers': {'action': {'type': 'choice', 'choice': 'BUY', 'confidence': .9, 'probabilities': {'BUY': .8, 'HOLD': .1, 'SELL': .1}}}}, 1000))
+    client = TestClient(web.app, base_url='http://127.0.0.1:8765')
+    result = client.post('/api/analyze', json={'symbol': 'NVDA', 'sample': True}).json()
+    assert result['decision']['action'] == 'BUY'
+    assert result['actionable_signal'] is None
+    assert any('sample' in reason.lower() for reason in result['risk_rejections'])

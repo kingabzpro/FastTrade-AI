@@ -9,6 +9,23 @@ def answer():
     return {'model': 'jev', 'answers': {'action': {'type': 'choice', 'choice': 'BUY', 'confidence': .8, 'probabilities': {'BUY': .7, 'HOLD': .2, 'SELL': .1}}}}
 
 
+def test_terminal_dashboard_command_is_not_available():
+    with pytest.raises(SystemExit):
+        cli.parser().parse_args(['tui'])
+
+
+def test_ft_launches_dashboard_without_args_and_cli_with_args(monkeypatch):
+    from fasttrade import web
+    calls = []
+    monkeypatch.setattr(web, 'serve', lambda: calls.append('dashboard'))
+    monkeypatch.setattr(cli, 'main', lambda: calls.append('cli') or 0)
+    monkeypatch.setattr(cli.sys, 'argv', ['ft'])
+    assert cli.dashboard() == 0
+    monkeypatch.setattr(cli.sys, 'argv', ['ft', 'benchmark', '--help'])
+    assert cli.dashboard() == 0
+    assert calls == ['dashboard', 'cli']
+
+
 def test_decision_request_and_timeout(monkeypatch):
     def post(url, **kwargs):
         assert kwargs['json']['questions']['action']['type'] == 'choice'
@@ -22,15 +39,39 @@ def test_decision_request_and_timeout(monkeypatch):
         decisions.predict({}, 'https://example.com', 'jev', 'key')
 
 
-def test_csv_cli_missing_risk_is_hold(monkeypatch, tmp_path):
+def test_csv_cli_missing_risk_is_signal_only(monkeypatch, tmp_path):
     path = tmp_path / 'candles.csv'
     candles().to_csv(path, index=False)
     monkeypatch.setattr(cli, 'predict', lambda *args: decisions.normalize(answer(), 1))
     args = cli.parser().parse_args(['analyze', 'TEST', '--csv', str(path), '--as-of', '2026-01-02T19:30:00Z'])
     result = cli.run(args)
     assert result['decision']['action'] == 'BUY'
-    assert result['actionable_signal'] == 'HOLD'
+    assert result['actionable_signal'] is None
+    assert result['risk_rejections'] == []
+
+
+def test_partial_portfolio_has_no_actionable_signal(monkeypatch, tmp_path):
+    path = tmp_path / 'candles.csv'
+    candles().to_csv(path, index=False)
+    monkeypatch.setattr(cli, 'predict', lambda *args: decisions.normalize(answer(), 1))
+    args = cli.parser().parse_args(['analyze', 'TEST', '--csv', str(path), '--as-of', '2026-01-02T19:30:00Z', '--position', '1'])
+    result = cli.run(args)
+    assert result['actionable_signal'] is None
     assert result['risk_rejections']
+
+
+def test_analysis_supplies_chart_and_timings_without_lookahead(monkeypatch, tmp_path):
+    path = tmp_path / 'bars.csv'
+    candles().to_csv(path, index=False)
+    monkeypatch.setattr(cli, 'predict', lambda *args: decisions.normalize(answer(), 2000))
+    args = cli.parser().parse_args(['analyze', 'TEST', '--csv', str(path), '--as-of', '2026-01-02T19:25:00Z'])
+    args.include_chart = True
+    result = cli.run(args)
+    assert len(result['candles']) == 59
+    assert result['candles'][-1]['timestamp'] == '2026-01-02T19:20:00+00:00'
+    assert result['candles'][-1]['ema_9'] > 0
+    assert result['timings_ms']['total'] >= result['timings_ms']['indicators'] >= 0
+    assert result['timings_ms']['model'] == 2
 
 
 def test_invalid_candles_and_vwap_session():
@@ -62,6 +103,21 @@ def test_yahoo_news_failure_does_not_block(monkeypatch):
     assert len(frame) == 60 and details['shortName'] == 'Example' and news == []
 
 
+def test_yfinance_quote_parser_has_no_inplace_deprecation():
+    import warnings
+    from yfinance.utils import parse_quotes
+
+    data = {'timestamp': [2, 1], 'indicators': {'quote': [{
+        'open': [1.0, 1.0], 'high': [2.0, 2.0], 'low': [0.5, 0.5],
+        'close': [1.5, 1.5], 'volume': [10, 20],
+    }]}}
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter('always')
+        quotes = parse_quotes(data)
+    assert quotes.index.is_monotonic_increasing
+    assert not any('inplace keyword' in str(w.message) for w in caught)
+
+
 def test_yahoo_market_failure(monkeypatch):
     import yfinance
     class Ticker:
@@ -90,7 +146,7 @@ def test_stale_preview_cannot_be_actionable(monkeypatch):
     monkeypatch.setattr(cli, 'yahoo', lambda *args: (candles(), {'shortName': 'Current'}, [{'title': 'new', 'source': 'X', 'published': '2026-01-03T00:00:00+00:00'}]))
     states = []
     monkeypatch.setattr(cli, 'predict', lambda state, *args: states.append(state) or decisions.normalize(answer(), 1))
-    args = cli.parser().parse_args(['tui', 'TEST', '--as-of', '2026-01-03T00:00:00Z', '--position', '0', '--equity', '10000', '--exposure', '0', '--daily-loss', '0', '--trade-count', '0', '--quantity', '1', '--max-position', '1000', '--max-exposure', '5000', '--max-daily-loss', '200', '--max-trades', '5', '--min-confidence', '0'])
+    args = cli.parser().parse_args(['analyze', 'TEST', '--as-of', '2026-01-03T00:00:00Z', '--position', '0', '--equity', '10000', '--exposure', '0', '--daily-loss', '0', '--trade-count', '0', '--quantity', '1', '--max-position', '1000', '--max-exposure', '5000', '--max-daily-loss', '200', '--max-trades', '5', '--min-confidence', '0'])
     args.allow_stale_preview = True
     result = cli.run(args)
     assert result['actionable_signal'] == 'HOLD'

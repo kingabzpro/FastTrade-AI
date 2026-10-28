@@ -17,7 +17,12 @@ def normalize(data, latency_us):
         model = data['model']
         if not isinstance(model, str) or not model:
             raise ValueError('Invalid model')
-        return {'action': choice, 'probabilities': probs, 'confidence': confidence, 'model': model, 'latency_us': latency_us}
+        usage = data.get('usage')
+        if not isinstance(usage, dict) or type(usage.get('input_tokens')) is not int or usage['input_tokens'] < 0 or (usage.get('output_tokens') is not None and (type(usage['output_tokens']) is not int or usage['output_tokens'] < 0)):
+            usage = None
+        else:
+            usage = {'input_tokens': usage['input_tokens'], 'output_tokens': usage.get('output_tokens')}
+        return {'action': choice, 'probabilities': probs, 'confidence': confidence, 'model': model, 'latency_us': latency_us, 'usage': usage}
     except (KeyError, TypeError, ValueError, OverflowError) as exc:
         raise ValueError('Invalid SystemOne response') from exc
 

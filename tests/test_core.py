@@ -43,6 +43,13 @@ def test_invalid_probabilities_rejected():
         normalize({'model':'jev','answers':{'action':{'type':'choice','choice':'BUY','confidence':.5,'probabilities':{'BUY':.9,'HOLD':.9,'SELL':0}}}}, 1)
 
 
+def test_model_usage_is_recorded_only_when_valid():
+    data = {'model': 'jev', 'answers': {'action': {'type': 'choice', 'choice': 'BUY', 'confidence': .8, 'probabilities': {'BUY': .7, 'HOLD': .2, 'SELL': .1}}}, 'usage': {'input_tokens': 500, 'output_tokens': 5}}
+    assert normalize(data, 1000)['usage'] == {'input_tokens': 500, 'output_tokens': 5}
+    data['usage']['input_tokens'] = -1
+    assert normalize(data, 1000)['usage'] is None
+
+
 def test_risk_rejects_oversize_and_short():
     args = dict(position=0, equity=1000, exposure=0, daily_loss=0, trade_count=0, quantity=10, max_position=500, max_exposure=800, max_daily_loss=100, max_trades=5, min_confidence=.5)
     assert evaluate('BUY', .8, 100, **args)

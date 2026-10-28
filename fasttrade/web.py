@@ -49,6 +49,7 @@ class DecisionResponse(BaseModel):
     confidence: float
     model: str
     latency_us: int
+    usage: dict[str, int | None] | None = None
 
 
 class AnalysisResponse(BaseModel):

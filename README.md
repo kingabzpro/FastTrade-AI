@@ -1,12 +1,35 @@
-# FastTrade AI
+<div align="center">
+  <img src="fasttrade/static/logo.svg" alt="FastTrade AI logo" width="72">
+  <h1>FastTrade AI</h1>
+  <p><strong>See the market. Check the signal. Stay in control.</strong></p>
+  <p>Market research powered by Jev, a System One decision model.</p>
+  <p>
+    <img src="https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&amp;logoColor=white" alt="Python 3.10 or newer">
+    <img src="https://img.shields.io/badge/Powered%20by-Jev-6750A4" alt="Powered by Jev">
+    <img src="https://img.shields.io/badge/Mode-Research%20only-087B59" alt="Research only">
+  </p>
+</div>
 
-**See the market. Check the signal. Stay in control.**
+<table align="center">
+  <tr>
+    <td align="center"><strong>+2.46 pp</strong><br><sub>over SPY in one backtest</sub></td>
+    <td align="center"><strong>0.60 sec</strong><br><sub>average model request</sub></td>
+    <td align="center"><strong>$0.0343</strong><br><sub>estimated per 1,000 decisions</sub></td>
+  </tr>
+</table>
 
-FastTrade uses [Jev, TypeSafe’s first public System One model](https://typesafe.ai/), for fast, low-cost trading analysis with measurable decision accuracy. It combines candlestick charts and technical indicators with BUY / HOLD / SELL preferences, checks your portfolio limits, and **never places orders**.
+## The result
+
+In a **25-stock historical simulation with four weekly reviews**, FastTrade returned **+2.31%** versus **−0.15% for SPY**. On $10,000, that was $10,230.73 versus $9,985.41. The investment period was **October 5–27, 2026**; the simulation included 5 bps commission and 10 bps slippage per trade side. Model costs are separate from portfolio returns.
+
+The speed and cost figures are from the same run: 100 Jev 1.14.0 requests averaged **599 ms** and used 81,703 input tokens. At [TypeSafe's published rate](https://typesafe.ai/), estimated model cost was **$0.00343 total**, or **$0.0343 per 1,000 similar decisions**; actual billing may differ. Request time includes network latency, not data preparation.
+
+> [!NOTE]
+> This is one short retrospective test, not evidence of a live trading edge. The stock universe was selected with hindsight, and the model or historical data may contain future information. An [earlier six-month benchmark](docs/benchmark-2026-h1.md) returned +6.60% versus SPY's +9.35%.
 
 ## Get started
 
-Install [uv](https://docs.astral.sh/uv/) and Python 3.10+, then add your TypeSafe key to `.env`:
+Install [uv](https://docs.astral.sh/uv/) and Python 3.10+, then add your [TypeSafe](https://typesafe.ai/) key to `.env`:
 
 ```powershell
 Copy-Item .env.example .env
@@ -14,46 +37,21 @@ Copy-Item .env.example .env
 uv run ft
 ```
 
-Open [localhost:8765](http://127.0.0.1:8765/), choose a symbol and timeframe, and select **Run analysis**. Press Ctrl+C to stop.
+Open [localhost:8765](http://127.0.0.1:8765/), choose a market, and run an analysis. FastTrade shows model preferences, charts and risk checks; **it never places orders**. Without complete portfolio settings, the result is signal only.
 
-## How it works
+Jev is [TypeSafe's System One model](https://docs.typesafe.ai/concepts/system-one): it returns structured decisions and probabilities for the supplied market state. To use another compatible endpoint, set these values in `.env`:
 
-```mermaid
-flowchart LR
-    A[Yahoo Finance or sample candles] --> B[Validate completed candles]
-    B --> C[Calculate indicators]
-    C --> D[AI preference<br/>BUY / HOLD / SELL]
-    D --> E[Portfolio and risk checks]
-    E --> F[Dashboard<br/>charts and actionable signal]
-    G[Your holdings and limits] --> E
+```dotenv
+SYSTEMONE_URL=https://api.typesafe.ai/v1/systemone
+SYSTEMONE_MODEL=jev-latest
+TYPESAFE_API_KEY=your-provider-key
 ```
 
-Without complete portfolio and risk inputs, analysis is **signal only** and no risk-checked action is available. Stale data and synthetic samples block portfolio actions. Each analysis calls the model and may incur a charge.
+Replace the URL and model with your provider's values. The endpoint must accept the System One `state` and `questions` request and return a compatible `choice` response. The key is sent as a bearer token; use only an endpoint you trust.
 
-## Benchmark at a glance
+## Explore
 
-**$10,000 starting cash · 25 stocks · 26 weekly reviews · January–June 2026**
-
-| Measure | FastTrade |
-| --- | ---: |
-| Ending balance | **$10,660.23** |
-| Return | **+6.60%** |
-| Directional accuracy | **49.0%** · 199 / 406 |
-| Model latency | **858 ms** median · **1,004 ms** p95 |
-| Total model cost | **$0.0224** estimated |
-
-Over the same period, **SPY returned +9.35%**, turning $10,000 into **$10,935.10**.
-
-[Benchmark method & data](docs/benchmark-2026-h1.md) · [Usage guide](docs/usage.md) · [API reference](http://127.0.0.1:8765/docs) (when running)
-
-Run a weekly historical benchmark with a different model, date range or ticker list:
-
-```powershell
-uv run ft benchmark --start 2026-09-28 --end 2026-10-23 --symbols AAPL,MSFT,NVDA --model jev-latest
-```
-
-The command makes paid model requests and outputs a JSON report with decisions and a SPY comparison. Historical Yahoo hourly data has limited availability; results exclude costs and do not establish future performance. [Benchmark details](docs/usage.md#historical-benchmark).
-
-For a stricter backtest with a frozen raw-price dataset and explicit trading costs, use `uv run ft backtest`; see the [dataset requirements and command](docs/usage.md#validated-data-backtest).
-
-**Recent backtest:** Across 25 stocks and four weekly reviews, Jev 1.14.0 returned **+2.31%** versus **−0.15% for SPY** from October 5–27, 2026, with 5 bps commission and 10 bps slippage per trade side. This short retrospective test may contain hindsight. [Report and frozen inputs](docs/backtest-2026-09-28/report.json).
+- [Backtest report and frozen inputs](docs/backtest-2026-09-28/report-measured.json)
+- [Method, limitations and rerun command](docs/backtest-2026-09-28/README.md)
+- [Usage guide: analysis, benchmarks and backtesting](docs/usage.md)
+- [API reference](http://127.0.0.1:8765/docs) when the app is running

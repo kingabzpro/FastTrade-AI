@@ -29,7 +29,7 @@ def run_fixture(folder, monkeypatch):
     states = []
     def predict(state, url, model, key):
         states.append(state)
-        return {'action': 'BUY', 'confidence': .8, 'probabilities': {'BUY': .8, 'HOLD': .1, 'SELL': .1}, 'model': model, 'latency_us': 1}
+        return {'action': 'BUY', 'confidence': .8, 'probabilities': {'BUY': .8, 'HOLD': .1, 'SELL': .1}, 'model': model, 'latency_us': 1000, 'usage': {'input_tokens': 500, 'output_tokens': 5}}
     monkeypatch.setattr(cli, 'predict', predict)
     args = cli.parser().parse_args(['backtest', '--data-dir', str(folder), '--start', '2026-01-19', '--end', '2026-01-27', '--symbols', 'AAPL', '--model', 'test', '--output', str(folder / 'report.json')])
     return backtest.run(args), states
@@ -46,6 +46,9 @@ def test_backtest_uses_only_past_data_and_charges_costs(tmp_path, monkeypatch):
     assert first['ending_balance'] == pytest.approx(10000 / 1.001 / 1.0005, abs=.01)
     assert second['ending_balance'] > first['ending_balance']
     assert first['total_fees'] > 0
+    assert first['mean_model_latency_ms'] == 1
+    assert first['input_tokens_successful'] == 500
+    assert first['usage_complete'] is True
 
 
 def test_backtest_rejects_modified_data(tmp_path, monkeypatch):
@@ -136,6 +139,34 @@ def test_invalid_response_retries_without_inventing_decisions(tmp_path, monkeypa
     result = backtest.run(args)
     assert len(result['decisions']) == 1 and result['model_retries'] == 1
     assert result['trades'] == [] and result['ending_balance'] == 10000
+    assert result['usage_complete'] is False
+
+
+def test_backtest_averages_request_latency_and_sums_usage(tmp_path, monkeypatch):
+    from fasttrade import backtest
+    folder = tmp_path / 'data'
+    dataset(folder)
+    metrics = iter([(1000, 500), (3000, 1000)])
+    def predict(*args):
+        latency, tokens = next(metrics)
+        return {'action': 'HOLD', 'confidence': .8, 'probabilities': {'BUY': .1, 'HOLD': .8, 'SELL': .1}, 'model': 'test', 'latency_us': latency, 'usage': {'input_tokens': tokens, 'output_tokens': 0}}
+    monkeypatch.setattr(cli, 'predict', predict)
+    args = cli.parser().parse_args(['backtest', '--data-dir', str(folder), '--start', '2026-01-19', '--end', '2026-02-03', '--symbols', 'AAPL', '--model', 'test', '--output', str(folder / 'report.json')])
+    result = backtest.run(args)
+    assert result['mean_model_latency_ms'] == 2
+    assert result['input_tokens_successful'] == 1500
+    assert result['usage_complete'] is True
+
+
+def test_partial_usage_is_not_reported_as_complete(tmp_path, monkeypatch):
+    from fasttrade import backtest
+    folder = tmp_path / 'data'
+    dataset(folder)
+    monkeypatch.setattr(cli, 'predict', lambda *args: {'action': 'HOLD', 'confidence': .8, 'probabilities': {'BUY': .1, 'HOLD': .8, 'SELL': .1}, 'model': 'test', 'latency_us': 1000, 'usage': {'input_tokens': 500, 'output_tokens': None}})
+    args = cli.parser().parse_args(['backtest', '--data-dir', str(folder), '--start', '2026-01-19', '--end', '2026-01-27', '--symbols', 'AAPL', '--model', 'test', '--output', str(folder / 'report.json')])
+    result = backtest.run(args)
+    assert result['input_tokens_successful'] == 500
+    assert result['usage_complete'] is False
 
 
 def test_unpaid_dividends_are_earned_only_on_shares_held_before_ex_date(tmp_path, monkeypatch):

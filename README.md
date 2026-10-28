@@ -7,6 +7,7 @@
     <img src="https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&amp;logoColor=white" alt="Python 3.10 or newer">
     <img src="https://img.shields.io/badge/Powered%20by-Jev-6750A4" alt="Powered by Jev">
     <img src="https://img.shields.io/badge/Mode-Research%20only-087B59" alt="Research only">
+    <img src="https://img.shields.io/badge/License-Apache%202.0-blue" alt="Apache 2.0 license">
   </p>
 </div>
 
@@ -55,3 +56,4 @@ Replace the URL and model with your provider's values. The endpoint must accept 
 - [Method, limitations and rerun command](docs/backtest-2026-09-28/README.md)
 - [Usage guide: analysis, benchmarks and backtesting](docs/usage.md)
 - [API reference](http://127.0.0.1:8765/docs) when the app is running
+- [Apache 2.0 license](LICENSE)

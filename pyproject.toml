@@ -2,6 +2,7 @@
 name = "fasttrade-ai"
 version = "0.1.0"
 description = "Research-oriented, signal-only trading decision CLI"
+license = "Apache-2.0"
 requires-python = ">=3.10"
 dependencies = [
     # shortcut: pandas 3.1 warns in yfinance; lift the cap when yfinance removes inplace sort_index.

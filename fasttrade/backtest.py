@@ -190,7 +190,7 @@ def run(args):
                     resolved_model = decision['model']
                     pending[symbol] = decision['action']
                     state_bytes = json.dumps(result['market'], sort_keys=True, separators=(',', ':'), allow_nan=False).encode('utf-8')
-                    decisions.append({'symbol': symbol, 'decision_time': decision_time.isoformat(), 'execution_time': sessions.open.iloc[i+1].isoformat(), 'candle_timestamp': result['market']['candle_timestamp'], 'state_sha256': hashlib.sha256(state_bytes).hexdigest(), 'action': decision['action'], 'probabilities': decision['probabilities'], 'model': decision['model'], 'latency_ms': decision['latency_us'] / 1000, 'usage': decision.get('usage')})
+                    decisions.append({'symbol': symbol, 'decision_time': decision_time.isoformat(), 'execution_time': sessions.open.iloc[i+1].isoformat(), 'candle_timestamp': result['market']['candle_timestamp'], 'state_sha256': hashlib.sha256(state_bytes).hexdigest(), 'action': decision['action'], 'probabilities': decision['probabilities'], 'confidence': decision['confidence'], 'model': decision['model'], 'latency_ms': decision['latency_us'] / 1000, 'usage': decision.get('usage')})
     if not curve or first_execution is None:
         raise ValueError('No executable decisions in the requested period')
     ending = curve[-1]['equity']

@@ -33,6 +33,12 @@ def parser():
     t.add_argument('--fee-bps', type=float, default=5, help='Commission in basis points per side (default 5)')
     t.add_argument('--slippage-bps', type=float, default=10, help='Slippage in basis points per side (default 10)')
     t.add_argument('--output', required=True, help='New JSON report path')
+    c = sub.add_parser('calibrate', help='Fit decision-probability calibration from a frozen backtest report (research only)')
+    c.add_argument('--report', required=True, help='Backtest report JSON with per-decision probabilities')
+    c.add_argument('--data-dir', required=True, help='Frozen dataset directory used by that backtest')
+    c.add_argument('--train-frac', type=float, default=0.75, help='Chronological fraction used for fitting (default 0.75)')
+    c.add_argument('--alpha', type=float, default=0.1, help='Conformal miscoverage level (default 0.1)')
+    c.add_argument('--output', help='New calibration artifact JSON path for analyze --calibration')
     return p
 
 
@@ -45,6 +51,8 @@ def add_analysis_arguments(a):
     a.add_argument('--max-age-seconds', type=float, help='Maximum age since candle close; defaults to two intervals')
     a.add_argument('--spread', type=float)
     a.add_argument('--liquidity', type=float)
+    a.add_argument('--calibration', help='Calibration artifact JSON from ft calibrate; confidence is then reported and gated calibrated')
+    a.add_argument('--require-conformal', action='store_true', help='Block BUY signals whose conformal interval around the calibrated P(BUY) contains 0.5')
     for name in ('position', 'equity', 'exposure', 'daily-loss', 'quantity', 'max-position', 'max-exposure', 'max-daily-loss', 'min-confidence'):
         a.add_argument('--' + name, type=float)
     for name in ('trade-count', 'max-trades'):
@@ -92,16 +100,36 @@ def run(args):
     url = getattr(args, 'systemone_url', None) or os.getenv('SYSTEMONE_URL', 'https://api.typesafe.ai/v1/systemone')
     if not key and url.startswith('https://api.typesafe.ai/'):
         raise ValueError('TYPESAFE_API_KEY is missing')
+    if getattr(args, 'require_conformal', False) and not getattr(args, 'calibration', None):
+        raise ValueError('--require-conformal requires --calibration')
     decision = predict(state, url, getattr(args, 'systemone_model', None) or os.getenv('SYSTEMONE_MODEL', 'jev-latest'), key)
+    calibration = None
+    if getattr(args, 'calibration', None):
+        from .calibration import apply_temperature, conformal_interval, interval_excludes_half, load_artifact
+        calibration = load_artifact(args.calibration)
+        calibrated = float(apply_temperature(decision['probabilities'][decision['action']], calibration['temperature']))
+        decision['calibrated_confidence'] = round(calibrated, 6)
+        decision['calibration'] = {'method': 'temperature', 'temperature': calibration['temperature'], 'at_bound': calibration.get('at_bound', False), 'fit_target': calibration['fit']['target'], 'fit_horizon': calibration['fit']['horizon'], 'train_end': calibration['train_window']['end'], 'note': 'Fitted on backtest outcomes; research label, not advice'}
+    confidence = decision.get('calibrated_confidence', decision['confidence'])
     risk_args = {name: getattr(args, name) for name in ('position', 'equity', 'exposure', 'daily_loss', 'trade_count', 'quantity', 'max_position', 'max_exposure', 'max_daily_loss', 'max_trades', 'min_confidence')}
     risk_start = time.perf_counter_ns()
     risk_complete = all(value is not None for value in risk_args.values())
-    reasons = evaluate(decision['action'], decision['confidence'], snapshot['price'], **risk_args) if any(value is not None for value in risk_args.values()) else []
+    reasons = evaluate(decision['action'], confidence, snapshot['price'], **risk_args) if any(value is not None for value in risk_args.values()) else []
+    if calibration is not None and getattr(args, 'require_conformal', False) and decision['action'] == 'BUY':
+        # The quantile is fitted on calibrated residuals, so the interval is built
+        # around the calibrated P(BUY); for a BUY decision that is calibrated_confidence.
+        quantile = calibration['conformal']['quantile']
+        interval = conformal_interval(decision['calibrated_confidence'], quantile) if quantile is not None else [0.0, 1.0]
+        if not interval_excludes_half(interval):
+            reasons.append('P(BUY) conformal interval contains 0.5')
+        result_extra = {'conformal_interval': [round(interval[0], 6), round(interval[1], 6)]}
+    else:
+        result_extra = {}
     if stale_preview:
         reasons.append('Stale market data: research preview only')
     interpretations = [f"Price {'above' if snapshot['price'] > snapshot['vwap'] else 'at or below'} session VWAP", f"MACD {'above' if snapshot['macd'] > snapshot['macd_signal'] else 'at or below'} its signal", f"Volume {'above' if snapshot['volume_ratio'] > 1 else 'at or below'} 20-bar average"]
     risk_ms = (time.perf_counter_ns() - risk_start) / 1e6
-    result = {'notice': 'Research only; model preferences are not probabilities of profitable trades.', 'market': state, 'decision': decision, 'indicator_interpretations': interpretations, 'risk_rejections': reasons, 'actionable_signal': (decision['action'] if not reasons else 'HOLD') if risk_complete else None, 'stale_preview': stale_preview}
+    result = {'notice': 'Research only; model preferences are not probabilities of profitable trades.', 'market': state, 'decision': decision, 'indicator_interpretations': interpretations, 'risk_rejections': reasons, 'actionable_signal': (decision['action'] if not reasons else 'HOLD') if risk_complete else None, 'stale_preview': stale_preview, **result_extra}
     if getattr(args, 'include_chart', False):
         chart = frame.copy()
         for n in (9, 21, 50):
@@ -132,6 +160,14 @@ def main():
         if args.command == 'benchmark':
             from .benchmark import run as run_benchmark
             result = run_benchmark(args)
+        elif args.command == 'calibrate':
+            from .calibration import run_calibration
+            result = run_calibration(args)
+            if args.output:
+                with open(args.output, 'x', encoding='utf-8') as output:
+                    json.dump(result['artifact'], output, indent=2, allow_nan=False)
+                    output.write('\n')
+                result = {'artifact': args.output, **{key: result[key] for key in ('ledger', 'temperature', 'metrics_train', 'metrics_test', 'conformal')}}
         elif args.command == 'backtest':
             from .backtest import run as run_backtest
             result = run_backtest(args)

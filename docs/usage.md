@@ -76,6 +76,18 @@ $hashes = @{}; 'sessions.csv','AAPL.csv','SPY.csv' | ForEach-Object { $hashes[$_
 
 Hashes make later changes detectable; they do not prove that the vendor's historical prices, calendar, or corporate-action attestation were correct or available at the time. Do not use Yahoo's retrospectively adjusted prices as raw prices. The engine does not check whether tickers were chosen with hindsight or whether the model's training included future events. These limitations mean the result cannot be certified free of all leakage. For stronger evidence, predefine the universe and rules, use point-in-time data and a model known to predate the test, and evaluate later out-of-sample periods. See the [CFA Institute's backtesting overview](https://www.cfainstitute.org/insights/professional-learning/refresher-readings/2026/backtesting-and-simulation) and [research on temporal leakage in language-model backtests](https://arxiv.org/abs/2608.02985).
 
+## Decision calibration (research)
+
+`ft calibrate` fits a post-hoc mapping from the decision model's P(BUY) to realized weekly outcomes, using a frozen backtest report and its dataset:
+
+```powershell
+uv run ft calibrate --report .\backtest-report.json --data-dir .\market-data --train-frac 0.75 --alpha 0.1 --output .\calibration.json
+```
+
+It pairs every recorded decision with the move to that symbol's next execution open, splits chronologically (fitting never sees the test window), fits temperature and isotonic mappings, reports ECE and Brier before and after with reliability curves, and computes a split-conformal quantile. It refuses to overwrite an existing artifact. The published flagship example, including its honest results, is [docs/calibration-2026-09-28.md](calibration-2026-09-28.md).
+
+In `analyze`, `--calibration PATH` loads an artifact, adds `calibrated_confidence` and a `calibration` provenance block to the decision, and gates `--min-confidence` on the calibrated value instead of the raw confidence. `--require-conformal` additionally blocks a BUY whose conformal interval around P(BUY) contains 0.5. Calibration is a research label fitted on backtest outcomes; it is not advice, it does not make signals profitable, and an artifact fitted on one horizon applied to another is an extrapolation the response says so. Benchmark and backtest decisions now also record the model's raw `confidence` for future calibration runs.
+
 ## Local API
 
 Run `uv run ft`, then open the [interactive API reference](http://127.0.0.1:8765/docs) or [OpenAPI schema](http://127.0.0.1:8765/openapi.json).

@@ -1,7 +1,10 @@
 import httpx
+import json
 import pandas as pd
 import pytest
 from fasttrade import decisions, market, cli
+from fasttrade.calibration import SCHEMA as CALIBRATION_SCHEMA
+from test_calibration import synthetic_report_and_data
 from test_core import candles
 
 
@@ -171,3 +174,76 @@ def test_risk_limits(overrides):
     args = dict(action='BUY', confidence=.8, price=100, position=0, equity=1000, exposure=0, daily_loss=0, trade_count=0, quantity=1, max_position=500, max_exposure=800, max_daily_loss=100, max_trades=5, min_confidence=.5)
     args.update(overrides)
     assert evaluate(**args)
+
+
+CALIBRATION_ARTIFACT = {'schema': CALIBRATION_SCHEMA, 'method': 'temperature', 'temperature': 3.0, 'fit': {'target': 'p_buy_vs_next_execution_open_up', 'horizon': '60m'}, 'train_window': {'start': '2026-09-28T20:30:00+00:00', 'end': '2026-10-12T20:30:00+00:00', 'n': 75}, 'conformal': {'alpha': 0.1, 'quantile': 0.2, 'applies_to': 'BUY decisions only'}}
+
+
+def full_risk_args():
+    return ['--position', '0', '--equity', '1000', '--exposure', '0', '--daily-loss', '0', '--trade-count', '0', '--quantity', '1', '--max-position', '500', '--max-exposure', '800', '--max-daily-loss', '100', '--max-trades', '5', '--min-confidence', '0.6']
+
+
+def analyze_args(csv, *extra):
+    return cli.parser().parse_args(['analyze', 'TEST', '--csv', str(csv), '--as-of', '2026-01-02T19:30:00Z', *extra])
+
+
+def test_calibration_gating_uses_calibrated_confidence(monkeypatch, tmp_path):
+    path = tmp_path / 'candles.csv'
+    candles().to_csv(path, index=False)
+    artifact = tmp_path / 'artifact.json'
+    artifact.write_text(json.dumps(CALIBRATION_ARTIFACT), encoding='utf-8')
+    monkeypatch.setattr(cli, 'predict', lambda *args: decisions.normalize(answer(), 1))
+    result = cli.run(analyze_args(path, '--calibration', str(artifact), *full_risk_args()))
+    # Raw P(BUY)=0.7; temperature 3 maps it to sigmoid(logit(0.7)/3) ~= 0.5701, below the 0.6 threshold.
+    assert result['decision']['calibrated_confidence'] == pytest.approx(0.570143, abs=1e-4)
+    assert result['decision']['calibration']['fit_horizon'] == '60m'
+    assert 'Confidence below threshold' in result['risk_rejections']
+    assert result['actionable_signal'] == 'HOLD'
+    uncalibrated = cli.run(analyze_args(path, *full_risk_args()))
+    assert uncalibrated['risk_rejections'] == []
+    assert uncalibrated['actionable_signal'] == 'BUY'
+
+
+def test_require_conformal_blocks_buy_inside_interval(monkeypatch, tmp_path):
+    path = tmp_path / 'candles.csv'
+    candles().to_csv(path, index=False)
+    artifact = tmp_path / 'artifact.json'
+    artifact.write_text(json.dumps(CALIBRATION_ARTIFACT), encoding='utf-8')
+    monkeypatch.setattr(cli, 'predict', lambda *args: decisions.normalize(answer(), 1))
+    result = cli.run(analyze_args(path, '--calibration', str(artifact), '--require-conformal', *full_risk_args()))
+    # The interval is around the calibrated P(BUY): 0.570143 +/- 0.2.
+    assert result['conformal_interval'] == [0.370143, 0.770143]
+    assert 'P(BUY) conformal interval contains 0.5' in result['risk_rejections']
+    assert result['actionable_signal'] == 'HOLD'
+
+
+def test_require_conformal_blocks_when_quantile_is_infinite(monkeypatch, tmp_path):
+    path = tmp_path / 'candles.csv'
+    candles().to_csv(path, index=False)
+    artifact = tmp_path / 'artifact.json'
+    artifact.write_text(json.dumps({**CALIBRATION_ARTIFACT, 'conformal': {'alpha': 0.1, 'quantile': None, 'applies_to': 'BUY decisions only'}}), encoding='utf-8')
+    monkeypatch.setattr(cli, 'predict', lambda *args: decisions.normalize(answer(), 1))
+    result = cli.run(analyze_args(path, '--calibration', str(artifact), '--require-conformal', *full_risk_args()))
+    assert result['conformal_interval'] == [0.0, 1.0]
+    assert 'P(BUY) conformal interval contains 0.5' in result['risk_rejections']
+    assert result['actionable_signal'] == 'HOLD'
+
+
+def test_require_conformal_without_calibration_is_rejected(monkeypatch, tmp_path):
+    path = tmp_path / 'candles.csv'
+    candles().to_csv(path, index=False)
+    with pytest.raises(ValueError, match='--require-conformal requires --calibration'):
+        cli.run(analyze_args(path, '--require-conformal'))
+
+
+def test_calibrate_command_writes_artifact_and_refuses_overwrite(monkeypatch, tmp_path):
+    report_path = tmp_path / 'report.json'
+    report_path.write_text(json.dumps(synthetic_report_and_data(tmp_path)), encoding='utf-8')
+    artifact_path = tmp_path / 'artifact.json'
+    monkeypatch.setattr(cli.sys, 'argv', ['ft', 'calibrate', '--report', str(report_path), '--data-dir', str(tmp_path), '--output', str(artifact_path)])
+    assert cli.main() == 0
+    written = json.loads(artifact_path.read_text(encoding='utf-8'))
+    assert written['schema'] == CALIBRATION_SCHEMA
+    assert written['method'] == 'temperature'
+    monkeypatch.setattr(cli.sys, 'argv', ['ft', 'calibrate', '--report', str(report_path), '--data-dir', str(tmp_path), '--output', str(artifact_path)])
+    assert cli.main() == 1

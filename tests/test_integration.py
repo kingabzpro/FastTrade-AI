@@ -236,6 +236,37 @@ def test_require_conformal_without_calibration_is_rejected(monkeypatch, tmp_path
         cli.run(analyze_args(path, '--require-conformal'))
 
 
+def test_return_gate_blocks_buy_below_costs(monkeypatch, tmp_path):
+    path = tmp_path / 'candles.csv'
+    candles().to_csv(path, index=False)
+    artifact = dict(CALIBRATION_ARTIFACT, conformal={'alpha': 0.1, 'quantile': 0.02, 'applies_to': 'BUY decisions only'}, returns={'blocks': [[0.0, 1.0, -0.05]], 'alpha': 0.1, 'quantile': 0.01, 'round_trip_cost': 0.003, 'round_trip_cost_bps': 30.0})
+    path_artifact = tmp_path / 'artifact.json'
+    path_artifact.write_text(json.dumps(artifact), encoding='utf-8')
+    monkeypatch.setattr(cli, 'predict', lambda *args: decisions.normalize(answer(), 1))
+    result = cli.run(analyze_args(path, '--calibration', str(path_artifact), '--require-conformal', *full_risk_args()))
+    assert result['conformal_interval'] == [0.550143, 0.590143]
+    assert result['expected_return'] == -0.05
+    assert result['return_interval_lower'] == -0.06
+    assert 'P(BUY) conformal interval contains 0.5' not in result['risk_rejections']
+    assert 'Calibrated expected return does not clear round-trip costs' in result['risk_rejections']
+    assert result['actionable_signal'] == 'HOLD'
+
+
+def test_return_gate_passes_profitable_edge(monkeypatch, tmp_path):
+    path = tmp_path / 'candles.csv'
+    candles().to_csv(path, index=False)
+    artifact = dict(CALIBRATION_ARTIFACT, conformal={'alpha': 0.1, 'quantile': 0.02, 'applies_to': 'BUY decisions only'}, returns={'blocks': [[0.0, 1.0, 0.05]], 'alpha': 0.1, 'quantile': 0.01, 'round_trip_cost': 0.003, 'round_trip_cost_bps': 30.0})
+    path_artifact = tmp_path / 'artifact.json'
+    path_artifact.write_text(json.dumps(artifact), encoding='utf-8')
+    monkeypatch.setattr(cli, 'predict', lambda *args: decisions.normalize(answer(), 1))
+    risk_args = full_risk_args()[:-2] + ['--min-confidence', '0.5']
+    result = cli.run(analyze_args(path, '--calibration', str(path_artifact), '--require-conformal', *risk_args))
+    assert result['expected_return'] == 0.05
+    assert result['return_interval_lower'] == 0.04
+    assert result['risk_rejections'] == []
+    assert result['actionable_signal'] == 'BUY'
+
+
 def test_calibrate_command_writes_artifact_and_refuses_overwrite(monkeypatch, tmp_path):
     report_path = tmp_path / 'report.json'
     report_path.write_text(json.dumps(synthetic_report_and_data(tmp_path)), encoding='utf-8')

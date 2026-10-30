@@ -38,6 +38,8 @@ def parser():
     c.add_argument('--data-dir', required=True, help='Frozen dataset directory used by that backtest')
     c.add_argument('--train-frac', type=float, default=0.75, help='Chronological fraction used for fitting (default 0.75)')
     c.add_argument('--alpha', type=float, default=0.1, help='Conformal miscoverage level (default 0.1)')
+    c.add_argument('--fee-bps', type=float, default=5, help='Commission in basis points per side, for the return gate (default 5)')
+    c.add_argument('--slippage-bps', type=float, default=10, help='Slippage in basis points per side, for the return gate (default 10)')
     c.add_argument('--output', help='New calibration artifact JSON path for analyze --calibration')
     return p
 
@@ -116,13 +118,22 @@ def run(args):
     risk_complete = all(value is not None for value in risk_args.values())
     reasons = evaluate(decision['action'], confidence, snapshot['price'], **risk_args) if any(value is not None for value in risk_args.values()) else []
     if calibration is not None and getattr(args, 'require_conformal', False) and decision['action'] == 'BUY':
-        # The quantile is fitted on calibrated residuals, so the interval is built
-        # around the calibrated P(BUY); for a BUY decision that is calibrated_confidence.
+        # The direction quantile is fitted on calibrated residuals, so the interval is
+        # built around the calibrated P(BUY); for a BUY that is calibrated_confidence.
         quantile = calibration['conformal']['quantile']
         interval = conformal_interval(decision['calibrated_confidence'], quantile) if quantile is not None else [0.0, 1.0]
         if not interval_excludes_half(interval):
             reasons.append('P(BUY) conformal interval contains 0.5')
         result_extra = {'conformal_interval': [round(interval[0], 6), round(interval[1], 6)]}
+        returns_gate = calibration.get('returns')
+        if returns_gate:
+            # Expected return maps the raw P(BUY) through blocks fitted on realized moves.
+            from .calibration import apply_isotonic
+            expected = float(apply_isotonic(decision['probabilities']['BUY'], returns_gate['blocks']))
+            lower = (expected - returns_gate['quantile']) if returns_gate['quantile'] is not None else None
+            if lower is None or lower <= returns_gate['round_trip_cost']:
+                reasons.append('Calibrated expected return does not clear round-trip costs')
+            result_extra.update({'expected_return': round(expected, 6), 'return_interval_lower': (round(lower, 8) if lower is not None else None)})
     else:
         result_extra = {}
     if stale_preview:

@@ -1,6 +1,6 @@
 {
   "schema": "fasttrade-calibration-1",
-  "created_at": "2026-10-30T19:26:01.954101+00:00",
+  "created_at": "2026-10-30T19:43:24.471205+00:00",
   "source_report_sha256": "05ddc50ac707414e2d5013dddb6ac36d569d6c95bae183238bb970230f67fcd3",
   "model": "jev-1.14.0",
   "method": "temperature",
@@ -52,5 +52,39 @@
     "alpha": 0.1,
     "quantile": 0.530491,
     "applies_to": "BUY decisions only"
+  },
+  "returns": {
+    "blocks": [
+      [
+        0.05,
+        0.06,
+        -0.017554
+      ],
+      [
+        0.08,
+        0.1,
+        -0.010009
+      ],
+      [
+        0.1,
+        0.14,
+        -0.004823
+      ],
+      [
+        0.17,
+        0.18,
+        0.006772
+      ],
+      [
+        0.19,
+        0.94,
+        0.01714
+      ]
+    ],
+    "alpha": 0.1,
+    "quantile": 0.07501232,
+    "round_trip_cost": 0.003,
+    "round_trip_cost_bps": 30.0,
+    "note": "Expected return maps raw P(BUY) through isotonic blocks fitted on realized next-open moves; a BUY is certified only when the interval lower bound exceeds the round-trip cost"
   }
 }

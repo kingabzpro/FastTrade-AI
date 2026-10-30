@@ -91,6 +91,9 @@ def test_build_ledger_pairs_probabilities_with_next_open(tmp_path):
     assert len(rows) == 3
     assert [r['outcome_up'] for r in rows] == [True, False, True]
     assert [r['p_buy'] for r in rows] == [0.8, 0.7, 0.3]
+    assert rows[0]['move'] == pytest.approx(0.10)
+    assert rows[1]['move'] == pytest.approx(90.0 / 110.0 - 1)
+    assert rows[2]['move'] == pytest.approx(95.0 / 90.0 - 1)
 
 
 def test_build_ledger_requires_probabilities(tmp_path):
@@ -139,6 +142,7 @@ def test_run_calibration_end_to_end(tmp_path):
 
     class Args:
         report, data_dir, train_frac, alpha = str(report_path), str(tmp_path), 0.75, 0.1
+        fee_bps, slippage_bps = 5.0, 10.0
 
     summary = run_calibration(Args())
     assert summary['ledger']['decisions'] == 18
@@ -150,3 +154,5 @@ def test_run_calibration_end_to_end(tmp_path):
     assert summary['artifact']['schema'] == calibration.SCHEMA
     assert summary['artifact']['source_report_sha256']
     assert isinstance(summary['artifact']['at_bound'], bool)
+    assert summary['artifact']['returns']['round_trip_cost_bps'] == 30.0
+    assert 0 <= summary['returns']['test_certified_rate'] <= 1

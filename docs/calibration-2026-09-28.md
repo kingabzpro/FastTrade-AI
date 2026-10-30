@@ -36,6 +36,14 @@ After temperature scaling, all 19 test predictions fall into the 0.4-0.6 bin (me
 
 Conformal gate (split-conformal on training residuals, alpha 0.1): quantile 0.5305, test interval coverage 0.9474, and an eligible rate of **0.0**: every test interval contains 0.5, so the gate certifies no BUY at this sample size. That is the honest reading of the data, not a bug.
 
+## Return-aware gate
+
+Direction is not profitability, so the fit also maps raw P(BUY) to the realized next-open move (isotonic on returns, not just the binary direction) and bounds the uncertainty with a split-conformal quantile on training residuals. A BUY is certified only when the return interval's lower bound clears the round-trip cost, 2 x (fee + slippage) = 30 bps at the defaults.
+
+- Train mean move +0.97%, test mean move +1.03%; the isotonic expectation averaged +1.18% on test.
+- The return quantile is 0.0750: weekly move uncertainty of 7.5 percentage points against a 0.30% cost bar. Every test interval's lower bound sits far below costs, so the gate certifies **0 of 19** test signals.
+- Reading: with 56 training decisions, weekly uncertainty dwarfs any plausible edge. The gate reopens only when the ledger grows or the signal genuinely sharpens; it cannot be loosened honestly from this data alone. Its value is the guarantee it will enforce once either happens: certified trades must clear costs, not merely point up.
+
 ## Limitations
 
 - 75 pairs and a 19-pair test window; every number here is uncertain.

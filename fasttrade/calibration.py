@@ -121,7 +121,14 @@ def conformal_quantile(probabilities, outcomes, alpha):
     """Split-conformal quantile of |outcome - probability| residuals."""
     if not 0 < alpha < 1:
         raise ValueError('Alpha must be between 0 and 1')
-    residuals = np.sort(np.abs(np.asarray(outcomes, float) - np.asarray(probabilities, float)))
+    residuals = np.abs(np.asarray(outcomes, float) - np.asarray(probabilities, float))
+    return conformal_quantile_from_residuals(residuals, alpha)
+
+
+def conformal_quantile_from_residuals(residuals, alpha):
+    if not 0 < alpha < 1:
+        raise ValueError('Alpha must be between 0 and 1')
+    residuals = np.sort(np.abs(np.asarray(residuals, float)))
     n = len(residuals)
     rank = math.ceil((n + 1) * (1 - alpha))
     if rank > n:
@@ -140,7 +147,8 @@ def interval_excludes_half(interval):
 def build_ledger(report, data_dir):
     """Pair each recorded decision's P(BUY) with the realized move to the next
     execution open for that symbol, from the frozen dataset CSVs. The final
-    review per symbol has no next execution and is excluded."""
+    review per symbol has no next execution and is excluded. Each pair carries
+    the binary direction (`outcome_up`) and the simple return (`move`)."""
     data_dir = str(data_dir)
     decisions = report.get('decisions') or []
     if not decisions or any('probabilities' not in d for d in decisions):
@@ -163,7 +171,7 @@ def build_ledger(report, data_dir):
             if entry is None or exit_ is None:
                 excluded += 1
                 continue
-            rows.append({'symbol': symbol, 'decision_time': decision['decision_time'], 'execution_time': decision['execution_time'], 'action': decision['action'], 'p_buy': float(decision['probabilities']['BUY']), 'outcome_up': bool(exit_ > entry)})
+            rows.append({'symbol': symbol, 'decision_time': decision['decision_time'], 'execution_time': decision['execution_time'], 'action': decision['action'], 'p_buy': float(decision['probabilities']['BUY']), 'outcome_up': bool(exit_ > entry), 'move': float(exit_ / entry - 1)})
     return rows, {'last_reviews_without_outcome': len(by_symbol), 'excluded_missing_price_bars': excluded}
 
 
@@ -189,16 +197,25 @@ def run_calibration(args):
     train, test = split_temporal(rows, args.train_frac)
 
     def values(group):
-        return np.array([r['p_buy'] for r in group]), np.array([1.0 if r['outcome_up'] else 0.0 for r in group])
+        return (np.array([r['p_buy'] for r in group]), np.array([1.0 if r['outcome_up'] else 0.0 for r in group]), np.array([r['move'] for r in group]))
 
-    train_p, train_y = values(train)
-    test_p, test_y = values(test)
+    train_p, train_y, train_moves = values(train)
+    test_p, test_y, test_moves = values(test)
     temperature = fit_temperature(train_p, train_y)
     blocks = fit_isotonic(train_p, train_y)
     train_calibrated = apply_temperature(train_p, temperature)
     quantile = conformal_quantile(train_calibrated, train_y, args.alpha)
     intervals = [conformal_interval(p, quantile) for p in apply_temperature(test_p, temperature)]
     at_bound = temperature >= TEMPERATURE_BOUNDS[1] * 0.999 or temperature <= TEMPERATURE_BOUNDS[0] * 1.001
+    if args.fee_bps < 0 or args.slippage_bps < 0:
+        raise ValueError('Fees and slippage must be nonnegative')
+    round_trip = 2 * (args.fee_bps + args.slippage_bps) / 10000
+    return_blocks = fit_isotonic(train_p, train_moves)
+    return_residuals = np.abs(train_moves - apply_isotonic(train_p, return_blocks))
+    return_quantile = conformal_quantile_from_residuals(return_residuals, args.alpha)
+    test_expected = apply_isotonic(test_p, return_blocks)
+    test_lower = test_expected - (return_quantile if not math.isinf(return_quantile) else float('inf'))
+    certified = [lower > round_trip for lower in test_lower]
 
     def metrics(p, y):
         calibrated = apply_temperature(p, temperature)
@@ -219,6 +236,7 @@ def run_calibration(args):
         'test_window': {'start': test[0]['decision_time'], 'end': test[-1]['decision_time'], 'n': len(test)},
         'isotonic_blocks': blocks,
         'conformal': {'alpha': args.alpha, 'quantile': (None if math.isinf(quantile) else round(quantile, 6)), 'applies_to': 'BUY decisions only'},
+        'returns': {'blocks': return_blocks, 'alpha': args.alpha, 'quantile': (None if math.isinf(return_quantile) else round(return_quantile, 8)), 'round_trip_cost': round(round_trip, 8), 'round_trip_cost_bps': round(round_trip * 1e4, 2), 'note': 'Expected return maps raw P(BUY) through isotonic blocks fitted on realized next-open moves; a BUY is certified only when the interval lower bound exceeds the round-trip cost'},
     }
     summary = {
         'notice': 'Research only; calibration is fitted on a retrospective backtest and is not advice.',
@@ -231,6 +249,7 @@ def run_calibration(args):
         'reliability_test_before': reliability_curve(test_p, test_y, bins=5),
         'reliability_test_after': reliability_curve(apply_temperature(test_p, temperature), test_y, bins=5),
         'conformal': {'alpha': args.alpha, 'quantile': artifact['conformal']['quantile'], 'test_interval_coverage': round(float(np.mean([y >= lo and y <= hi for (lo, hi), y in zip(intervals, test_y)])), 4), 'test_eligible_rate': round(float(np.mean([interval_excludes_half(i) for i in intervals])), 4) if intervals else None},
+        'returns': {'round_trip_cost_bps': artifact['returns']['round_trip_cost_bps'], 'train_mean_move': round(float(train_moves.mean()), 6), 'test_mean_move': round(float(test_moves.mean()), 6), 'test_expected_mean_move': round(float(test_expected.mean()), 6), 'test_certified_rate': round(float(np.mean(certified)), 4) if len(certified) else None},
         'artifact': artifact,
     }
     return summary

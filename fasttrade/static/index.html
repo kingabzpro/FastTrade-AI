@@ -55,7 +55,7 @@
             <label>SYMBOL<input id="symbol" name="symbol" placeholder="e.g. NVDA" value="NVDA" maxlength="20" pattern="[A-Za-z0-9.\^=\-]+" title="Enter a ticker such as NVDA, BRK-B, or ^GSPC" required autocomplete="off" spellcheck="false"></label>
             <label>TIMEFRAME<select id="timeframe" name="timeframe"><option>1m</option><option>2m</option><option selected>5m</option><option>15m</option><option>30m</option><option>60m</option><option>90m</option></select></label>
             <label>DATA SOURCE<select id="source"><option value="yahoo">Yahoo Finance</option><option value="sample">Synthetic sample · 5m</option></select></label>
-            <label>MODEL VOTES<input id="samples" name="samples" type="number" min="1" max="9" step="1" value="1" title="Independent model votes per decision; 1 = single request" autocomplete="off"></label>
+            <label>MODEL VOTES<input id="samples" name="samples" type="number" min="1" max="5" step="1" value="1" title="Independent model votes per decision; 1 = single request, 5 = maximum" autocomplete="off"></label>
             <button id="analyze" type="submit"><span>Run analysis</span><span class="button-arrow"><svg class="icon"><use href="#i-arrow"/></svg></span></button>
           </div>
           <p id="source-hint" class="form-note source-hint" hidden>Sample mode uses synthetic 5-minute candles. It still requests a model decision; portfolio actions are blocked.</p>

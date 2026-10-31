@@ -20,7 +20,9 @@ Same frozen dataset, same 100 decisions, same model (`jev-1.14.0`), same rules a
 | Input tokens | 81,703 | 408,515 | 5.00x |
 | Estimated cost at TypeSafe's published $0.042/M input tokens | $0.00343 | $0.01716 | 5.00x |
 | Cost per 1,000 decisions | $0.0343 | $0.1716 | 5.00x |
-| Mean model time per decision | 599 ms | 4,171 ms | ~7x (5 requests plus slower per-request latency during the batch: 834 ms vs 599 ms) |
+| Mean model time per decision (sequential implementation, as measured) | 599 ms | 4,171 ms | ~7x (5 requests plus slower per-request latency during the batch: 834 ms vs 599 ms) |
+
+Sampling now runs its votes concurrently: wall time for a 5-vote decision measured 1.37 s live (2026-10-31, dashboard sample mode) against 4.17 s sequential, i.e. the slowest of the five requests plus overhead rather than their sum. The remaining gap to a sub-second 5-vote decision is provider inference time (single-request p50 is 858 ms, p95 1,004 ms on the H1 ledger), which client-side parallelism cannot compress.
 
 From this comparison onward, `mean_model_latency_ms` in reports is per request (divided by each decision's sample count); the committed samples-5 report predates that normalization and holds per-decision sums.
 

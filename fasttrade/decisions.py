@@ -1,5 +1,7 @@
 import math
 import time
+from concurrent.futures import ThreadPoolExecutor
+
 import httpx
 
 
@@ -42,27 +44,30 @@ def predict(state, url, model, key):
     return normalize(data, (time.perf_counter_ns() - start) // 1000)
 
 
+def _vote(state, url, model, key):
+    for attempts in range(1, 4):
+        try:
+            return predict(state, url, model, key), attempts
+        except ValueError as exc:
+            if str(exc) != 'Invalid SystemOne response' or attempts == 3:
+                raise
+
+
 def predict_samples(state, url, model, key, samples):
-    """Run N independent decision requests and aggregate them (research only).
+    """Run N independent decision requests concurrently and aggregate them.
 
     The chosen action is the majority vote, ties breaking to the higher mean
     probability. Dispersion is the normalized vote disagreement in 0-1, and
     effective_confidence discounts the mean confidence by it. Every sample is
-    returned for the audit trail. Makes N paid model requests.
+    returned for the audit trail. Makes N paid model requests; wall time is
+    the slowest request, not the sum, because the votes run in parallel.
     """
     if not isinstance(samples, int) or samples < 2:
         raise ValueError('Samples must be an integer of at least 2')
-    collected = []
-    attempts = 0
-    for _ in range(samples):
-        for attempt in range(3):
-            attempts += 1
-            try:
-                collected.append(predict(state, url, model, key))
-                break
-            except ValueError as exc:
-                if str(exc) != 'Invalid SystemOne response' or attempt == 2:
-                    raise
+    with ThreadPoolExecutor(max_workers=samples) as pool:
+        results = list(pool.map(lambda _: _vote(state, url, model, key), range(samples)))
+    collected = [decision for decision, _ in results]
+    attempts = sum(attempt for _, attempt in results)
     votes = [d['action'] for d in collected]
     top = max(votes.count(action) for action in set(votes))
     winners = sorted(action for action in set(votes) if votes.count(action) == top)

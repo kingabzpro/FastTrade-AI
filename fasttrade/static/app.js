@@ -307,8 +307,8 @@ $('analysis-form').addEventListener('submit', async (event) => {
   const symbol = $('symbol').value.trim().toUpperCase();
   if (!symbol) { $('symbol').focus(); return; }
   const payload = {symbol, timeframe: $('timeframe').value, sample: $('source').value === 'sample'};
-  const samples = Number($('samples').value);
-  if (Number.isFinite(samples) && samples > 1) payload.samples = samples;
+  const samples = Math.min(Math.max(Number($('samples').value) || 1, 1), 5);
+  if (samples > 1) payload.samples = samples;
   for (const [name] of riskFields) {
     const raw = $(`risk-${name}`).value.trim();
     if (raw !== '') payload[name] = Number(raw);

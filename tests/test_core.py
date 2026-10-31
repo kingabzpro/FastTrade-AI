@@ -103,3 +103,15 @@ def test_predict_samples_unanimous_has_zero_dispersion(monkeypatch):
     assert result['action'] == 'SELL'
     assert result['dispersion'] == 0
     assert result['effective_confidence'] == pytest.approx(.9)
+
+
+def test_predict_samples_votes_run_concurrently(monkeypatch):
+    import threading
+    barrier = threading.Barrier(3, timeout=10)
+    def concurrent_predict(state, url, model, key):
+        barrier.wait()
+        return {'action': 'BUY', 'probabilities': {'BUY': .6, 'HOLD': .3, 'SELL': .1}, 'confidence': .7, 'model': 'jev', 'latency_us': 100, 'usage': {'input_tokens': 1, 'output_tokens': 1}}
+    monkeypatch.setattr(decisions, 'predict', concurrent_predict)
+    result = predict_samples({}, 'u', 'jev', 'k', 3)
+    assert result['sample_count'] == 3
+    assert result['request_attempts'] == 3

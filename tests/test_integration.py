@@ -49,6 +49,8 @@ def test_csv_cli_missing_risk_is_signal_only(monkeypatch, tmp_path):
     args = cli.parser().parse_args(['analyze', 'TEST', '--csv', str(path), '--as-of', '2026-01-02T19:30:00Z'])
     result = cli.run(args)
     assert result['decision']['action'] == 'BUY'
+    assert result['model_requests'] == 1
+    assert 'sample_count' not in result['decision']
     assert result['actionable_signal'] is None
     assert result['risk_rejections'] == []
 
@@ -265,6 +267,57 @@ def test_require_certified_edge_without_calibration_is_rejected(monkeypatch, tmp
     candles().to_csv(path, index=False)
     with pytest.raises(ValueError, match='--require-certified-edge requires --calibration'):
         cli.run(analyze_args(path, '--require-certified-edge'))
+
+
+def test_samples_flag_aggregates_and_gates_on_effective_confidence(monkeypatch, tmp_path):
+    path = tmp_path / 'candles.csv'
+    candles().to_csv(path, index=False)
+    sequence = [('BUY', {'BUY': .7, 'HOLD': .2, 'SELL': .1}, .8), ('BUY', {'BUY': .7, 'HOLD': .2, 'SELL': .1}, .7), ('HOLD', {'BUY': .2, 'HOLD': .6, 'SELL': .2}, .6)]
+    calls = []
+    def fake_predict(state, url, model, key):
+        action, probabilities, confidence = sequence[len(calls) % 3]
+        calls.append(action)
+        return {'action': action, 'probabilities': probabilities, 'confidence': confidence, 'model': 'jev', 'latency_us': 100, 'usage': {'input_tokens': 10, 'output_tokens': 1}}
+    monkeypatch.setattr(decisions, 'predict', fake_predict)
+    result = cli.run(analyze_args(path, '--samples', '3', *full_risk_args()))
+    assert len(calls) == 3
+    assert result['decision']['sample_count'] == 3
+    assert result['model_requests'] == 3
+    assert len(result['decision']['samples']) == 3
+    # 2-1 vote: dispersion (1/3)*3/2 = 0.5; mean confidence 0.7 -> effective 0.35, below the 0.6 threshold.
+    assert result['decision']['dispersion'] == pytest.approx(0.5)
+    assert result['decision']['effective_confidence'] == pytest.approx(0.35)
+    assert 'Confidence below threshold' in result['risk_rejections']
+    assert result['actionable_signal'] == 'HOLD'
+
+
+def test_samples_out_of_range_rejected(monkeypatch, tmp_path):
+    path = tmp_path / 'candles.csv'
+    candles().to_csv(path, index=False)
+    with pytest.raises(ValueError, match='between 1 and 9'):
+        cli.run(analyze_args(path, '--samples', '10'))
+    with pytest.raises(ValueError, match='between 1 and 9'):
+        cli.run(analyze_args(path, '--samples', '0'))
+
+
+def test_calibration_and_sampling_combine(monkeypatch, tmp_path):
+    path = tmp_path / 'candles.csv'
+    candles().to_csv(path, index=False)
+    artifact = tmp_path / 'artifact.json'
+    artifact.write_text(json.dumps(CALIBRATION_ARTIFACT), encoding='utf-8')
+    sequence = [('BUY', {'BUY': .7, 'HOLD': .2, 'SELL': .1}, .8), ('BUY', {'BUY': .7, 'HOLD': .2, 'SELL': .1}, .7), ('HOLD', {'BUY': .1, 'HOLD': .6, 'SELL': .3}, .6)]
+    calls = []
+    def fake_predict(state, url, model, key):
+        action, probabilities, confidence = sequence[len(calls) % 3]
+        calls.append(action)
+        return {'action': action, 'probabilities': probabilities, 'confidence': confidence, 'model': 'jev', 'latency_us': 100, 'usage': {'input_tokens': 10, 'output_tokens': 1}}
+    monkeypatch.setattr(decisions, 'predict', fake_predict)
+    risk_args = full_risk_args()[:-2] + ['--min-confidence', '0.3']
+    result = cli.run(analyze_args(path, '--samples', '3', '--calibration', str(artifact), *risk_args))
+    # Mean P(BUY) = 0.5; temperature 3 keeps 0.5 at 0.5; dispersion 0.5 halves it to 0.25.
+    assert result['decision']['calibrated_confidence'] == pytest.approx(0.25)
+    assert 'Confidence below threshold' in result['risk_rejections']
+    assert result['actionable_signal'] == 'HOLD'
 
 
 def test_calibrate_command_writes_artifact_and_refuses_overwrite(monkeypatch, tmp_path):

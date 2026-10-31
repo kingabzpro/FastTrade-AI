@@ -34,6 +34,7 @@ class AnalysisRequest(BaseModel):
     max_daily_loss: float | None = Field(default=None, ge=0)
     max_trades: int | None = Field(default=None, ge=0)
     min_confidence: float | None = Field(default=None, ge=0, le=1)
+    samples: int | None = Field(default=None, ge=1, le=9, description='Independent model votes per decision; multiplies paid requests')
 
     @field_validator('timeframe')
     @classmethod
@@ -43,6 +44,14 @@ class AnalysisRequest(BaseModel):
         return value
 
 
+class SampleRecord(BaseModel):
+    action: Literal['BUY', 'HOLD', 'SELL']
+    probabilities: dict[str, float]
+    confidence: float
+    latency_us: int
+    usage: dict[str, int | None] | None = None
+
+
 class DecisionResponse(BaseModel):
     action: Literal['BUY', 'HOLD', 'SELL']
     probabilities: dict[str, float]
@@ -50,12 +59,20 @@ class DecisionResponse(BaseModel):
     model: str
     latency_us: int
     usage: dict[str, int | None] | None = None
+    sample_count: int | None = None
+    dispersion: float | None = None
+    effective_confidence: float | None = None
+    usage_complete: bool | None = None
+    calibrated_confidence: float | None = None
+    calibration: dict[str, Any] | None = None
+    samples: list[SampleRecord] | None = None
 
 
 class AnalysisResponse(BaseModel):
     notice: str
     market: dict[str, Any] = Field(description='Symbol, timeframe, candle timestamp, feature snapshot, ticker details, and headlines')
     decision: DecisionResponse
+    model_requests: int = Field(default=1, description='Paid model requests made for this analysis')
     indicator_interpretations: list[str]
     risk_rejections: list[str]
     actionable_signal: Literal['BUY', 'HOLD', 'SELL'] | None = Field(description='Risk-checked signal, or null when portfolio and risk inputs are incomplete')

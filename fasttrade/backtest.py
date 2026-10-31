@@ -29,6 +29,8 @@ def run(args):
         raise ValueError('Symbols must be unique US tickers; SPY is reserved for the baseline')
     if any(not math.isfinite(x) or not 0 <= x < 10000 for x in (args.fee_bps, args.slippage_bps)):
         raise ValueError('Costs must be finite basis points between 0 and 10000')
+    if not 1 <= args.samples <= 9:
+        raise ValueError('Samples must be between 1 and 9')
     if Path(args.output).exists():
         raise ValueError('Output file already exists')
     if not Path(args.output).parent.is_dir():
@@ -175,7 +177,8 @@ def run(args):
                 for symbol in symbols:
                     analysis = cli.parser().parse_args(['analyze', symbol, '--timeframe', '60m', '--csv', str(paths[symbol]), '--as-of', decision_time.isoformat()])
                     analysis.systemone_model = model
-                    for attempt in range(3):
+                    analysis.samples = args.samples
+                    for attempt in range(1 if (analysis.samples or 1) > 1 else 3):
                         try:
                             result = cli.run(analysis)
                             break
@@ -185,12 +188,13 @@ def run(args):
                             retries += 1
                             print(f'Retrying invalid model response for {symbol} ({attempt + 1}/2)', file=sys.stderr, flush=True)
                     decision = result['decision']
+                    retries += max(0, decision.get('request_attempts', 1) - decision.get('sample_count', 1))
                     if resolved_model is not None and decision['model'] != resolved_model:
                         raise ValueError('Model version changed during the backtest')
                     resolved_model = decision['model']
                     pending[symbol] = decision['action']
                     state_bytes = json.dumps(result['market'], sort_keys=True, separators=(',', ':'), allow_nan=False).encode('utf-8')
-                    decisions.append({'symbol': symbol, 'decision_time': decision_time.isoformat(), 'execution_time': sessions.open.iloc[i+1].isoformat(), 'candle_timestamp': result['market']['candle_timestamp'], 'state_sha256': hashlib.sha256(state_bytes).hexdigest(), 'action': decision['action'], 'probabilities': decision['probabilities'], 'confidence': decision['confidence'], 'model': decision['model'], 'latency_ms': decision['latency_us'] / 1000, 'usage': decision.get('usage')})
+                    decisions.append({'symbol': symbol, 'decision_time': decision_time.isoformat(), 'execution_time': sessions.open.iloc[i+1].isoformat(), 'candle_timestamp': result['market']['candle_timestamp'], 'state_sha256': hashlib.sha256(state_bytes).hexdigest(), 'action': decision['action'], 'probabilities': decision['probabilities'], 'confidence': decision['confidence'], 'sample_count': decision.get('sample_count', 1), 'model': decision['model'], 'latency_ms': decision['latency_us'] / 1000 / decision.get('sample_count', 1), 'usage': decision.get('usage')})
     if not curve or first_execution is None:
         raise ValueError('No executable decisions in the requested period')
     ending = curve[-1]['equity']
@@ -200,4 +204,4 @@ def run(args):
         peak = max(peak, point['equity'])
         drawdown = min(drawdown, point['equity'] / peak - 1)
     usage_complete = retries == 0 and all(d['usage'] is not None and d['usage']['output_tokens'] is not None for d in decisions)
-    return {'start': str(start), 'end': str(end), 'symbols': symbols, 'model_requested': model, 'model_resolved': resolved_model, 'model_retries': retries, 'mean_model_latency_ms': round(sum(d['latency_ms'] for d in decisions) / len(decisions), 2), 'input_tokens_successful': sum(d['usage']['input_tokens'] for d in decisions if d['usage'] is not None), 'usage_complete': usage_complete, 'dataset_manifest_sha256': hashlib.sha256(manifest_bytes).hexdigest(), 'fee_bps': args.fee_bps, 'slippage_bps': args.slippage_bps, 'initial_balance': initial, 'first_execution_time': first_execution.isoformat(), 'ending_balance': round(ending, 2), 'return_pct': round((ending / initial - 1) * 100, 2), 'spy_ending_balance': round(spy_ending, 2), 'spy_return_pct': round((spy_ending / initial - 1) * 100, 2), 'max_drawdown_pct': round(drawdown * 100, 2), 'total_fees': round(sum(t['fee'] for t in trades), 2), 'dividend_receivables': round(sum(receivables[s] for s in symbols), 2), 'spy_dividend_receivables': round(receivables['SPY'], 2), 'dividends': dividend_ledger, 'decisions': decisions, 'trades': trades, 'equity_curve': curve, 'limitations': 'The input manifest is an unverified attestation; corporate actions, model training knowledge, survivorship and hindsight selection are not verified. Only cash dividends payable after the test are supported; no split accounting. Fees and slippage are assumptions; no liquidity or market impact model.'}
+    return {'start': str(start), 'end': str(end), 'symbols': symbols, 'model_requested': model, 'samples': args.samples, 'model_resolved': resolved_model, 'model_retries': retries, 'mean_model_latency_ms': round(sum(d['latency_ms'] for d in decisions) / len(decisions), 2), 'input_tokens_successful': sum(d['usage']['input_tokens'] for d in decisions if d['usage'] is not None), 'usage_complete': usage_complete, 'dataset_manifest_sha256': hashlib.sha256(manifest_bytes).hexdigest(), 'fee_bps': args.fee_bps, 'slippage_bps': args.slippage_bps, 'initial_balance': initial, 'first_execution_time': first_execution.isoformat(), 'ending_balance': round(ending, 2), 'return_pct': round((ending / initial - 1) * 100, 2), 'spy_ending_balance': round(spy_ending, 2), 'spy_return_pct': round((spy_ending / initial - 1) * 100, 2), 'max_drawdown_pct': round(drawdown * 100, 2), 'total_fees': round(sum(t['fee'] for t in trades), 2), 'dividend_receivables': round(sum(receivables[s] for s in symbols), 2), 'spy_dividend_receivables': round(receivables['SPY'], 2), 'dividends': dividend_ledger, 'decisions': decisions, 'trades': trades, 'equity_curve': curve, 'limitations': 'The input manifest is an unverified attestation; corporate actions, model training knowledge, survivorship and hindsight selection are not verified. Only cash dividends payable after the test are supported; no split accounting. Fees and slippage are assumptions; no liquidity or market impact model.'}

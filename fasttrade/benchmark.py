@@ -31,6 +31,8 @@ def run(args):
         raise ValueError('Start and end must be dates in YYYY-MM-DD format') from exc
     if start >= end:
         raise ValueError('Start must be before end')
+    if not 1 <= args.samples <= 9:
+        raise ValueError('Samples must be between 1 and 9')
     symbols = [s.strip().upper() for s in args.symbols.split(',')]
     if not symbols or any(not re.fullmatch(r'[A-Z0-9.^=\-]{1,20}', s) or s == 'SPY' for s in symbols) or len(set(symbols)) != len(symbols):
         raise ValueError('Provide unique comma-separated symbols; SPY is reserved for the benchmark')
@@ -80,7 +82,8 @@ def run(args):
             for symbol in symbols:
                 analysis = cli.parser().parse_args(['analyze', symbol, '--timeframe', '60m', '--csv', str(paths[symbol]), '--as-of', decision_time.isoformat()])
                 analysis.systemone_model = model
-                for attempt in range(3):
+                analysis.samples = args.samples
+                for attempt in range(1 if (analysis.samples or 1) > 1 else 3):
                     try:
                         result = cli.run(analysis)
                         break
@@ -94,7 +97,7 @@ def run(args):
                     shares[symbol], cash[symbol] = cash[symbol] / price, 0.0
                 elif decision['action'] == 'SELL' and shares[symbol] > 0:
                     cash[symbol], shares[symbol] = shares[symbol] * price, 0.0
-                decisions.append({'symbol': symbol, 'decision_time': decision_time.isoformat(), 'execution_time': execution_time.isoformat(), 'action': decision['action'], 'probabilities': decision['probabilities'], 'confidence': decision['confidence'], 'model': decision['model'], 'latency_ms': decision['latency_us'] / 1000, 'execution_price': price, 'cash': cash[symbol], 'shares': shares[symbol]})
+                decisions.append({'symbol': symbol, 'decision_time': decision_time.isoformat(), 'execution_time': execution_time.isoformat(), 'action': decision['action'], 'probabilities': decision['probabilities'], 'confidence': decision['confidence'], 'sample_count': decision.get('sample_count', 1), 'model': decision['model'], 'latency_ms': decision['latency_us'] / 1000 / decision.get('sample_count', 1), 'execution_price': price, 'cash': cash[symbol], 'shares': shares[symbol]})
     ending = sum(cash[s] + shares[s] * float(frames[s].loc[final, 'close']) for s in symbols)
     spy_open = float(frames['SPY'].loc[first_open, 'open'])
     spy_close = float(frames['SPY'].loc[final, 'close'])
@@ -107,4 +110,4 @@ def run(args):
             if row['action'] in ('BUY', 'SELL'):
                 row['directional_correct'] = next_price > row['execution_price'] if row['action'] == 'BUY' else next_price < row['execution_price']
                 directional.append(row['directional_correct'])
-    return {'model_requested': model, 'start': args.start, 'end': args.end, 'symbols': symbols, 'initial_balance': initial, 'first_execution_time': first_open.isoformat(), 'valuation_time': (final + pd.Timedelta(hours=1)).isoformat(), 'ending_balance': round(ending, 2), 'return_pct': round((ending / initial - 1) * 100, 2), 'spy_ending_balance': round(initial * spy_close / spy_open, 2), 'spy_return_pct': round((spy_close / spy_open - 1) * 100, 2), 'directional_decisions': len(directional), 'directional_accuracy_pct': round(100 * sum(directional) / len(directional), 2) if directional else None, 'assumptions': 'Adjusted hourly Yahoo prices; weekly model preferences; next common hourly open; equal independent allocations; fractional shares; no fees, slippage, taxes, or risk checks. Historical model knowledge and revised data can bias results.', 'decisions': decisions}
+    return {'model_requested': model, 'samples': args.samples, 'start': args.start, 'end': args.end, 'symbols': symbols, 'initial_balance': initial, 'first_execution_time': first_open.isoformat(), 'valuation_time': (final + pd.Timedelta(hours=1)).isoformat(), 'ending_balance': round(ending, 2), 'return_pct': round((ending / initial - 1) * 100, 2), 'spy_ending_balance': round(initial * spy_close / spy_open, 2), 'spy_return_pct': round((spy_close / spy_open - 1) * 100, 2), 'directional_decisions': len(directional), 'directional_accuracy_pct': round(100 * sum(directional) / len(directional), 2) if directional else None, 'assumptions': 'Adjusted hourly Yahoo prices; weekly model preferences; next common hourly open; equal independent allocations; fractional shares; no fees, slippage, taxes, or risk checks. Historical model knowledge and revised data can bias results.', 'decisions': decisions}

@@ -52,6 +52,7 @@ function clearResults() {
   setText('chart-badge', 'AWAITING DATA'); setText('chart-symbol', 'Your market, in focus');
   setText('chart-subtitle', 'Completed candles will appear here after analysis.'); setText('chart-price', '');
   $('decision-empty').hidden = false; $('decision-content').hidden = true;
+  $('agreement').hidden = true;
   $('indicators').hidden = true; $('indicator-empty').hidden = false;
   $('evidence').replaceChildren(); $('evidence-empty').hidden = false; $('news-panel').hidden = true;
   $('decision-badge').className = 'pill muted'; setText('decision-badge', 'NOT ANALYZED');
@@ -78,7 +79,7 @@ function render(result, record = true) {
   const action = decision.action;
   $('model-action').className = `action ${action.toLowerCase()}`; setText('model-action', action);
   const probs = decision.probabilities || {};
-  setText('top-prob', probs[action] == null ? '—' : `${Math.round(probs[action] * 100)}%`);
+  setText('top-prob', probs[action] == null ? '-' : `${Math.round(probs[action] * 100)}%`);
   const list = $('probabilities'); list.replaceChildren();
   for (const name of ['BUY', 'HOLD', 'SELL']) {
     if (probs[name] == null) continue;
@@ -97,6 +98,20 @@ function render(result, record = true) {
   setText('risk-action', signalOnly ? 'SIGNAL ONLY' : blocked ? 'BLOCKED · HOLD' : result.actionable_signal);
   setText('risk-reasons', result.risk_rejections.length ? result.risk_rejections.join(' · ') : signalOnly ? 'Add portfolio and risk settings for a risk-checked signal.' : 'No risk rejections. Signal only; no orders are placed.');
   setText('model-name', decision.model); setText('model-latency', `${number(decision.latency_us / 1000, 0)} ms`);
+  const agreement = $('agreement');
+  if ((decision.sample_count || 0) > 1) {
+    const counts = {};
+    let top = 0;
+    for (const entry of decision.samples || []) top = Math.max(top, counts[entry.action] = (counts[entry.action] || 0) + 1);
+    if (!top) top = Math.round(decision.sample_count * (1 - (decision.dispersion || 0)));
+    const parts = [`${top}/${decision.sample_count}`];
+    if (decision.dispersion != null) parts.push(`DISPERSION ${Math.round(decision.dispersion * 100)}%`);
+    if (decision.effective_confidence != null) parts.push(`EFFECTIVE ${Math.round(decision.effective_confidence * 100)}%`);
+    agreement.hidden = false;
+    setText('agreement-value', parts.join(' · '));
+  } else {
+    agreement.hidden = true;
+  }
   const indicators = [
     ['RSI (14)', number(feature.rsi_14, 1), 'Momentum'], ['MACD', number(feature.macd, 3), 'Trend & momentum'],
     ['VWAP DELTA', `${feature.vwap_delta >= 0 ? '+' : ''}${number(feature.vwap_delta * 100)}%`, 'Price vs. VWAP'],
@@ -292,6 +307,8 @@ $('analysis-form').addEventListener('submit', async (event) => {
   const symbol = $('symbol').value.trim().toUpperCase();
   if (!symbol) { $('symbol').focus(); return; }
   const payload = {symbol, timeframe: $('timeframe').value, sample: $('source').value === 'sample'};
+  const samples = Number($('samples').value);
+  if (Number.isFinite(samples) && samples > 1) payload.samples = samples;
   for (const [name] of riskFields) {
     const raw = $(`risk-${name}`).value.trim();
     if (raw !== '') payload[name] = Number(raw);

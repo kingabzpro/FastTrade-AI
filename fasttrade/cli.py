@@ -54,7 +54,7 @@ def add_analysis_arguments(a):
     a.add_argument('--spread', type=float)
     a.add_argument('--liquidity', type=float)
     a.add_argument('--calibration', help='Calibration artifact JSON from ft calibrate; confidence is then reported and gated calibrated')
-    a.add_argument('--require-conformal', action='store_true', help='Block BUY signals whose conformal interval around the calibrated P(BUY) contains 0.5')
+    a.add_argument('--require-certified-edge', action='store_true', help='Block actionable signals unless the artifact certifies aggregate net-of-cost edge on its test window')
     for name in ('position', 'equity', 'exposure', 'daily-loss', 'quantity', 'max-position', 'max-exposure', 'max-daily-loss', 'min-confidence'):
         a.add_argument('--' + name, type=float)
     for name in ('trade-count', 'max-trades'):
@@ -102,12 +102,12 @@ def run(args):
     url = getattr(args, 'systemone_url', None) or os.getenv('SYSTEMONE_URL', 'https://api.typesafe.ai/v1/systemone')
     if not key and url.startswith('https://api.typesafe.ai/'):
         raise ValueError('TYPESAFE_API_KEY is missing')
-    if getattr(args, 'require_conformal', False) and not getattr(args, 'calibration', None):
-        raise ValueError('--require-conformal requires --calibration')
+    if getattr(args, 'require_certified_edge', False) and not getattr(args, 'calibration', None):
+        raise ValueError('--require-certified-edge requires --calibration')
     decision = predict(state, url, getattr(args, 'systemone_model', None) or os.getenv('SYSTEMONE_MODEL', 'jev-latest'), key)
     calibration = None
     if getattr(args, 'calibration', None):
-        from .calibration import apply_temperature, conformal_interval, interval_excludes_half, load_artifact
+        from .calibration import apply_isotonic, apply_temperature, conformal_interval, load_artifact
         calibration = load_artifact(args.calibration)
         calibrated = float(apply_temperature(decision['probabilities'][decision['action']], calibration['temperature']))
         decision['calibrated_confidence'] = round(calibrated, 6)
@@ -117,23 +117,25 @@ def run(args):
     risk_start = time.perf_counter_ns()
     risk_complete = all(value is not None for value in risk_args.values())
     reasons = evaluate(decision['action'], confidence, snapshot['price'], **risk_args) if any(value is not None for value in risk_args.values()) else []
-    if calibration is not None and getattr(args, 'require_conformal', False) and decision['action'] == 'BUY':
-        # The direction quantile is fitted on calibrated residuals, so the interval is
-        # built around the calibrated P(BUY); for a BUY that is calibrated_confidence.
+    if calibration is not None:
+        # Per-trade direction and expected-return numbers are diagnostics; the
+        # certifiable object is the aggregate net-of-cost edge on the test window.
+        result_extra = {}
         quantile = calibration['conformal']['quantile']
         interval = conformal_interval(decision['calibrated_confidence'], quantile) if quantile is not None else [0.0, 1.0]
-        if not interval_excludes_half(interval):
-            reasons.append('P(BUY) conformal interval contains 0.5')
-        result_extra = {'conformal_interval': [round(interval[0], 6), round(interval[1], 6)]}
+        result_extra['conformal_interval'] = [round(interval[0], 6), round(interval[1], 6)]
         returns_gate = calibration.get('returns')
         if returns_gate:
-            # Expected return maps the raw P(BUY) through blocks fitted on realized moves.
-            from .calibration import apply_isotonic
             expected = float(apply_isotonic(decision['probabilities']['BUY'], returns_gate['blocks']))
             lower = (expected - returns_gate['quantile']) if returns_gate['quantile'] is not None else None
-            if lower is None or lower <= returns_gate['round_trip_cost']:
-                reasons.append('Calibrated expected return does not clear round-trip costs')
-            result_extra.update({'expected_return': round(expected, 6), 'return_interval_lower': (round(lower, 8) if lower is not None else None)})
+            result_extra['expected_return'] = round(expected, 6)
+            result_extra['return_interval_lower'] = (round(lower, 8) if lower is not None else None)
+        if getattr(args, 'require_certified_edge', False):
+            edge = calibration.get('edge') or {}
+            result_extra['edge_certified'] = edge.get('certified') is True
+            if not result_extra['edge_certified']:
+                suffix = f" ({edge['reason']})" if edge.get('reason') else ''
+                reasons.append('Model edge is not certified by the calibration artifact' + suffix)
     else:
         result_extra = {}
     if stale_preview:

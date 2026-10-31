@@ -6,7 +6,7 @@ import pandas as pd
 import pytest
 
 from fasttrade import calibration
-from fasttrade.calibration import (apply_isotonic, apply_temperature, brier, build_ledger, conformal_interval, conformal_quantile, ece, fit_isotonic, fit_temperature, interval_excludes_half, load_artifact, reliability_curve, run_calibration, split_temporal)
+from fasttrade.calibration import (apply_isotonic, apply_temperature, brier, build_ledger, certify_edge, conformal_interval, conformal_quantile, ece, fit_isotonic, fit_temperature, interval_excludes_half, load_artifact, reliability_curve, run_calibration, split_temporal, stationary_bootstrap_means)
 
 
 def test_brier_and_ece_known_values():
@@ -59,6 +59,29 @@ def test_conformal_quantile_rank_and_coverage():
     assert np.mean(covered) >= 0.85
 
 
+def test_stationary_bootstrap_matches_sample_mean():
+    rng = np.random.default_rng(5)
+    values = rng.normal(0.01, 0.03, 60)
+    means = stationary_bootstrap_means(values, draws=500, seed=1)
+    assert len(means) == 500
+    assert abs(means.mean() - values.mean()) < 0.002
+    assert stationary_bootstrap_means(values, draws=10, seed=2).tolist() == stationary_bootstrap_means(values, draws=10, seed=2).tolist()
+
+
+def test_certify_edge_verdicts():
+    def row(action, move, spy_move):
+        return {'action': action, 'move': move, 'spy_move': spy_move}
+    good = [row('BUY', 0.03, 0.0), row('BUY', 0.04, 0.005), row('BUY', 0.02, -0.002), row('HOLD', -0.01, 0.0), row('BUY', 0.05, 0.01), row('BUY', 0.025, 0.0)]
+    verdict = certify_edge(good, 0.003)
+    assert verdict['certified'] is True
+    assert verdict['n'] == 5
+    assert verdict['ci'][0] > 0
+    bad = [row('BUY', -0.02, 0.0), row('BUY', -0.03, 0.001), row('BUY', -0.01, -0.002), row('BUY', -0.04, 0.0), row('BUY', -0.02, 0.003)]
+    assert certify_edge(bad, 0.003)['certified'] is False
+    assert certify_edge(good[:3], 0.003)['certified'] is None
+    assert 'BUY decisions' in certify_edge(good[:3], 0.003)['reason']
+
+
 def test_conformal_quantile_validates_alpha():
     train_p, train_y = np.full(20, 0.5), np.array([0, 1] * 10)
     with pytest.raises(ValueError, match='[Aa]lpha'):
@@ -85,6 +108,8 @@ def test_build_ledger_pairs_probabilities_with_next_open(tmp_path):
     times = pd.date_range('2026-01-05 14:30', periods=4, freq='7D', tz='UTC')
     frame = pd.DataFrame({'timestamp': times, 'open': [100.0, 110.0, 90.0, 95.0], 'high': [101, 111, 91, 96], 'low': [99, 109, 89, 94], 'close': [105, 100, 92, 95], 'volume': [10] * 4})
     frame.to_csv(tmp_path / 'TEST.csv', index=False)
+    spy = pd.DataFrame({'timestamp': times, 'open': [100.0, 100.5, 100.2, 100.8], 'high': [100.6, 101.1, 100.8, 101.4], 'low': [99.4, 99.9, 99.6, 100.2], 'close': [100.3, 100.8, 100.5, 101.0], 'volume': [10] * 4})
+    spy.to_csv(tmp_path / 'SPY.csv', index=False)
     decisions = [{'symbol': 'TEST', 'decision_time': (t + pd.Timedelta(hours=1)).isoformat(), 'execution_time': t.isoformat(), 'action': 'BUY', 'probabilities': {'BUY': p, 'HOLD': 0.1, 'SELL': 0.1}} for t, p in zip(times, (0.8, 0.7, 0.3, 0.9))]
     rows, info = build_ledger({'decisions': decisions}, tmp_path)
     assert info == {'last_reviews_without_outcome': 1, 'excluded_missing_price_bars': 0}
@@ -94,6 +119,17 @@ def test_build_ledger_pairs_probabilities_with_next_open(tmp_path):
     assert rows[0]['move'] == pytest.approx(0.10)
     assert rows[1]['move'] == pytest.approx(90.0 / 110.0 - 1)
     assert rows[2]['move'] == pytest.approx(95.0 / 90.0 - 1)
+    assert rows[0]['spy_move'] == pytest.approx(0.005)
+    assert rows[1]['spy_move'] == pytest.approx(100.2 / 100.5 - 1)
+
+
+def test_build_ledger_requires_spy(tmp_path):
+    times = pd.date_range('2026-01-05 14:30', periods=3, freq='7D', tz='UTC')
+    frame = pd.DataFrame({'timestamp': times, 'open': [100.0, 101.0, 102.0], 'high': [101, 102, 103], 'low': [99, 100, 101], 'close': [100.5, 101.5, 102.5], 'volume': [10] * 3})
+    frame.to_csv(tmp_path / 'TEST.csv', index=False)
+    decisions = [{'symbol': 'TEST', 'decision_time': (t + pd.Timedelta(hours=1)).isoformat(), 'execution_time': t.isoformat(), 'action': 'BUY', 'probabilities': {'BUY': 0.6, 'HOLD': 0.2, 'SELL': 0.2}} for t in times]
+    with pytest.raises(ValueError, match='SPY'):
+        build_ledger({'decisions': decisions}, tmp_path)
 
 
 def test_build_ledger_requires_probabilities(tmp_path):
@@ -125,6 +161,9 @@ def test_load_artifact_validation(tmp_path):
 
 def synthetic_report_and_data(tmp_path, reviews=10):
     symbols, up, down = ['AAA', 'BBB'], [], []
+    times = pd.date_range('2026-01-05 14:30', periods=reviews, freq='7D', tz='UTC')
+    spy_opens = [100 + 0.2 * i for i in range(reviews)]
+    pd.DataFrame({'timestamp': times, 'open': spy_opens, 'high': [o + 1 for o in spy_opens], 'low': [o - 1 for o in spy_opens], 'close': spy_opens, 'volume': [10] * reviews}).to_csv(tmp_path / 'SPY.csv', index=False)
     for symbol, step in (('AAA', 1.0), ('BBB', -1.0)):
         times = pd.date_range('2026-01-05 14:30', periods=reviews, freq='7D', tz='UTC')
         opens = [100 + step * 5 * i for i in range(reviews)]
@@ -156,3 +195,7 @@ def test_run_calibration_end_to_end(tmp_path):
     assert isinstance(summary['artifact']['at_bound'], bool)
     assert summary['artifact']['returns']['round_trip_cost_bps'] == 30.0
     assert 0 <= summary['returns']['test_certified_rate'] <= 1
+    assert summary['edge']['certified'] is None
+    assert 'BUY decisions' in summary['edge']['reason']
+    assert summary['edge']['in_sample']['certified'] is True
+    assert summary['artifact']['edge']['in_sample']['n'] == 9

@@ -176,7 +176,7 @@ def test_risk_limits(overrides):
     assert evaluate(**args)
 
 
-CALIBRATION_ARTIFACT = {'schema': CALIBRATION_SCHEMA, 'method': 'temperature', 'temperature': 3.0, 'fit': {'target': 'p_buy_vs_next_execution_open_up', 'horizon': '60m'}, 'train_window': {'start': '2026-09-28T20:30:00+00:00', 'end': '2026-10-12T20:30:00+00:00', 'n': 75}, 'conformal': {'alpha': 0.1, 'quantile': 0.2, 'applies_to': 'BUY decisions only'}}
+CALIBRATION_ARTIFACT = {'schema': CALIBRATION_SCHEMA, 'method': 'temperature', 'temperature': 3.0, 'fit': {'target': 'p_buy_vs_next_execution_open_up', 'horizon': '60m'}, 'train_window': {'start': '2026-09-28T20:30:00+00:00', 'end': '2026-10-12T20:30:00+00:00', 'n': 75}, 'conformal': {'alpha': 0.1, 'quantile': 0.2, 'applies_to': 'BUY decisions only'}, 'edge': {'certified': True, 'n': 12, 'mean': 0.01, 'ci': [0.002, 0.02], 'round_trip_cost': 0.003}}
 
 
 def full_risk_args():
@@ -204,67 +204,67 @@ def test_calibration_gating_uses_calibrated_confidence(monkeypatch, tmp_path):
     assert uncalibrated['actionable_signal'] == 'BUY'
 
 
-def test_require_conformal_blocks_buy_inside_interval(monkeypatch, tmp_path):
+def test_uncertified_edge_blocks_actionable(monkeypatch, tmp_path):
+    path = tmp_path / 'candles.csv'
+    candles().to_csv(path, index=False)
+    artifact = dict(CALIBRATION_ARTIFACT, edge={'certified': False, 'n': 12, 'mean': -0.004, 'ci': [-0.02, 0.01], 'round_trip_cost': 0.003})
+    path_artifact = tmp_path / 'artifact.json'
+    path_artifact.write_text(json.dumps(artifact), encoding='utf-8')
+    monkeypatch.setattr(cli, 'predict', lambda *args: decisions.normalize(answer(), 1))
+    result = cli.run(analyze_args(path, '--calibration', str(path_artifact), '--require-certified-edge', *full_risk_args()))
+    assert result['edge_certified'] is False
+    assert 'Model edge is not certified by the calibration artifact' in result['risk_rejections']
+    assert result['actionable_signal'] == 'HOLD'
+
+
+def test_uncertified_edge_reason_surfaces(monkeypatch, tmp_path):
+    path = tmp_path / 'candles.csv'
+    candles().to_csv(path, index=False)
+    artifact = dict(CALIBRATION_ARTIFACT, edge={'certified': None, 'reason': 'fewer than 5 BUY decisions in the window', 'n': 2})
+    path_artifact = tmp_path / 'artifact.json'
+    path_artifact.write_text(json.dumps(artifact), encoding='utf-8')
+    monkeypatch.setattr(cli, 'predict', lambda *args: decisions.normalize(answer(), 1))
+    risk_args = full_risk_args()[:-2] + ['--min-confidence', '0.5']
+    result = cli.run(analyze_args(path, '--calibration', str(path_artifact), '--require-certified-edge', *risk_args))
+    assert 'fewer than 5 BUY decisions' in result['risk_rejections'][0]
+    assert result['actionable_signal'] == 'HOLD'
+
+
+def test_certified_edge_allows_actionable(monkeypatch, tmp_path):
     path = tmp_path / 'candles.csv'
     candles().to_csv(path, index=False)
     artifact = tmp_path / 'artifact.json'
     artifact.write_text(json.dumps(CALIBRATION_ARTIFACT), encoding='utf-8')
     monkeypatch.setattr(cli, 'predict', lambda *args: decisions.normalize(answer(), 1))
-    result = cli.run(analyze_args(path, '--calibration', str(artifact), '--require-conformal', *full_risk_args()))
-    # The interval is around the calibrated P(BUY): 0.570143 +/- 0.2.
+    risk_args = full_risk_args()[:-2] + ['--min-confidence', '0.5']
+    result = cli.run(analyze_args(path, '--calibration', str(artifact), '--require-certified-edge', *risk_args))
+    assert result['edge_certified'] is True
+    assert result['risk_rejections'] == []
+    assert result['actionable_signal'] == 'BUY'
+    # Per-trade numbers ride along as diagnostics.
     assert result['conformal_interval'] == [0.370143, 0.770143]
-    assert 'P(BUY) conformal interval contains 0.5' in result['risk_rejections']
-    assert result['actionable_signal'] == 'HOLD'
 
 
-def test_require_conformal_blocks_when_quantile_is_infinite(monkeypatch, tmp_path):
-    path = tmp_path / 'candles.csv'
-    candles().to_csv(path, index=False)
-    artifact = tmp_path / 'artifact.json'
-    artifact.write_text(json.dumps({**CALIBRATION_ARTIFACT, 'conformal': {'alpha': 0.1, 'quantile': None, 'applies_to': 'BUY decisions only'}}), encoding='utf-8')
-    monkeypatch.setattr(cli, 'predict', lambda *args: decisions.normalize(answer(), 1))
-    result = cli.run(analyze_args(path, '--calibration', str(artifact), '--require-conformal', *full_risk_args()))
-    assert result['conformal_interval'] == [0.0, 1.0]
-    assert 'P(BUY) conformal interval contains 0.5' in result['risk_rejections']
-    assert result['actionable_signal'] == 'HOLD'
-
-
-def test_require_conformal_without_calibration_is_rejected(monkeypatch, tmp_path):
-    path = tmp_path / 'candles.csv'
-    candles().to_csv(path, index=False)
-    with pytest.raises(ValueError, match='--require-conformal requires --calibration'):
-        cli.run(analyze_args(path, '--require-conformal'))
-
-
-def test_return_gate_blocks_buy_below_costs(monkeypatch, tmp_path):
+def test_per_trade_numbers_are_diagnostic_only(monkeypatch, tmp_path):
     path = tmp_path / 'candles.csv'
     candles().to_csv(path, index=False)
     artifact = dict(CALIBRATION_ARTIFACT, conformal={'alpha': 0.1, 'quantile': 0.02, 'applies_to': 'BUY decisions only'}, returns={'blocks': [[0.0, 1.0, -0.05]], 'alpha': 0.1, 'quantile': 0.01, 'round_trip_cost': 0.003, 'round_trip_cost_bps': 30.0})
     path_artifact = tmp_path / 'artifact.json'
     path_artifact.write_text(json.dumps(artifact), encoding='utf-8')
     monkeypatch.setattr(cli, 'predict', lambda *args: decisions.normalize(answer(), 1))
-    result = cli.run(analyze_args(path, '--calibration', str(path_artifact), '--require-conformal', *full_risk_args()))
-    assert result['conformal_interval'] == [0.550143, 0.590143]
+    risk_args = full_risk_args()[:-2] + ['--min-confidence', '0.5']
+    result = cli.run(analyze_args(path, '--calibration', str(path_artifact), '--require-certified-edge', *risk_args))
     assert result['expected_return'] == -0.05
     assert result['return_interval_lower'] == -0.06
-    assert 'P(BUY) conformal interval contains 0.5' not in result['risk_rejections']
-    assert 'Calibrated expected return does not clear round-trip costs' in result['risk_rejections']
-    assert result['actionable_signal'] == 'HOLD'
+    assert 'Calibrated expected return does not clear round-trip costs' not in result['risk_rejections']
+    assert result['actionable_signal'] == 'BUY'
 
 
-def test_return_gate_passes_profitable_edge(monkeypatch, tmp_path):
+def test_require_certified_edge_without_calibration_is_rejected(monkeypatch, tmp_path):
     path = tmp_path / 'candles.csv'
     candles().to_csv(path, index=False)
-    artifact = dict(CALIBRATION_ARTIFACT, conformal={'alpha': 0.1, 'quantile': 0.02, 'applies_to': 'BUY decisions only'}, returns={'blocks': [[0.0, 1.0, 0.05]], 'alpha': 0.1, 'quantile': 0.01, 'round_trip_cost': 0.003, 'round_trip_cost_bps': 30.0})
-    path_artifact = tmp_path / 'artifact.json'
-    path_artifact.write_text(json.dumps(artifact), encoding='utf-8')
-    monkeypatch.setattr(cli, 'predict', lambda *args: decisions.normalize(answer(), 1))
-    risk_args = full_risk_args()[:-2] + ['--min-confidence', '0.5']
-    result = cli.run(analyze_args(path, '--calibration', str(path_artifact), '--require-conformal', *risk_args))
-    assert result['expected_return'] == 0.05
-    assert result['return_interval_lower'] == 0.04
-    assert result['risk_rejections'] == []
-    assert result['actionable_signal'] == 'BUY'
+    with pytest.raises(ValueError, match='--require-certified-edge requires --calibration'):
+        cli.run(analyze_args(path, '--require-certified-edge'))
 
 
 def test_calibrate_command_writes_artifact_and_refuses_overwrite(monkeypatch, tmp_path):

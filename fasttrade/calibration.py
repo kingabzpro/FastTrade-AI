@@ -136,6 +136,48 @@ def conformal_quantile_from_residuals(residuals, alpha):
     return float(residuals[rank - 1])
 
 
+def stationary_bootstrap_means(values, draws=2000, seed=0):
+    """Politis-Romano stationary bootstrap: resample mean via geometric blocks.
+
+    Block length is ceil(n^(1/3)) per the small-sample default; decisions are
+    ordered chronologically so blocks carry same-week cross-symbol correlation
+    and adjacent-week serial correlation. Deterministic via the seed.
+    """
+    values = np.asarray(values, float)
+    n = len(values)
+    if n == 0:
+        raise ValueError('Nothing to bootstrap')
+    block = max(2, math.ceil(n ** (1 / 3)))
+    rng = np.random.default_rng(seed)
+    probability = 1.0 / block
+    means = np.empty(draws)
+    for draw in range(draws):
+        indices = np.empty(n, dtype=int)
+        position = int(rng.integers(n))
+        for i in range(n):
+            indices[i] = position
+            if rng.random() < probability:
+                position = int(rng.integers(n))
+            else:
+                position = (position + 1) % n
+        means[draw] = values[indices].mean()
+    return means
+
+
+def certify_edge(rows, round_trip, min_decisions=5):
+    """Aggregate verdict: bootstrap CI on the mean net excess return of BUY
+    decisions (symbol move minus SPY move over the same interval, minus
+    round-trip cost). Per-trade certainty does not exist in weekly equity
+    markets; the mean edge is the certifiable object and its CI shrinks with
+    the number of decisions."""
+    excess = np.array([r['move'] - r['spy_move'] - round_trip for r in rows if r['action'] == 'BUY'])
+    if len(excess) < min_decisions:
+        return {'certified': None, 'reason': f'fewer than {min_decisions} BUY decisions in the window', 'n': int(len(excess))}
+    means = stationary_bootstrap_means(excess)
+    low, high = np.percentile(means, [2.5, 97.5])
+    return {'certified': bool(low > 0), 'n': int(len(excess)), 'mean': round(float(excess.mean()), 6), 'ci': [round(float(low), 6), round(float(high), 6)], 'round_trip_cost': round(round_trip, 8), 'block_length': max(2, math.ceil(len(excess) ** (1 / 3))), 'draws': 2000}
+
+
 def conformal_interval(probability, quantile):
     return [max(0.0, probability - quantile), min(1.0, probability + quantile)]
 
@@ -158,6 +200,7 @@ def build_ledger(report, data_dir):
     by_symbol = {}
     for decision in decisions:
         by_symbol.setdefault(decision['symbol'], []).append(decision)
+    spy_frame = None
     for symbol, group in by_symbol.items():
         if not re.fullmatch(r'[A-Z0-9.^=\-]{1,20}', symbol):
             raise ValueError(f'Invalid symbol in report: {symbol}')
@@ -171,7 +214,18 @@ def build_ledger(report, data_dir):
             if entry is None or exit_ is None:
                 excluded += 1
                 continue
-            rows.append({'symbol': symbol, 'decision_time': decision['decision_time'], 'execution_time': decision['execution_time'], 'action': decision['action'], 'p_buy': float(decision['probabilities']['BUY']), 'outcome_up': bool(exit_ > entry), 'move': float(exit_ / entry - 1)})
+            if spy_frame is None:
+                try:
+                    spy = pd.read_csv(f'{data_dir}/SPY.csv')
+                except OSError as exc:
+                    raise ValueError('Dataset must include SPY.csv for the excess-return edge') from exc
+                spy_frame = spy.assign(timestamp=pd.to_datetime(spy.timestamp, utc=True)).set_index('timestamp').sort_index()
+            spy_entry = _open_at(spy_frame, decision['execution_time'])
+            spy_exit = _open_at(spy_frame, group[index + 1]['execution_time'])
+            if spy_entry is None or spy_exit is None or spy_entry <= 0:
+                excluded += 1
+                continue
+            rows.append({'symbol': symbol, 'decision_time': decision['decision_time'], 'execution_time': decision['execution_time'], 'action': decision['action'], 'p_buy': float(decision['probabilities']['BUY']), 'outcome_up': bool(exit_ > entry), 'move': float(exit_ / entry - 1), 'spy_move': float(spy_exit / spy_entry - 1)})
     return rows, {'last_reviews_without_outcome': len(by_symbol), 'excluded_missing_price_bars': excluded}
 
 
@@ -216,6 +270,12 @@ def run_calibration(args):
     test_expected = apply_isotonic(test_p, return_blocks)
     test_lower = test_expected - (return_quantile if not math.isinf(return_quantile) else float('inf'))
     certified = [lower > round_trip for lower in test_lower]
+    chronological = sorted(rows, key=lambda r: r['decision_time'])
+    edge = certify_edge(test, round_trip)
+    edge_in_sample = certify_edge(chronological, round_trip)
+    edge['definition'] = 'mean net excess return per BUY decision: symbol move minus SPY move over the same interval, minus round-trip cost'
+    edge['window'] = 'test'
+    edge['in_sample'] = edge_in_sample
 
     def metrics(p, y):
         calibrated = apply_temperature(p, temperature)
@@ -236,7 +296,8 @@ def run_calibration(args):
         'test_window': {'start': test[0]['decision_time'], 'end': test[-1]['decision_time'], 'n': len(test)},
         'isotonic_blocks': blocks,
         'conformal': {'alpha': args.alpha, 'quantile': (None if math.isinf(quantile) else round(quantile, 6)), 'applies_to': 'BUY decisions only'},
-        'returns': {'blocks': return_blocks, 'alpha': args.alpha, 'quantile': (None if math.isinf(return_quantile) else round(return_quantile, 8)), 'round_trip_cost': round(round_trip, 8), 'round_trip_cost_bps': round(round_trip * 1e4, 2), 'note': 'Expected return maps raw P(BUY) through isotonic blocks fitted on realized next-open moves; a BUY is certified only when the interval lower bound exceeds the round-trip cost'},
+        'returns': {'blocks': return_blocks, 'alpha': args.alpha, 'quantile': (None if math.isinf(return_quantile) else round(return_quantile, 8)), 'round_trip_cost': round(round_trip, 8), 'round_trip_cost_bps': round(round_trip * 1e4, 2), 'note': 'Diagnostic only: expected return maps raw P(BUY) through isotonic blocks fitted on realized next-open moves'},
+        'edge': edge,
     }
     summary = {
         'notice': 'Research only; calibration is fitted on a retrospective backtest and is not advice.',
@@ -250,6 +311,7 @@ def run_calibration(args):
         'reliability_test_after': reliability_curve(apply_temperature(test_p, temperature), test_y, bins=5),
         'conformal': {'alpha': args.alpha, 'quantile': artifact['conformal']['quantile'], 'test_interval_coverage': round(float(np.mean([y >= lo and y <= hi for (lo, hi), y in zip(intervals, test_y)])), 4), 'test_eligible_rate': round(float(np.mean([interval_excludes_half(i) for i in intervals])), 4) if intervals else None},
         'returns': {'round_trip_cost_bps': artifact['returns']['round_trip_cost_bps'], 'train_mean_move': round(float(train_moves.mean()), 6), 'test_mean_move': round(float(test_moves.mean()), 6), 'test_expected_mean_move': round(float(test_expected.mean()), 6), 'test_certified_rate': round(float(np.mean(certified)), 4) if len(certified) else None},
+        'edge': {'certified': edge['certified'], 'reason': edge.get('reason'), 'n': edge['n'], 'mean': edge.get('mean'), 'ci': edge.get('ci'), 'in_sample': {'certified': edge_in_sample['certified'], 'n': edge_in_sample['n'], 'mean': edge_in_sample.get('mean'), 'ci': edge_in_sample.get('ci')}},
         'artifact': artifact,
     }
     return summary

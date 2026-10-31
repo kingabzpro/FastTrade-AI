@@ -24,13 +24,13 @@
       "execution_time": "2026-08-10T13:30:00+00:00",
       "action": "BUY",
       "probabilities": {
-        "BUY": 0.55,
-        "HOLD": 0.42,
+        "BUY": 0.58,
+        "HOLD": 0.39,
         "SELL": 0.03
       },
-      "confidence": 0.33,
+      "confidence": 0.37,
       "model": "jev-1.14.0",
-      "latency_ms": 2407.375,
+      "latency_ms": 1108.849,
       "execution_price": 306.8299865722656,
       "cash": 0.0,
       "shares": 10.863779549617963,
@@ -43,13 +43,13 @@
       "execution_time": "2026-08-10T13:30:00+00:00",
       "action": "HOLD",
       "probabilities": {
-        "BUY": 0.22,
-        "HOLD": 0.56,
-        "SELL": 0.22
+        "BUY": 0.23,
+        "HOLD": 0.58,
+        "SELL": 0.19
       },
-      "confidence": 0.34,
+      "confidence": 0.37,
       "model": "jev-1.14.0",
-      "latency_ms": 1416.498,
+      "latency_ms": 1240.183,
       "execution_price": 503.44000244140625,
       "cash": 3333.3333333333335,
       "shares": 0.0,
@@ -61,13 +61,13 @@
       "execution_time": "2026-08-10T13:30:00+00:00",
       "action": "BUY",
       "probabilities": {
-        "BUY": 0.61,
-        "HOLD": 0.33,
+        "BUY": 0.6,
+        "HOLD": 0.34,
         "SELL": 0.06
       },
-      "confidence": 0.42,
+      "confidence": 0.4,
       "model": "jev-1.14.0",
-      "latency_ms": 1421.595,
+      "latency_ms": 1427.985,
       "execution_price": 223.5,
       "cash": 0.0,
       "shares": 14.914243102162565,
@@ -80,13 +80,13 @@
       "execution_time": "2026-08-17T13:30:00+00:00",
       "action": "HOLD",
       "probabilities": {
-        "BUY": 0.37,
+        "BUY": 0.38,
         "HOLD": 0.58,
-        "SELL": 0.05
+        "SELL": 0.04
       },
       "confidence": 0.37,
       "model": "jev-1.14.0",
-      "latency_ms": 1320.037,
+      "latency_ms": 1365.512,
       "execution_price": 306.2099914550781,
       "cash": 0.0,
       "shares": 10.863779549617963,
@@ -98,13 +98,13 @@
       "execution_time": "2026-08-17T13:30:00+00:00",
       "action": "HOLD",
       "probabilities": {
-        "BUY": 0.09,
-        "HOLD": 0.65,
-        "SELL": 0.26
+        "BUY": 0.07,
+        "HOLD": 0.71,
+        "SELL": 0.22
       },
-      "confidence": 0.48,
+      "confidence": 0.56,
       "model": "jev-1.14.0",
-      "latency_ms": 1586.42,
+      "latency_ms": 1312.75,
       "execution_price": 490.2174987792969,
       "cash": 3333.3333333333335,
       "shares": 0.0,
@@ -116,13 +116,13 @@
       "execution_time": "2026-08-17T13:30:00+00:00",
       "action": "HOLD",
       "probabilities": {
-        "BUY": 0.38,
-        "HOLD": 0.55,
+        "BUY": 0.39,
+        "HOLD": 0.54,
         "SELL": 0.07
       },
-      "confidence": 0.33,
+      "confidence": 0.31,
       "model": "jev-1.14.0",
-      "latency_ms": 1433.502,
+      "latency_ms": 1433.72,
       "execution_price": 226.02000427246094,
       "cash": 0.0,
       "shares": 14.914243102162565,
@@ -135,12 +135,12 @@
       "action": "SELL",
       "probabilities": {
         "BUY": 0.03,
-        "HOLD": 0.4,
-        "SELL": 0.57
+        "HOLD": 0.42,
+        "SELL": 0.55
       },
-      "confidence": 0.35,
+      "confidence": 0.33,
       "model": "jev-1.14.0",
-      "latency_ms": 1512.143,
+      "latency_ms": 1360.095,
       "execution_price": 311.4700012207031,
       "cash": 3383.7414295809567,
       "shares": 0.0,
@@ -153,13 +153,13 @@
       "execution_time": "2026-08-24T13:30:00+00:00",
       "action": "HOLD",
       "probabilities": {
-        "BUY": 0.17,
-        "HOLD": 0.71,
-        "SELL": 0.12
+        "BUY": 0.18,
+        "HOLD": 0.72,
+        "SELL": 0.1
       },
-      "confidence": 0.56,
+      "confidence": 0.58,
       "model": "jev-1.14.0",
-      "latency_ms": 1411.327,
+      "latency_ms": 1421.109,
       "execution_price": 483.2049865722656,
       "cash": 3333.3333333333335,
       "shares": 0.0,
@@ -172,12 +172,12 @@
       "action": "SELL",
       "probabilities": {
         "BUY": 0.04,
-        "HOLD": 0.3,
-        "SELL": 0.66
+        "HOLD": 0.25,
+        "SELL": 0.71
       },
-      "confidence": 0.49,
+      "confidence": 0.56,
       "model": "jev-1.14.0",
-      "latency_ms": 1442.104,
+      "latency_ms": 1368.389,
       "execution_price": 215.3800048828125,
       "cash": 3212.229752167226,
       "shares": 0.0,
@@ -196,7 +196,7 @@
       },
       "confidence": 0.73,
       "model": "jev-1.14.0",
-      "latency_ms": 1393.056,
+      "latency_ms": 1402.709,
       "execution_price": 319.55999755859375,
       "cash": 0.0,
       "shares": 10.588751581651023,
@@ -209,13 +209,13 @@
       "execution_time": "2026-08-31T13:30:00+00:00",
       "action": "BUY",
       "probabilities": {
-        "BUY": 0.58,
-        "HOLD": 0.27,
-        "SELL": 0.15
+        "BUY": 0.63,
+        "HOLD": 0.24,
+        "SELL": 0.13
       },
-      "confidence": 0.37,
+      "confidence": 0.44,
       "model": "jev-1.14.0",
-      "latency_ms": 1297.048,
+      "latency_ms": 1482.784,
       "execution_price": 510.32501220703125,
       "cash": 0.0,
       "shares": 6.5317851439761485,
@@ -228,13 +228,13 @@
       "execution_time": "2026-08-31T13:30:00+00:00",
       "action": "HOLD",
       "probabilities": {
-        "BUY": 0.04,
-        "HOLD": 0.6,
-        "SELL": 0.36
+        "BUY": 0.03,
+        "HOLD": 0.5,
+        "SELL": 0.47
       },
-      "confidence": 0.4,
+      "confidence": 0.25,
       "model": "jev-1.14.0",
-      "latency_ms": 1549.845,
+      "latency_ms": 909.279,
       "execution_price": 218.86199951171875,
       "cash": 3212.229752167226,
       "shares": 0.0,
@@ -246,13 +246,13 @@
       "execution_time": "2026-09-08T13:30:00+00:00",
       "action": "SELL",
       "probabilities": {
-        "BUY": 0.03,
-        "HOLD": 0.35,
-        "SELL": 0.62
+        "BUY": 0.04,
+        "HOLD": 0.36,
+        "SELL": 0.6
       },
-      "confidence": 0.43,
+      "confidence": 0.4,
       "model": "jev-1.14.0",
-      "latency_ms": 1331.286,
+      "latency_ms": 893.62,
       "execution_price": 317.1199951171875,
       "cash": 3357.9048498702837,
       "shares": 0.0,
@@ -266,12 +266,12 @@
       "action": "SELL",
       "probabilities": {
         "BUY": 0.03,
-        "HOLD": 0.31,
-        "SELL": 0.66
+        "HOLD": 0.36,
+        "SELL": 0.61
       },
-      "confidence": 0.49,
+      "confidence": 0.42,
       "model": "jev-1.14.0",
-      "latency_ms": 1558.729,
+      "latency_ms": 1394.377,
       "execution_price": 493.010009765625,
       "cash": 3220.2354576186453,
       "shares": 0.0,
@@ -284,13 +284,13 @@
       "execution_time": "2026-09-08T13:30:00+00:00",
       "action": "HOLD",
       "probabilities": {
-        "BUY": 0.34,
-        "HOLD": 0.56,
-        "SELL": 0.1
+        "BUY": 0.33,
+        "HOLD": 0.59,
+        "SELL": 0.08
       },
-      "confidence": 0.34,
+      "confidence": 0.38,
       "model": "jev-1.14.0",
-      "latency_ms": 1358.126,
+      "latency_ms": 947.5,
       "execution_price": 233.2100067138672,
       "cash": 3212.229752167226,
       "shares": 0.0,
@@ -302,13 +302,13 @@
       "execution_time": "2026-09-14T13:30:00+00:00",
       "action": "HOLD",
       "probabilities": {
-        "BUY": 0.39,
-        "HOLD": 0.41,
-        "SELL": 0.2
+        "BUY": 0.41,
+        "HOLD": 0.43,
+        "SELL": 0.16
       },
-      "confidence": 0.11,
+      "confidence": 0.14,
       "model": "jev-1.14.0",
-      "latency_ms": 1449.718,
+      "latency_ms": 1350.35,
       "execution_price": 334.8299865722656,
       "cash": 3357.9048498702837,
       "shares": 0.0,
@@ -320,13 +320,13 @@
       "execution_time": "2026-09-14T13:30:00+00:00",
       "action": "HOLD",
       "probabilities": {
-        "BUY": 0.18,
-        "HOLD": 0.74,
+        "BUY": 0.17,
+        "HOLD": 0.75,
         "SELL": 0.08
       },
-      "confidence": 0.61,
+      "confidence": 0.62,
       "model": "jev-1.14.0",
-      "latency_ms": 1349.263,
+      "latency_ms": 1037.208,
       "execution_price": 497.5,
       "cash": 3220.2354576186453,
       "shares": 0.0,
@@ -339,12 +339,12 @@
       "action": "SELL",
       "probabilities": {
         "BUY": 0.05,
-        "HOLD": 0.26,
-        "SELL": 0.69
+        "HOLD": 0.33,
+        "SELL": 0.62
       },
-      "confidence": 0.53,
+      "confidence": 0.43,
       "model": "jev-1.14.0",
-      "latency_ms": 1567.134,
+      "latency_ms": 1000.456,
       "execution_price": 211.0800018310547,
       "cash": 3212.229752167226,
       "shares": 0.0,
@@ -357,13 +357,13 @@
       "execution_time": "2026-09-21T13:30:00+00:00",
       "action": "BUY",
       "probabilities": {
-        "BUY": 0.58,
-        "HOLD": 0.38,
+        "BUY": 0.56,
+        "HOLD": 0.4,
         "SELL": 0.04
       },
-      "confidence": 0.37,
+      "confidence": 0.34,
       "model": "jev-1.14.0",
-      "latency_ms": 1446.13,
+      "latency_ms": 1076.721,
       "execution_price": 335.20001220703125,
       "cash": 0.0,
       "shares": 10.017615535754588,
@@ -376,13 +376,13 @@
       "execution_time": "2026-09-21T13:30:00+00:00",
       "action": "SELL",
       "probabilities": {
-        "BUY": 0.06,
-        "HOLD": 0.47,
+        "BUY": 0.07,
+        "HOLD": 0.46,
         "SELL": 0.47
       },
       "confidence": 0.2,
       "model": "jev-1.14.0",
-      "latency_ms": 1356.034,
+      "latency_ms": 1028.531,
       "execution_price": 495.5799865722656,
       "cash": 3220.2354576186453,
       "shares": 0.0,
@@ -395,13 +395,13 @@
       "execution_time": "2026-09-21T13:30:00+00:00",
       "action": "BUY",
       "probabilities": {
-        "BUY": 0.89,
-        "HOLD": 0.09,
-        "SELL": 0.02
+        "BUY": 0.86,
+        "HOLD": 0.11,
+        "SELL": 0.03
       },
-      "confidence": 0.83,
+      "confidence": 0.79,
       "model": "jev-1.14.0",
-      "latency_ms": 1323.298,
+      "latency_ms": 1306.027,
       "execution_price": 222.93499755859375,
       "cash": 0.0,
       "shares": 14.408817760087036,
@@ -414,13 +414,13 @@
       "execution_time": "2026-09-28T13:30:00+00:00",
       "action": "BUY",
       "probabilities": {
-        "BUY": 0.94,
-        "HOLD": 0.05,
+        "BUY": 0.93,
+        "HOLD": 0.06,
         "SELL": 0.01
       },
-      "confidence": 0.91,
+      "confidence": 0.89,
       "model": "jev-1.14.0",
-      "latency_ms": 1370.969,
+      "latency_ms": 1154.631,
       "execution_price": 340.3699951171875,
       "cash": 0.0,
       "shares": 10.017615535754588,
@@ -433,13 +433,13 @@
       "execution_time": "2026-09-28T13:30:00+00:00",
       "action": "BUY",
       "probabilities": {
-        "BUY": 0.56,
-        "HOLD": 0.26,
-        "SELL": 0.18
+        "BUY": 0.6,
+        "HOLD": 0.25,
+        "SELL": 0.15
       },
-      "confidence": 0.34,
+      "confidence": 0.4,
       "model": "jev-1.14.0",
-      "latency_ms": 918.109,
+      "latency_ms": 966.726,
       "execution_price": 505.42498779296875,
       "cash": 0.0,
       "shares": 6.371342009979356,
@@ -452,13 +452,13 @@
       "execution_time": "2026-09-28T13:30:00+00:00",
       "action": "HOLD",
       "probabilities": {
-        "BUY": 0.4,
-        "HOLD": 0.56,
-        "SELL": 0.04
+        "BUY": 0.39,
+        "HOLD": 0.58,
+        "SELL": 0.03
       },
-      "confidence": 0.34,
+      "confidence": 0.37,
       "model": "jev-1.14.0",
-      "latency_ms": 1414.148,
+      "latency_ms": 1194.22,
       "execution_price": 229.6999969482422,
       "cash": 0.0,
       "shares": 14.408817760087036,
@@ -470,13 +470,13 @@
       "execution_time": "2026-10-05T13:30:00+00:00",
       "action": "HOLD",
       "probabilities": {
-        "BUY": 0.3,
+        "BUY": 0.29,
         "HOLD": 0.66,
-        "SELL": 0.04
+        "SELL": 0.05
       },
       "confidence": 0.49,
       "model": "jev-1.14.0",
-      "latency_ms": 1381.668,
+      "latency_ms": 902.166,
       "execution_price": 332.7950134277344,
       "cash": 0.0,
       "shares": 10.017615535754588,
@@ -488,13 +488,13 @@
       "execution_time": "2026-10-05T13:30:00+00:00",
       "action": "BUY",
       "probabilities": {
-        "BUY": 0.62,
-        "HOLD": 0.34,
+        "BUY": 0.64,
+        "HOLD": 0.32,
         "SELL": 0.04
       },
-      "confidence": 0.43,
+      "confidence": 0.46,
       "model": "jev-1.14.0",
-      "latency_ms": 1484.427,
+      "latency_ms": 1414.179,
       "execution_price": 521.8150024414062,
       "cash": 0.0,
       "shares": 6.371342009979356,
@@ -507,13 +507,13 @@
       "execution_time": "2026-10-05T13:30:00+00:00",
       "action": "BUY",
       "probabilities": {
-        "BUY": 0.55,
-        "HOLD": 0.41,
+        "BUY": 0.52,
+        "HOLD": 0.44,
         "SELL": 0.04
       },
-      "confidence": 0.33,
+      "confidence": 0.28,
       "model": "jev-1.14.0",
-      "latency_ms": 1482.764,
+      "latency_ms": 1106.263,
       "execution_price": 236.07000732421875,
       "cash": 0.0,
       "shares": 14.408817760087036,
@@ -532,7 +532,7 @@
       },
       "confidence": 0.28,
       "model": "jev-1.14.0",
-      "latency_ms": 1436.024,
+      "latency_ms": 1327.224,
       "execution_price": 338.1600036621094,
       "cash": 0.0,
       "shares": 10.017615535754588,
@@ -544,13 +544,13 @@
       "execution_time": "2026-10-12T13:30:00+00:00",
       "action": "BUY",
       "probabilities": {
-        "BUY": 0.83,
-        "HOLD": 0.16,
+        "BUY": 0.84,
+        "HOLD": 0.15,
         "SELL": 0.01
       },
-      "confidence": 0.74,
+      "confidence": 0.76,
       "model": "jev-1.14.0",
-      "latency_ms": 971.861,
+      "latency_ms": 992.848,
       "execution_price": 538.0700073242188,
       "cash": 0.0,
       "shares": 6.371342009979356,
@@ -564,12 +564,12 @@
       "action": "SELL",
       "probabilities": {
         "BUY": 0.13,
-        "HOLD": 0.35,
-        "SELL": 0.52
+        "HOLD": 0.34,
+        "SELL": 0.53
       },
-      "confidence": 0.28,
+      "confidence": 0.3,
       "model": "jev-1.14.0",
-      "latency_ms": 1150.122,
+      "latency_ms": 1366.734,
       "execution_price": 228.69500732421875,
       "cash": 3295.224683176438,
       "shares": 0.0,
@@ -588,7 +588,7 @@
       },
       "confidence": 0.56,
       "model": "jev-1.14.0",
-      "latency_ms": 968.664,
+      "latency_ms": 1417.182,
       "execution_price": 340.9750061035156,
       "cash": 0.0,
       "shares": 10.017615535754588,
@@ -600,13 +600,13 @@
       "execution_time": "2026-10-19T13:30:00+00:00",
       "action": "SELL",
       "probabilities": {
-        "BUY": 0.08,
+        "BUY": 0.07,
         "HOLD": 0.41,
-        "SELL": 0.51
+        "SELL": 0.52
       },
-      "confidence": 0.26,
+      "confidence": 0.28,
       "model": "jev-1.14.0",
-      "latency_ms": 908.699,
+      "latency_ms": 1422.756,
       "execution_price": 528.739990234375,
       "cash": 3368.783312136348,
       "shares": 0.0,
@@ -619,13 +619,13 @@
       "execution_time": "2026-10-19T13:30:00+00:00",
       "action": "SELL",
       "probabilities": {
-        "BUY": 0.19,
+        "BUY": 0.2,
         "HOLD": 0.35,
-        "SELL": 0.46
+        "SELL": 0.45
       },
-      "confidence": 0.19,
+      "confidence": 0.18,
       "model": "jev-1.14.0",
-      "latency_ms": 1298.492,
+      "latency_ms": 1473.719,
       "execution_price": 218.00999450683594,
       "cash": 3295.224683176438,
       "shares": 0.0,
@@ -644,7 +644,7 @@
       },
       "confidence": 0.86,
       "model": "jev-1.14.0",
-      "latency_ms": 1375.851,
+      "latency_ms": 1457.471,
       "execution_price": 343.8999938964844,
       "cash": 0.0,
       "shares": 10.017615535754588,
@@ -658,12 +658,12 @@
       "action": "HOLD",
       "probabilities": {
         "BUY": 0.13,
-        "HOLD": 0.57,
-        "SELL": 0.3
+        "HOLD": 0.58,
+        "SELL": 0.29
       },
-      "confidence": 0.35,
+      "confidence": 0.37,
       "model": "jev-1.14.0",
-      "latency_ms": 1449.341,
+      "latency_ms": 1358.821,
       "execution_price": 527.2838134765625,
       "cash": 3368.783312136348,
       "shares": 0.0,
@@ -675,13 +675,13 @@
       "execution_time": "2026-10-26T13:30:00+00:00",
       "action": "SELL",
       "probabilities": {
-        "BUY": 0.08,
+        "BUY": 0.07,
         "HOLD": 0.27,
-        "SELL": 0.65
+        "SELL": 0.66
       },
-      "confidence": 0.48,
+      "confidence": 0.49,
       "model": "jev-1.14.0",
-      "latency_ms": 1416.698,
+      "latency_ms": 1480.377,
       "execution_price": 213.1199951171875,
       "cash": 3295.224683176438,
       "shares": 0.0,

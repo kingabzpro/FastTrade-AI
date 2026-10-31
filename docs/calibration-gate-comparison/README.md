@@ -1,24 +1,26 @@
 # Calibration gate comparison, 2026-08-03 to 2026-10-30
 
-Controlled comparison of the same benchmark run with and without the calibration gate. Both arms replay the identical 36 recorded decisions (AAPL, MSFT, NVDA, weekly, model `jev-1.14.0`) at the identical execution prices; only the gate differs, so no model calls were re-run and nothing but certification changed. The ungated replay reproduces the engine's return exactly, which validates the replay rules.
+Controlled comparison of the same benchmark run with and without the calibration gate (v3, aggregate certification). Both arms replay the identical 36 recorded decisions (AAPL, MSFT, NVDA, weekly, model `jev-1.14.0`) at the identical execution prices; only the gate differs, so no model calls are re-run. The ungated replay reproduces the engine's return exactly, which validates the replay rules. The benchmark was run twice (2026-10-30 and 2026-10-31) and produced identical decisions and returns.
 
 | Arm | Return | vs SPY (-2.19%) | Trades | BUYs blocked |
 | --- | --- | --- | --- | --- |
-| Raw decisions (engine) | **+1.18%** | +3.37 pp | 13 | - |
-| Raw decisions (replay, sanity check) | +1.18% | +3.37 pp | 13 | 0 |
-| Calibration gate on | **0.00%** | +2.19 pp | 0 | 12 (12 direction, 0 return) |
+| Raw decisions (engine and replay) | **+1.18%** | +3.37 pp | 13 | 0 |
+| v3 gate (aggregate certification) | **+1.18%** | +3.37 pp | 13 | 0 |
+| v2 gate (per-trade conformal, prior revision) | 0.00% | +2.19 pp | 0 | 12 |
 
-Directional accuracy was 45.45%, yet the raw arm beat SPY by 3.37 points: the accuracy proxy and returns disagree again, as expected for long-only positioning in a falling window.
+The artifact ([docs/backtest-2026-09-28/calibration.json](../backtest-2026-09-28/calibration.json)) certifies aggregate net-of-cost edge on its test window (mean +2.90% per BUY decision, 95% bootstrap CI [+1.64%, +4.45%], n=10), so the v3 gate is open and the gated arm captures the full +1.18% that the v2 per-trade gate forfeited. The refusal mechanism is unchanged for uncertified models: an artifact whose test-window CI lower bound is at or below zero blocks every BUY and holds cash (pinned by tests).
 
-## Reading
+Directional accuracy was 45.45%, yet the strategy beat SPY by 3.37 points: the accuracy proxy and returns disagree, which is why certification targets net excess return rather than direction.
 
-- On this window the gate did not improve returns; it traded nothing and earned nothing. It blocked all 12 BUYs at the direction step: with 56 training decisions, the direction quantile (0.5305) exceeds any calibrated deviation from 0.5, so no signal can be certified. The return gate never got a chance to discriminate.
-- Across the three published windows the raw strategy made +2.31%, +1.18%, and +6.60% versus SPY's -0.15%, -2.19%, and +9.35%. The gate is equivalent to holding cash: it beats SPY when SPY falls and forgoes the raw strategy's gains when it wins. It is a floor, not an edge.
-- The comparison's real output is the mechanism: certification currently requires more calibration data (or a sharper signal) than the ledger holds. When either arrives, the gate opens trade by trade, and the return gate insists each certified BUY clear round-trip costs, not merely point up.
+## Reading and caveats
+
+- v2 asked "can this individual trade be certified?" and the honest answer in weekly equity markets is never: single-stock weekly moves deviate about 7.5% at the 90th percentile against a 0.30% cost bar, at any sample size. v3 asks the certifiable question: "does the mean net excess return per BUY decision beat zero across the test window?" That CI shrinks as the ledger grows.
+- The certification and this replay window overlap (the artifact's test window is the October 16 review, inside August-October), so this is a mechanism demonstration, not a walk-forward proof. A walk-forward version needs a ledger that predates the traded window; the daily-candle benchmark is the path there.
+- Certification says the measured edge on the frozen flagship dataset is distinguishable from zero after costs, with 10 test BUY decisions from a hindsight-selected universe. It is the strongest honest claim that data supports, not a promise of persistence.
 
 ## Files and rerun
 
-- `benchmark-2026-08-10.json`: the fresh benchmark report (36 decisions with probabilities and prices).
+- `benchmark-2026-08-10.json`: the benchmark report (36 decisions with probabilities and prices).
 - `replay.py`: both arms from one report; no model calls.
 
 ```powershell

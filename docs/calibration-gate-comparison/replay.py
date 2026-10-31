@@ -1,39 +1,28 @@
 """Replay recorded benchmark decisions with and without the calibration gate.
 
-Both arms use the same model calls and the same execution prices from one
-benchmark report; only the gate differs, so the return comparison isolates
-what certification does rather than re-running the model. Mirrors the
-benchmark engine's rules: per-symbol equal cash split, BUY invests all
-remaining cash at the execution price, SELL exits at it, final mark at the
-last valuation price.
+v3 gate semantics: certification is model-level. When the artifact certifies
+aggregate net-of-cost edge on its test window, signals flow to the portfolio
+unchanged; when it does not, BUYs are blocked and the arm holds cash. Both
+arms use the same model calls and the same execution prices from one benchmark
+report, so the comparison isolates what certification does rather than
+re-running the model. Mirrors the benchmark engine's rules: per-symbol equal
+cash split, BUY invests all remaining cash at the execution price, SELL exits
+at it, final mark at the last valuation price.
+
+Caveat: an artifact fitted on data overlapping the replay window is a
+mechanism demonstration, not a walk-forward proof.
 """
 import json
 import sys
 
-from fasttrade.calibration import apply_isotonic, apply_temperature, conformal_interval, interval_excludes_half
-
-
-def buy_allowed(row, artifact):
-    p = row['probabilities']['BUY']
-    calibrated = float(apply_temperature(p, artifact['temperature']))
-    quantile = artifact['conformal']['quantile']
-    interval = conformal_interval(calibrated, quantile) if quantile is not None else [0.0, 1.0]
-    if not interval_excludes_half(interval):
-        return False, 'direction'
-    gate = artifact['returns']
-    expected = float(apply_isotonic(p, gate['blocks']))
-    lower = (expected - gate['quantile']) if gate['quantile'] is not None else None
-    if lower is None or lower <= gate['round_trip_cost']:
-        return False, 'return'
-    return True, None
-
 
 def replay(decisions, symbols, initial, artifact, gated):
+    edge = artifact.get('edge') or {}
+    gate_open = (not gated) or edge.get('certified') is True
     cash = {s: initial / len(symbols) for s in symbols}
     shares = {s: 0.0 for s in symbols}
     final_close = {}
     taken = blocked = 0
-    blocked_reasons = {'direction': 0, 'return': 0}
     for row in decisions:
         symbol = row['symbol']
         final_close[symbol] = row['next_valuation_price']
@@ -41,15 +30,13 @@ def replay(decisions, symbols, initial, artifact, gated):
             cash[symbol], shares[symbol] = shares[symbol] * row['execution_price'], 0.0
             taken += 1
         elif row['action'] == 'BUY':
-            allowed, reason = (buy_allowed(row, artifact) if gated else (True, None))
-            if allowed and cash[symbol] > 0:
+            if gate_open and cash[symbol] > 0:
                 shares[symbol], cash[symbol] = cash[symbol] / row['execution_price'], 0.0
                 taken += 1
-            elif not allowed:
+            elif not gate_open:
                 blocked += 1
-                blocked_reasons[reason] += 1
     ending = sum(cash[s] + shares[s] * final_close[s] for s in symbols)
-    return {'ending': round(ending, 2), 'return_pct': round((ending / initial - 1) * 100, 2), 'trades_taken': taken, 'buys_blocked': blocked, 'blocked_by': blocked_reasons}
+    return {'ending': round(ending, 2), 'return_pct': round((ending / initial - 1) * 100, 2), 'trades_taken': taken, 'buys_blocked': blocked, 'gate_open': bool(gate_open)}
 
 
 def main(report_path, artifact_path):
@@ -58,7 +45,7 @@ def main(report_path, artifact_path):
     initial = report['initial_balance']
     ungated = replay(report['decisions'], report['symbols'], initial, artifact, gated=False)
     gated = replay(report['decisions'], report['symbols'], initial, artifact, gated=True)
-    print(json.dumps({'window': f"{report['start']} to {report['end']}", 'symbols': report['symbols'], 'decisions': len(report['decisions']), 'engine_return_pct': report['return_pct'], 'replay_ungated': ungated, 'replay_gated': gated, 'spy_return_pct': report['spy_return_pct'], 'directional_accuracy_pct': report['directional_accuracy_pct']}, indent=2))
+    print(json.dumps({'window': f"{report['start']} to {report['end']}", 'symbols': report['symbols'], 'decisions': len(report['decisions']), 'engine_return_pct': report['return_pct'], 'replay_ungated': ungated, 'replay_gated': gated, 'artifact_edge': {'certified': artifact.get('edge', {}).get('certified'), 'ci': artifact.get('edge', {}).get('ci')}, 'spy_return_pct': report['spy_return_pct'], 'directional_accuracy_pct': report['directional_accuracy_pct']}, indent=2))
 
 
 if __name__ == '__main__':

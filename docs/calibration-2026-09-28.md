@@ -36,13 +36,20 @@ After temperature scaling, all 19 test predictions fall into the 0.4-0.6 bin (me
 
 Conformal gate (split-conformal on training residuals, alpha 0.1): quantile 0.5305, test interval coverage 0.9474, and an eligible rate of **0.0**: every test interval contains 0.5, so the gate certifies no BUY at this sample size. That is the honest reading of the data, not a bug.
 
-## Return-aware gate
+## Aggregate edge certification
 
-Direction is not profitability, so the fit also maps raw P(BUY) to the realized next-open move (isotonic on returns, not just the binary direction) and bounds the uncertainty with a split-conformal quantile on training residuals. A BUY is certified only when the return interval's lower bound clears the round-trip cost, 2 x (fee + slippage) = 30 bps at the defaults.
+Per-trade certification is unattainable in weekly equity markets: individual moves deviate from any expectation by about 7.5% at the 90th percentile (the fitted return quantile) against a 0.30% round-trip cost bar, and no sample size changes that, because it is market noise, not estimation error. The certifiable object is the aggregate edge, whose uncertainty shrinks with the number of decisions.
 
-- Train mean move +0.97%, test mean move +1.03%; the isotonic expectation averaged +1.18% on test.
-- The return quantile is 0.0750: weekly move uncertainty of 7.5 percentage points against a 0.30% cost bar. Every test interval's lower bound sits far below costs, so the gate certifies **0 of 19** test signals.
-- Reading: with 56 training decisions, weekly uncertainty dwarfs any plausible edge. The gate reopens only when the ledger grows or the signal genuinely sharpens; it cannot be loosened honestly from this data alone. Its value is the guarantee it will enforce once either happens: certified trades must clear costs, not merely point up.
+The fit therefore also computes the mean net excess return per BUY decision (symbol move minus SPY move over the same interval, minus round-trip cost) with a stationary-bootstrap 95% confidence interval (Politis-Romano, geometric blocks of ceil(n^(1/3)), 2000 draws, decisions in chronological order):
+
+| Window | BUY decisions | Mean net excess | 95% CI | Certified |
+| --- | --- | --- | --- | --- |
+| Test (out-of-sample) | 10 | **+2.90%** per decision | [+1.64%, +4.45%] | **Yes** |
+| Full ledger (in-sample) | 37 | **+1.89%** per decision | [+0.93%, +2.96%] | Yes |
+
+In `analyze`, `--require-certified-edge` blocks actionable signals when the artifact's test-window verdict is not certified, and lets them through to the risk engine when it is. The per-trade direction interval and expected return remain in the response as diagnostics; they no longer block, because per-trade certainty does not exist at this granularity.
+
+Read the certification with its caveats: 10 test-window BUY decisions from a single review, a hindsight-selected universe, and possible model knowledge of the period. The verdict says the measured edge on this frozen dataset is statistically distinguishable from zero after costs, not that it will persist.
 
 ## Limitations
 

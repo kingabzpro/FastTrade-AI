@@ -1,6 +1,6 @@
 {
   "schema": "fasttrade-calibration-1",
-  "created_at": "2026-10-30T19:43:24.471205+00:00",
+  "created_at": "2026-10-31T04:53:42.897621+00:00",
   "source_report_sha256": "05ddc50ac707414e2d5013dddb6ac36d569d6c95bae183238bb970230f67fcd3",
   "model": "jev-1.14.0",
   "method": "temperature",
@@ -85,6 +85,32 @@
     "quantile": 0.07501232,
     "round_trip_cost": 0.003,
     "round_trip_cost_bps": 30.0,
-    "note": "Expected return maps raw P(BUY) through isotonic blocks fitted on realized next-open moves; a BUY is certified only when the interval lower bound exceeds the round-trip cost"
+    "note": "Diagnostic only: expected return maps raw P(BUY) through isotonic blocks fitted on realized next-open moves"
+  },
+  "edge": {
+    "certified": true,
+    "n": 10,
+    "mean": 0.028979,
+    "ci": [
+      0.016355,
+      0.044468
+    ],
+    "round_trip_cost": 0.003,
+    "block_length": 3,
+    "draws": 2000,
+    "definition": "mean net excess return per BUY decision: symbol move minus SPY move over the same interval, minus round-trip cost",
+    "window": "test",
+    "in_sample": {
+      "certified": true,
+      "n": 37,
+      "mean": 0.018883,
+      "ci": [
+        0.009348,
+        0.029598
+      ],
+      "round_trip_cost": 0.003,
+      "block_length": 4,
+      "draws": 2000
+    }
   }
 }

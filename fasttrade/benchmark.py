@@ -94,7 +94,7 @@ def run(args):
                     shares[symbol], cash[symbol] = cash[symbol] / price, 0.0
                 elif decision['action'] == 'SELL' and shares[symbol] > 0:
                     cash[symbol], shares[symbol] = shares[symbol] * price, 0.0
-                decisions.append({'symbol': symbol, 'decision_time': decision_time.isoformat(), 'execution_time': execution_time.isoformat(), 'action': decision['action'], 'probabilities': decision['probabilities'], 'model': decision['model'], 'latency_ms': decision['latency_us'] / 1000, 'execution_price': price, 'cash': cash[symbol], 'shares': shares[symbol]})
+                decisions.append({'symbol': symbol, 'decision_time': decision_time.isoformat(), 'execution_time': execution_time.isoformat(), 'action': decision['action'], 'probabilities': decision['probabilities'], 'confidence': decision['confidence'], 'model': decision['model'], 'latency_ms': decision['latency_us'] / 1000, 'execution_price': price, 'cash': cash[symbol], 'shares': shares[symbol]})
     ending = sum(cash[s] + shares[s] * float(frames[s].loc[final, 'close']) for s in symbols)
     spy_open = float(frames['SPY'].loc[first_open, 'open'])
     spy_close = float(frames['SPY'].loc[final, 'close'])

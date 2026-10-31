@@ -1,0 +1,692 @@
+{
+  "model_requested": "jev-latest",
+  "start": "2026-08-03",
+  "end": "2026-10-30",
+  "symbols": [
+    "AAPL",
+    "MSFT",
+    "NVDA"
+  ],
+  "initial_balance": 10000.0,
+  "first_execution_time": "2026-08-10T13:30:00+00:00",
+  "valuation_time": "2026-10-30T20:30:00+00:00",
+  "ending_balance": 10117.98,
+  "return_pct": 1.18,
+  "spy_ending_balance": 9781.13,
+  "spy_return_pct": -2.19,
+  "directional_decisions": 22,
+  "directional_accuracy_pct": 45.45,
+  "assumptions": "Adjusted hourly Yahoo prices; weekly model preferences; next common hourly open; equal independent allocations; fractional shares; no fees, slippage, taxes, or risk checks. Historical model knowledge and revised data can bias results.",
+  "decisions": [
+    {
+      "symbol": "AAPL",
+      "decision_time": "2026-08-07T20:30:00+00:00",
+      "execution_time": "2026-08-10T13:30:00+00:00",
+      "action": "BUY",
+      "probabilities": {
+        "BUY": 0.55,
+        "HOLD": 0.42,
+        "SELL": 0.03
+      },
+      "confidence": 0.33,
+      "model": "jev-1.14.0",
+      "latency_ms": 2407.375,
+      "execution_price": 306.8299865722656,
+      "cash": 0.0,
+      "shares": 10.863779549617963,
+      "next_valuation_price": 306.2099914550781,
+      "directional_correct": false
+    },
+    {
+      "symbol": "MSFT",
+      "decision_time": "2026-08-07T20:30:00+00:00",
+      "execution_time": "2026-08-10T13:30:00+00:00",
+      "action": "HOLD",
+      "probabilities": {
+        "BUY": 0.22,
+        "HOLD": 0.56,
+        "SELL": 0.22
+      },
+      "confidence": 0.34,
+      "model": "jev-1.14.0",
+      "latency_ms": 1416.498,
+      "execution_price": 503.44000244140625,
+      "cash": 3333.3333333333335,
+      "shares": 0.0,
+      "next_valuation_price": 490.2174987792969
+    },
+    {
+      "symbol": "NVDA",
+      "decision_time": "2026-08-07T20:30:00+00:00",
+      "execution_time": "2026-08-10T13:30:00+00:00",
+      "action": "BUY",
+      "probabilities": {
+        "BUY": 0.61,
+        "HOLD": 0.33,
+        "SELL": 0.06
+      },
+      "confidence": 0.42,
+      "model": "jev-1.14.0",
+      "latency_ms": 1421.595,
+      "execution_price": 223.5,
+      "cash": 0.0,
+      "shares": 14.914243102162565,
+      "next_valuation_price": 226.02000427246094,
+      "directional_correct": true
+    },
+    {
+      "symbol": "AAPL",
+      "decision_time": "2026-08-14T20:30:00+00:00",
+      "execution_time": "2026-08-17T13:30:00+00:00",
+      "action": "HOLD",
+      "probabilities": {
+        "BUY": 0.37,
+        "HOLD": 0.58,
+        "SELL": 0.05
+      },
+      "confidence": 0.37,
+      "model": "jev-1.14.0",
+      "latency_ms": 1320.037,
+      "execution_price": 306.2099914550781,
+      "cash": 0.0,
+      "shares": 10.863779549617963,
+      "next_valuation_price": 311.4700012207031
+    },
+    {
+      "symbol": "MSFT",
+      "decision_time": "2026-08-14T20:30:00+00:00",
+      "execution_time": "2026-08-17T13:30:00+00:00",
+      "action": "HOLD",
+      "probabilities": {
+        "BUY": 0.09,
+        "HOLD": 0.65,
+        "SELL": 0.26
+      },
+      "confidence": 0.48,
+      "model": "jev-1.14.0",
+      "latency_ms": 1586.42,
+      "execution_price": 490.2174987792969,
+      "cash": 3333.3333333333335,
+      "shares": 0.0,
+      "next_valuation_price": 483.2049865722656
+    },
+    {
+      "symbol": "NVDA",
+      "decision_time": "2026-08-14T20:30:00+00:00",
+      "execution_time": "2026-08-17T13:30:00+00:00",
+      "action": "HOLD",
+      "probabilities": {
+        "BUY": 0.38,
+        "HOLD": 0.55,
+        "SELL": 0.07
+      },
+      "confidence": 0.33,
+      "model": "jev-1.14.0",
+      "latency_ms": 1433.502,
+      "execution_price": 226.02000427246094,
+      "cash": 0.0,
+      "shares": 14.914243102162565,
+      "next_valuation_price": 215.3800048828125
+    },
+    {
+      "symbol": "AAPL",
+      "decision_time": "2026-08-21T20:30:00+00:00",
+      "execution_time": "2026-08-24T13:30:00+00:00",
+      "action": "SELL",
+      "probabilities": {
+        "BUY": 0.03,
+        "HOLD": 0.4,
+        "SELL": 0.57
+      },
+      "confidence": 0.35,
+      "model": "jev-1.14.0",
+      "latency_ms": 1512.143,
+      "execution_price": 311.4700012207031,
+      "cash": 3383.7414295809567,
+      "shares": 0.0,
+      "next_valuation_price": 319.55999755859375,
+      "directional_correct": false
+    },
+    {
+      "symbol": "MSFT",
+      "decision_time": "2026-08-21T20:30:00+00:00",
+      "execution_time": "2026-08-24T13:30:00+00:00",
+      "action": "HOLD",
+      "probabilities": {
+        "BUY": 0.17,
+        "HOLD": 0.71,
+        "SELL": 0.12
+      },
+      "confidence": 0.56,
+      "model": "jev-1.14.0",
+      "latency_ms": 1411.327,
+      "execution_price": 483.2049865722656,
+      "cash": 3333.3333333333335,
+      "shares": 0.0,
+      "next_valuation_price": 510.32501220703125
+    },
+    {
+      "symbol": "NVDA",
+      "decision_time": "2026-08-21T20:30:00+00:00",
+      "execution_time": "2026-08-24T13:30:00+00:00",
+      "action": "SELL",
+      "probabilities": {
+        "BUY": 0.04,
+        "HOLD": 0.3,
+        "SELL": 0.66
+      },
+      "confidence": 0.49,
+      "model": "jev-1.14.0",
+      "latency_ms": 1442.104,
+      "execution_price": 215.3800048828125,
+      "cash": 3212.229752167226,
+      "shares": 0.0,
+      "next_valuation_price": 218.86199951171875,
+      "directional_correct": false
+    },
+    {
+      "symbol": "AAPL",
+      "decision_time": "2026-08-28T20:30:00+00:00",
+      "execution_time": "2026-08-31T13:30:00+00:00",
+      "action": "BUY",
+      "probabilities": {
+        "BUY": 0.82,
+        "HOLD": 0.16,
+        "SELL": 0.02
+      },
+      "confidence": 0.73,
+      "model": "jev-1.14.0",
+      "latency_ms": 1393.056,
+      "execution_price": 319.55999755859375,
+      "cash": 0.0,
+      "shares": 10.588751581651023,
+      "next_valuation_price": 317.1199951171875,
+      "directional_correct": false
+    },
+    {
+      "symbol": "MSFT",
+      "decision_time": "2026-08-28T20:30:00+00:00",
+      "execution_time": "2026-08-31T13:30:00+00:00",
+      "action": "BUY",
+      "probabilities": {
+        "BUY": 0.58,
+        "HOLD": 0.27,
+        "SELL": 0.15
+      },
+      "confidence": 0.37,
+      "model": "jev-1.14.0",
+      "latency_ms": 1297.048,
+      "execution_price": 510.32501220703125,
+      "cash": 0.0,
+      "shares": 6.5317851439761485,
+      "next_valuation_price": 493.010009765625,
+      "directional_correct": false
+    },
+    {
+      "symbol": "NVDA",
+      "decision_time": "2026-08-28T20:30:00+00:00",
+      "execution_time": "2026-08-31T13:30:00+00:00",
+      "action": "HOLD",
+      "probabilities": {
+        "BUY": 0.04,
+        "HOLD": 0.6,
+        "SELL": 0.36
+      },
+      "confidence": 0.4,
+      "model": "jev-1.14.0",
+      "latency_ms": 1549.845,
+      "execution_price": 218.86199951171875,
+      "cash": 3212.229752167226,
+      "shares": 0.0,
+      "next_valuation_price": 233.2100067138672
+    },
+    {
+      "symbol": "AAPL",
+      "decision_time": "2026-09-04T20:30:00+00:00",
+      "execution_time": "2026-09-08T13:30:00+00:00",
+      "action": "SELL",
+      "probabilities": {
+        "BUY": 0.03,
+        "HOLD": 0.35,
+        "SELL": 0.62
+      },
+      "confidence": 0.43,
+      "model": "jev-1.14.0",
+      "latency_ms": 1331.286,
+      "execution_price": 317.1199951171875,
+      "cash": 3357.9048498702837,
+      "shares": 0.0,
+      "next_valuation_price": 334.8299865722656,
+      "directional_correct": false
+    },
+    {
+      "symbol": "MSFT",
+      "decision_time": "2026-09-04T20:30:00+00:00",
+      "execution_time": "2026-09-08T13:30:00+00:00",
+      "action": "SELL",
+      "probabilities": {
+        "BUY": 0.03,
+        "HOLD": 0.31,
+        "SELL": 0.66
+      },
+      "confidence": 0.49,
+      "model": "jev-1.14.0",
+      "latency_ms": 1558.729,
+      "execution_price": 493.010009765625,
+      "cash": 3220.2354576186453,
+      "shares": 0.0,
+      "next_valuation_price": 497.5,
+      "directional_correct": false
+    },
+    {
+      "symbol": "NVDA",
+      "decision_time": "2026-09-04T20:30:00+00:00",
+      "execution_time": "2026-09-08T13:30:00+00:00",
+      "action": "HOLD",
+      "probabilities": {
+        "BUY": 0.34,
+        "HOLD": 0.56,
+        "SELL": 0.1
+      },
+      "confidence": 0.34,
+      "model": "jev-1.14.0",
+      "latency_ms": 1358.126,
+      "execution_price": 233.2100067138672,
+      "cash": 3212.229752167226,
+      "shares": 0.0,
+      "next_valuation_price": 211.0800018310547
+    },
+    {
+      "symbol": "AAPL",
+      "decision_time": "2026-09-11T20:30:00+00:00",
+      "execution_time": "2026-09-14T13:30:00+00:00",
+      "action": "HOLD",
+      "probabilities": {
+        "BUY": 0.39,
+        "HOLD": 0.41,
+        "SELL": 0.2
+      },
+      "confidence": 0.11,
+      "model": "jev-1.14.0",
+      "latency_ms": 1449.718,
+      "execution_price": 334.8299865722656,
+      "cash": 3357.9048498702837,
+      "shares": 0.0,
+      "next_valuation_price": 335.20001220703125
+    },
+    {
+      "symbol": "MSFT",
+      "decision_time": "2026-09-11T20:30:00+00:00",
+      "execution_time": "2026-09-14T13:30:00+00:00",
+      "action": "HOLD",
+      "probabilities": {
+        "BUY": 0.18,
+        "HOLD": 0.74,
+        "SELL": 0.08
+      },
+      "confidence": 0.61,
+      "model": "jev-1.14.0",
+      "latency_ms": 1349.263,
+      "execution_price": 497.5,
+      "cash": 3220.2354576186453,
+      "shares": 0.0,
+      "next_valuation_price": 495.5799865722656
+    },
+    {
+      "symbol": "NVDA",
+      "decision_time": "2026-09-11T20:30:00+00:00",
+      "execution_time": "2026-09-14T13:30:00+00:00",
+      "action": "SELL",
+      "probabilities": {
+        "BUY": 0.05,
+        "HOLD": 0.26,
+        "SELL": 0.69
+      },
+      "confidence": 0.53,
+      "model": "jev-1.14.0",
+      "latency_ms": 1567.134,
+      "execution_price": 211.0800018310547,
+      "cash": 3212.229752167226,
+      "shares": 0.0,
+      "next_valuation_price": 222.93499755859375,
+      "directional_correct": false
+    },
+    {
+      "symbol": "AAPL",
+      "decision_time": "2026-09-18T20:30:00+00:00",
+      "execution_time": "2026-09-21T13:30:00+00:00",
+      "action": "BUY",
+      "probabilities": {
+        "BUY": 0.58,
+        "HOLD": 0.38,
+        "SELL": 0.04
+      },
+      "confidence": 0.37,
+      "model": "jev-1.14.0",
+      "latency_ms": 1446.13,
+      "execution_price": 335.20001220703125,
+      "cash": 0.0,
+      "shares": 10.017615535754588,
+      "next_valuation_price": 340.3699951171875,
+      "directional_correct": true
+    },
+    {
+      "symbol": "MSFT",
+      "decision_time": "2026-09-18T20:30:00+00:00",
+      "execution_time": "2026-09-21T13:30:00+00:00",
+      "action": "SELL",
+      "probabilities": {
+        "BUY": 0.06,
+        "HOLD": 0.47,
+        "SELL": 0.47
+      },
+      "confidence": 0.2,
+      "model": "jev-1.14.0",
+      "latency_ms": 1356.034,
+      "execution_price": 495.5799865722656,
+      "cash": 3220.2354576186453,
+      "shares": 0.0,
+      "next_valuation_price": 505.42498779296875,
+      "directional_correct": false
+    },
+    {
+      "symbol": "NVDA",
+      "decision_time": "2026-09-18T20:30:00+00:00",
+      "execution_time": "2026-09-21T13:30:00+00:00",
+      "action": "BUY",
+      "probabilities": {
+        "BUY": 0.89,
+        "HOLD": 0.09,
+        "SELL": 0.02
+      },
+      "confidence": 0.83,
+      "model": "jev-1.14.0",
+      "latency_ms": 1323.298,
+      "execution_price": 222.93499755859375,
+      "cash": 0.0,
+      "shares": 14.408817760087036,
+      "next_valuation_price": 229.6999969482422,
+      "directional_correct": true
+    },
+    {
+      "symbol": "AAPL",
+      "decision_time": "2026-09-25T20:30:00+00:00",
+      "execution_time": "2026-09-28T13:30:00+00:00",
+      "action": "BUY",
+      "probabilities": {
+        "BUY": 0.94,
+        "HOLD": 0.05,
+        "SELL": 0.01
+      },
+      "confidence": 0.91,
+      "model": "jev-1.14.0",
+      "latency_ms": 1370.969,
+      "execution_price": 340.3699951171875,
+      "cash": 0.0,
+      "shares": 10.017615535754588,
+      "next_valuation_price": 332.7950134277344,
+      "directional_correct": false
+    },
+    {
+      "symbol": "MSFT",
+      "decision_time": "2026-09-25T20:30:00+00:00",
+      "execution_time": "2026-09-28T13:30:00+00:00",
+      "action": "BUY",
+      "probabilities": {
+        "BUY": 0.56,
+        "HOLD": 0.26,
+        "SELL": 0.18
+      },
+      "confidence": 0.34,
+      "model": "jev-1.14.0",
+      "latency_ms": 918.109,
+      "execution_price": 505.42498779296875,
+      "cash": 0.0,
+      "shares": 6.371342009979356,
+      "next_valuation_price": 521.8150024414062,
+      "directional_correct": true
+    },
+    {
+      "symbol": "NVDA",
+      "decision_time": "2026-09-25T20:30:00+00:00",
+      "execution_time": "2026-09-28T13:30:00+00:00",
+      "action": "HOLD",
+      "probabilities": {
+        "BUY": 0.4,
+        "HOLD": 0.56,
+        "SELL": 0.04
+      },
+      "confidence": 0.34,
+      "model": "jev-1.14.0",
+      "latency_ms": 1414.148,
+      "execution_price": 229.6999969482422,
+      "cash": 0.0,
+      "shares": 14.408817760087036,
+      "next_valuation_price": 236.07000732421875
+    },
+    {
+      "symbol": "AAPL",
+      "decision_time": "2026-10-02T20:30:00+00:00",
+      "execution_time": "2026-10-05T13:30:00+00:00",
+      "action": "HOLD",
+      "probabilities": {
+        "BUY": 0.3,
+        "HOLD": 0.66,
+        "SELL": 0.04
+      },
+      "confidence": 0.49,
+      "model": "jev-1.14.0",
+      "latency_ms": 1381.668,
+      "execution_price": 332.7950134277344,
+      "cash": 0.0,
+      "shares": 10.017615535754588,
+      "next_valuation_price": 338.1600036621094
+    },
+    {
+      "symbol": "MSFT",
+      "decision_time": "2026-10-02T20:30:00+00:00",
+      "execution_time": "2026-10-05T13:30:00+00:00",
+      "action": "BUY",
+      "probabilities": {
+        "BUY": 0.62,
+        "HOLD": 0.34,
+        "SELL": 0.04
+      },
+      "confidence": 0.43,
+      "model": "jev-1.14.0",
+      "latency_ms": 1484.427,
+      "execution_price": 521.8150024414062,
+      "cash": 0.0,
+      "shares": 6.371342009979356,
+      "next_valuation_price": 538.0700073242188,
+      "directional_correct": true
+    },
+    {
+      "symbol": "NVDA",
+      "decision_time": "2026-10-02T20:30:00+00:00",
+      "execution_time": "2026-10-05T13:30:00+00:00",
+      "action": "BUY",
+      "probabilities": {
+        "BUY": 0.55,
+        "HOLD": 0.41,
+        "SELL": 0.04
+      },
+      "confidence": 0.33,
+      "model": "jev-1.14.0",
+      "latency_ms": 1482.764,
+      "execution_price": 236.07000732421875,
+      "cash": 0.0,
+      "shares": 14.408817760087036,
+      "next_valuation_price": 228.69500732421875,
+      "directional_correct": false
+    },
+    {
+      "symbol": "AAPL",
+      "decision_time": "2026-10-09T20:30:00+00:00",
+      "execution_time": "2026-10-12T13:30:00+00:00",
+      "action": "HOLD",
+      "probabilities": {
+        "BUY": 0.44,
+        "HOLD": 0.52,
+        "SELL": 0.04
+      },
+      "confidence": 0.28,
+      "model": "jev-1.14.0",
+      "latency_ms": 1436.024,
+      "execution_price": 338.1600036621094,
+      "cash": 0.0,
+      "shares": 10.017615535754588,
+      "next_valuation_price": 340.9750061035156
+    },
+    {
+      "symbol": "MSFT",
+      "decision_time": "2026-10-09T20:30:00+00:00",
+      "execution_time": "2026-10-12T13:30:00+00:00",
+      "action": "BUY",
+      "probabilities": {
+        "BUY": 0.83,
+        "HOLD": 0.16,
+        "SELL": 0.01
+      },
+      "confidence": 0.74,
+      "model": "jev-1.14.0",
+      "latency_ms": 971.861,
+      "execution_price": 538.0700073242188,
+      "cash": 0.0,
+      "shares": 6.371342009979356,
+      "next_valuation_price": 528.739990234375,
+      "directional_correct": false
+    },
+    {
+      "symbol": "NVDA",
+      "decision_time": "2026-10-09T20:30:00+00:00",
+      "execution_time": "2026-10-12T13:30:00+00:00",
+      "action": "SELL",
+      "probabilities": {
+        "BUY": 0.13,
+        "HOLD": 0.35,
+        "SELL": 0.52
+      },
+      "confidence": 0.28,
+      "model": "jev-1.14.0",
+      "latency_ms": 1150.122,
+      "execution_price": 228.69500732421875,
+      "cash": 3295.224683176438,
+      "shares": 0.0,
+      "next_valuation_price": 218.00999450683594,
+      "directional_correct": true
+    },
+    {
+      "symbol": "AAPL",
+      "decision_time": "2026-10-16T20:30:00+00:00",
+      "execution_time": "2026-10-19T13:30:00+00:00",
+      "action": "HOLD",
+      "probabilities": {
+        "BUY": 0.22,
+        "HOLD": 0.71,
+        "SELL": 0.07
+      },
+      "confidence": 0.56,
+      "model": "jev-1.14.0",
+      "latency_ms": 968.664,
+      "execution_price": 340.9750061035156,
+      "cash": 0.0,
+      "shares": 10.017615535754588,
+      "next_valuation_price": 343.8999938964844
+    },
+    {
+      "symbol": "MSFT",
+      "decision_time": "2026-10-16T20:30:00+00:00",
+      "execution_time": "2026-10-19T13:30:00+00:00",
+      "action": "SELL",
+      "probabilities": {
+        "BUY": 0.08,
+        "HOLD": 0.41,
+        "SELL": 0.51
+      },
+      "confidence": 0.26,
+      "model": "jev-1.14.0",
+      "latency_ms": 908.699,
+      "execution_price": 528.739990234375,
+      "cash": 3368.783312136348,
+      "shares": 0.0,
+      "next_valuation_price": 527.2838134765625,
+      "directional_correct": true
+    },
+    {
+      "symbol": "NVDA",
+      "decision_time": "2026-10-16T20:30:00+00:00",
+      "execution_time": "2026-10-19T13:30:00+00:00",
+      "action": "SELL",
+      "probabilities": {
+        "BUY": 0.19,
+        "HOLD": 0.35,
+        "SELL": 0.46
+      },
+      "confidence": 0.19,
+      "model": "jev-1.14.0",
+      "latency_ms": 1298.492,
+      "execution_price": 218.00999450683594,
+      "cash": 3295.224683176438,
+      "shares": 0.0,
+      "next_valuation_price": 213.1199951171875,
+      "directional_correct": true
+    },
+    {
+      "symbol": "AAPL",
+      "decision_time": "2026-10-23T20:30:00+00:00",
+      "execution_time": "2026-10-26T13:30:00+00:00",
+      "action": "BUY",
+      "probabilities": {
+        "BUY": 0.91,
+        "HOLD": 0.08,
+        "SELL": 0.01
+      },
+      "confidence": 0.86,
+      "model": "jev-1.14.0",
+      "latency_ms": 1375.851,
+      "execution_price": 343.8999938964844,
+      "cash": 0.0,
+      "shares": 10.017615535754588,
+      "next_valuation_price": 344.7900085449219,
+      "directional_correct": true
+    },
+    {
+      "symbol": "MSFT",
+      "decision_time": "2026-10-23T20:30:00+00:00",
+      "execution_time": "2026-10-26T13:30:00+00:00",
+      "action": "HOLD",
+      "probabilities": {
+        "BUY": 0.13,
+        "HOLD": 0.57,
+        "SELL": 0.3
+      },
+      "confidence": 0.35,
+      "model": "jev-1.14.0",
+      "latency_ms": 1449.341,
+      "execution_price": 527.2838134765625,
+      "cash": 3368.783312136348,
+      "shares": 0.0,
+      "next_valuation_price": 521.9000244140625
+    },
+    {
+      "symbol": "NVDA",
+      "decision_time": "2026-10-23T20:30:00+00:00",
+      "execution_time": "2026-10-26T13:30:00+00:00",
+      "action": "SELL",
+      "probabilities": {
+        "BUY": 0.08,
+        "HOLD": 0.27,
+        "SELL": 0.65
+      },
+      "confidence": 0.48,
+      "model": "jev-1.14.0",
+      "latency_ms": 1416.698,
+      "execution_price": 213.1199951171875,
+      "cash": 3295.224683176438,
+      "shares": 0.0,
+      "next_valuation_price": 204.80999755859375,
+      "directional_correct": true
+    }
+  ]
+}

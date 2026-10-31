@@ -177,3 +177,44 @@ def test_sample_without_portfolio_is_signal_only(monkeypatch):
     assert result['decision']['action'] == 'BUY'
     assert result['actionable_signal'] is None
     assert any('sample' in reason.lower() for reason in result['risk_rejections'])
+
+
+def test_analyze_with_samples_makes_one_request_per_vote(monkeypatch):
+    from fasttrade import decisions, web
+    calls = []
+    def vote(state, url, model, key):
+        calls.append(model)
+        choice = 'HOLD' if len(calls) == 3 else 'BUY'
+        probs = {'BUY': .1, 'HOLD': .8, 'SELL': .1} if choice == 'HOLD' else {'BUY': .8, 'HOLD': .1, 'SELL': .1}
+        return decisions.normalize({'model': 'test', 'answers': {'action': {'type': 'choice', 'choice': choice, 'confidence': .9, 'probabilities': probs}}}, 1000)
+    monkeypatch.setattr(decisions, 'predict', vote)
+    client = TestClient(web.app, base_url='http://127.0.0.1:8765')
+    data = {'symbol': 'NVDA', 'sample': True, 'samples': 3, 'position': 0, 'equity': 10000, 'exposure': 0, 'daily_loss': 0, 'trade_count': 0, 'quantity': 1, 'max_position': 1000, 'max_exposure': 5000, 'max_daily_loss': 200, 'max_trades': 5, 'min_confidence': 0}
+    response = client.post('/api/analyze', json=data)
+    assert response.status_code == 200
+    result = response.json()
+    assert len(calls) == 3
+    assert result['model_requests'] == 3
+    assert result['decision']['sample_count'] == 3
+    assert result['decision']['action'] == 'BUY' and result['decision']['dispersion'] == 0.5
+    assert result['decision']['effective_confidence'] == 0.45
+
+
+def test_analyze_rejects_out_of_range_samples(monkeypatch):
+    from fasttrade import web
+    monkeypatch.setattr(web, 'run_analysis', lambda args: (_ for _ in ()).throw(AssertionError('unexpected analysis')))
+    client = TestClient(web.app, base_url='http://127.0.0.1:8765')
+    assert client.post('/api/analyze', json={'symbol': 'NVDA', 'samples': 0}).status_code == 422
+    assert client.post('/api/analyze', json={'symbol': 'NVDA', 'samples': 10}).status_code == 422
+
+
+def test_analyze_exposes_per_sample_entries(monkeypatch):
+    from fasttrade import decisions, web
+    monkeypatch.setattr(decisions, 'predict', lambda *args: decisions.normalize({'model': 'test', 'usage': {'input_tokens': 10, 'output_tokens': 5}, 'answers': {'action': {'type': 'choice', 'choice': 'BUY', 'confidence': .9, 'probabilities': {'BUY': .8, 'HOLD': .1, 'SELL': .1}}}}, 1000))
+    client = TestClient(web.app, base_url='http://127.0.0.1:8765')
+    result = client.post('/api/analyze', json={'symbol': 'NVDA', 'sample': True, 'samples': 3}).json()
+    samples = result['decision']['samples']
+    assert len(samples) == 3
+    assert all(entry['action'] == 'BUY' and entry['confidence'] == .9 and entry['latency_us'] == 1000 and entry['usage'] == {'input_tokens': 10, 'output_tokens': 5} for entry in samples)
+    assert result['decision']['usage_complete'] is True
+    assert result['decision']['usage'] == {'input_tokens': 30, 'output_tokens': 15}

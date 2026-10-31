@@ -76,6 +76,12 @@ $hashes = @{}; 'sessions.csv','AAPL.csv','SPY.csv' | ForEach-Object { $hashes[$_
 
 Hashes make later changes detectable; they do not prove that the vendor's historical prices, calendar, or corporate-action attestation were correct or available at the time. Do not use Yahoo's retrospectively adjusted prices as raw prices. The engine does not check whether tickers were chosen with hindsight or whether the model's training included future events. These limitations mean the result cannot be certified free of all leakage. For stronger evidence, predefine the universe and rules, use point-in-time data and a model known to predate the test, and evaluate later out-of-sample periods. See the [CFA Institute's backtesting overview](https://www.cfainstitute.org/insights/professional-learning/refresher-readings/2026/backtesting-and-simulation) and [research on temporal leakage in language-model backtests](https://arxiv.org/abs/2608.02985).
 
+## Decision sampling (research)
+
+`analyze --samples N` (2-9) asks the model N independent times for the same snapshot and aggregates: the action is the majority vote (ties break to the higher mean probability), probabilities are averaged, and the response reports `sample_count`, the per-sample audit trail, `dispersion` (normalized vote disagreement, 0 for unanimity), and `effective_confidence` (mean confidence discounted by dispersion). Risk gating consumes the effective confidence, and with `--calibration` the calibrated value is discounted the same way. It makes N paid model requests; the result states the count in `model_requests`. Without the flag nothing changes: one request, no new fields.
+
+`benchmark --samples N` and `backtest --samples N` run the same aggregation per decision for research comparisons; their reports carry `samples`, per-decision `sample_count`, and token totals that include every request. Published comparison: [docs/self-consistency-comparison/README.md](self-consistency-comparison/README.md).
+
 ## Decision calibration (research)
 
 `ft calibrate` fits a post-hoc mapping from the decision model's P(BUY) to realized weekly outcomes, using a frozen backtest report and its dataset:

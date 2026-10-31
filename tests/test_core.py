@@ -1,8 +1,9 @@
 import pandas as pd
 import pytest
+from fasttrade import decisions
 from fasttrade.market import validate_candles, headlines
 from fasttrade.indicators import features
-from fasttrade.decisions import normalize
+from fasttrade.decisions import normalize, predict_samples
 from fasttrade.risk import evaluate
 
 
@@ -54,3 +55,51 @@ def test_risk_rejects_oversize_and_short():
     args = dict(position=0, equity=1000, exposure=0, daily_loss=0, trade_count=0, quantity=10, max_position=500, max_exposure=800, max_daily_loss=100, max_trades=5, min_confidence=.5)
     assert evaluate('BUY', .8, 100, **args)
     assert evaluate('SELL', .8, 100, **args)
+
+
+def test_predict_samples_majority_dispersion_and_usage(monkeypatch):
+    sequence = [('BUY', .7, .2, .1, .8), ('BUY', .6, .3, .1, .7), ('HOLD', .3, .5, .2, .6), ('BUY', .65, .25, .1, .75), ('HOLD', .4, .45, .15, .55)]
+    calls = []
+    def fake_predict(state, url, model, key):
+        action, b, h, s, confidence = sequence[len(calls)]
+        calls.append(action)
+        return {'action': action, 'probabilities': {'BUY': b, 'HOLD': h, 'SELL': s}, 'confidence': confidence, 'model': 'jev', 'latency_us': 1000, 'usage': {'input_tokens': 100, 'output_tokens': 10}}
+    monkeypatch.setattr(decisions, 'predict', fake_predict)
+    result = predict_samples({}, 'u', 'jev', 'k', 5)
+    assert calls == ['BUY', 'BUY', 'HOLD', 'BUY', 'HOLD']
+    assert result['action'] == 'BUY'
+    assert result['probabilities']['BUY'] == pytest.approx((.7 + .6 + .3 + .65 + .4) / 5)
+    assert result['confidence'] == pytest.approx((.8 + .7 + .6 + .75 + .55) / 5)
+    assert result['dispersion'] == pytest.approx((1 - 3 / 5) * 5 / 4)
+    assert result['effective_confidence'] == pytest.approx(result['confidence'] * (1 - result['dispersion']))
+    assert result['sample_count'] == 5
+    assert len(result['samples']) == 5
+    assert result['usage'] == {'input_tokens': 500, 'output_tokens': 50}
+    assert result['usage_complete'] is True
+    assert result['latency_us'] == 5000
+
+
+def test_predict_samples_retries_invalid_response(monkeypatch):
+    calls = []
+    def flaky(state, url, model, key):
+        calls.append(1)
+        if len(calls) == 2:
+            raise ValueError('Invalid SystemOne response')
+        usage = {'input_tokens': 100, 'output_tokens': 10} if len(calls) == 1 else None
+        return {'action': 'HOLD', 'probabilities': {'BUY': .2, 'HOLD': .6, 'SELL': .2}, 'confidence': .6, 'model': 'jev', 'latency_us': 100, 'usage': usage}
+    monkeypatch.setattr(decisions, 'predict', flaky)
+    result = predict_samples({}, 'u', 'jev', 'k', 2)
+    assert len(calls) == 3
+    assert result['sample_count'] == 2
+    assert result['usage_complete'] is False
+    assert result['usage'] == {'input_tokens': 100, 'output_tokens': None}
+
+
+def test_predict_samples_unanimous_has_zero_dispersion(monkeypatch):
+    def same(state, url, model, key):
+        return {'action': 'SELL', 'probabilities': {'BUY': .1, 'HOLD': .2, 'SELL': .7}, 'confidence': .9, 'model': 'jev', 'latency_us': 50, 'usage': {'input_tokens': 1, 'output_tokens': 1}}
+    monkeypatch.setattr(decisions, 'predict', same)
+    result = predict_samples({}, 'u', 'jev', 'k', 3)
+    assert result['action'] == 'SELL'
+    assert result['dispersion'] == 0
+    assert result['effective_confidence'] == pytest.approx(.9)

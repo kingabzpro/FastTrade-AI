@@ -40,3 +40,36 @@ def predict(state, url, model, key):
     except (httpx.HTTPError, ValueError) as exc:
         raise ValueError('SystemOne request failed') from exc
     return normalize(data, (time.perf_counter_ns() - start) // 1000)
+
+
+def predict_samples(state, url, model, key, samples):
+    """Run N independent decision requests and aggregate them (research only).
+
+    The chosen action is the majority vote, ties breaking to the higher mean
+    probability. Dispersion is the normalized vote disagreement in 0-1, and
+    effective_confidence discounts the mean confidence by it. Every sample is
+    returned for the audit trail. Makes N paid model requests.
+    """
+    if not isinstance(samples, int) or samples < 2:
+        raise ValueError('Samples must be an integer of at least 2')
+    collected = []
+    attempts = 0
+    for _ in range(samples):
+        for attempt in range(3):
+            attempts += 1
+            try:
+                collected.append(predict(state, url, model, key))
+                break
+            except ValueError as exc:
+                if str(exc) != 'Invalid SystemOne response' or attempt == 2:
+                    raise
+    votes = [d['action'] for d in collected]
+    top = max(votes.count(action) for action in set(votes))
+    winners = sorted(action for action in set(votes) if votes.count(action) == top)
+    probabilities = {k: sum(d['probabilities'][k] for d in collected) / len(collected) for k in ('BUY', 'HOLD', 'SELL')}
+    action = winners[0] if len(winners) == 1 else max(winners, key=lambda a: probabilities[a])
+    confidence = sum(d['confidence'] for d in collected) / len(collected)
+    dispersion = (1 - top / len(collected)) * len(collected) / (len(collected) - 1)
+    usages = [d['usage'] for d in collected]
+    usage = None if all(u is None for u in usages) else {'input_tokens': sum((u or {}).get('input_tokens') or 0 for u in usages), 'output_tokens': (None if any((u or {}).get('output_tokens') is None for u in usages) else sum(u['output_tokens'] for u in usages))}
+    return {'action': action, 'probabilities': probabilities, 'confidence': confidence, 'dispersion': round(dispersion, 6), 'effective_confidence': round(confidence * (1 - dispersion), 6), 'sample_count': len(collected), 'request_attempts': attempts, 'samples': [{'action': d['action'], 'probabilities': d['probabilities'], 'confidence': d['confidence'], 'latency_us': d['latency_us'], 'usage': d['usage']} for d in collected], 'model': collected[0]['model'], 'latency_us': sum(d['latency_us'] for d in collected), 'usage': usage, 'usage_complete': all(u is not None for u in usages)}

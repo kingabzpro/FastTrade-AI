@@ -10,7 +10,7 @@ import pandas as pd
 from dotenv import load_dotenv
 from .market import yahoo, validate_candles, INTERVALS
 from .indicators import features
-from .decisions import predict
+from .decisions import predict, predict_samples
 from .risk import evaluate
 
 
@@ -24,6 +24,7 @@ def parser():
     b.add_argument('--end', required=True, help='Last valuation date (YYYY-MM-DD, inclusive)')
     b.add_argument('--symbols', default='AAPL,MSFT,NVDA', help='Comma-separated symbols (default: AAPL,MSFT,NVDA)')
     b.add_argument('--model', default=None, help='SystemOne model; defaults to SYSTEMONE_MODEL')
+    b.add_argument('--samples', type=int, default=1, help='Independent model votes per decision (1-9); multiplies paid requests')
     t = sub.add_parser('backtest', help='Backtest against a validated frozen dataset')
     t.add_argument('--data-dir', required=True, help='Directory containing manifest, sessions, and raw hourly CSVs')
     t.add_argument('--start', required=True, help='First date, YYYY-MM-DD')
@@ -32,6 +33,7 @@ def parser():
     t.add_argument('--model', default=None, help='SystemOne model; defaults to SYSTEMONE_MODEL')
     t.add_argument('--fee-bps', type=float, default=5, help='Commission in basis points per side (default 5)')
     t.add_argument('--slippage-bps', type=float, default=10, help='Slippage in basis points per side (default 10)')
+    t.add_argument('--samples', type=int, default=1, help='Independent model votes per decision (1-9); multiplies paid requests')
     t.add_argument('--output', required=True, help='New JSON report path')
     c = sub.add_parser('calibrate', help='Fit decision-probability calibration from a frozen backtest report (research only)')
     c.add_argument('--report', required=True, help='Backtest report JSON with per-decision probabilities')
@@ -55,6 +57,7 @@ def add_analysis_arguments(a):
     a.add_argument('--liquidity', type=float)
     a.add_argument('--calibration', help='Calibration artifact JSON from ft calibrate; confidence is then reported and gated calibrated')
     a.add_argument('--require-certified-edge', action='store_true', help='Block actionable signals unless the artifact certifies aggregate net-of-cost edge on its test window')
+    a.add_argument('--samples', type=int, help='Independent model votes per decision (2-9); makes N paid requests and reports vote dispersion')
     for name in ('position', 'equity', 'exposure', 'daily-loss', 'quantity', 'max-position', 'max-exposure', 'max-daily-loss', 'min-confidence'):
         a.add_argument('--' + name, type=float)
     for name in ('trade-count', 'max-trades'):
@@ -104,15 +107,27 @@ def run(args):
         raise ValueError('TYPESAFE_API_KEY is missing')
     if getattr(args, 'require_certified_edge', False) and not getattr(args, 'calibration', None):
         raise ValueError('--require-certified-edge requires --calibration')
-    decision = predict(state, url, getattr(args, 'systemone_model', None) or os.getenv('SYSTEMONE_MODEL', 'jev-latest'), key)
+    samples = getattr(args, 'samples', None)
+    if samples is None:
+        samples = 1
+    if not isinstance(samples, int) or not 1 <= samples <= 9:
+        raise ValueError('Samples must be between 1 and 9')
+    decision = predict_samples(state, url, getattr(args, 'systemone_model', None) or os.getenv('SYSTEMONE_MODEL', 'jev-latest'), key, samples) if samples > 1 else predict(state, url, getattr(args, 'systemone_model', None) or os.getenv('SYSTEMONE_MODEL', 'jev-latest'), key)
     calibration = None
     if getattr(args, 'calibration', None):
         from .calibration import apply_isotonic, apply_temperature, conformal_interval, load_artifact
         calibration = load_artifact(args.calibration)
         calibrated = float(apply_temperature(decision['probabilities'][decision['action']], calibration['temperature']))
+        if samples > 1:
+            calibrated *= 1 - decision['dispersion']
         decision['calibrated_confidence'] = round(calibrated, 6)
         decision['calibration'] = {'method': 'temperature', 'temperature': calibration['temperature'], 'at_bound': calibration.get('at_bound', False), 'fit_target': calibration['fit']['target'], 'fit_horizon': calibration['fit']['horizon'], 'train_end': calibration['train_window']['end'], 'note': 'Fitted on backtest outcomes; research label, not advice'}
-    confidence = decision.get('calibrated_confidence', decision['confidence'])
+    if calibration:
+        confidence = decision['calibrated_confidence']
+    elif samples > 1:
+        confidence = decision['effective_confidence']
+    else:
+        confidence = decision['confidence']
     risk_args = {name: getattr(args, name) for name in ('position', 'equity', 'exposure', 'daily_loss', 'trade_count', 'quantity', 'max_position', 'max_exposure', 'max_daily_loss', 'max_trades', 'min_confidence')}
     risk_start = time.perf_counter_ns()
     risk_complete = all(value is not None for value in risk_args.values())
@@ -142,7 +157,7 @@ def run(args):
         reasons.append('Stale market data: research preview only')
     interpretations = [f"Price {'above' if snapshot['price'] > snapshot['vwap'] else 'at or below'} session VWAP", f"MACD {'above' if snapshot['macd'] > snapshot['macd_signal'] else 'at or below'} its signal", f"Volume {'above' if snapshot['volume_ratio'] > 1 else 'at or below'} 20-bar average"]
     risk_ms = (time.perf_counter_ns() - risk_start) / 1e6
-    result = {'notice': 'Research only; model preferences are not probabilities of profitable trades.', 'market': state, 'decision': decision, 'indicator_interpretations': interpretations, 'risk_rejections': reasons, 'actionable_signal': (decision['action'] if not reasons else 'HOLD') if risk_complete else None, 'stale_preview': stale_preview, **result_extra}
+    result = {'notice': 'Research only; model preferences are not probabilities of profitable trades.', 'market': state, 'decision': decision, 'model_requests': samples, 'indicator_interpretations': interpretations, 'risk_rejections': reasons, 'actionable_signal': (decision['action'] if not reasons else 'HOLD') if risk_complete else None, 'stale_preview': stale_preview, **result_extra}
     if getattr(args, 'include_chart', False):
         chart = frame.copy()
         for n in (9, 21, 50):

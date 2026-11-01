@@ -1,4 +1,8 @@
 import math
+import os
+import re
+import httpx
+from concurrent.futures import ThreadPoolExecutor
 import pandas as pd
 
 INTERVALS = {'1m': 60, '2m': 120, '5m': 300, '15m': 900, '30m': 1800, '60m': 3600, '90m': 5400}
@@ -64,21 +68,69 @@ def headlines(items, as_of):
 
 def yahoo(symbol, timeframe, as_of):
     import yfinance as yf
+    from curl_cffi.requests.exceptions import Timeout
     ticker = yf.Ticker(symbol)
     try:
         frame = ticker.history(period='7d' if timeframe == '1m' else '1mo', interval=timeframe, auto_adjust=False, prepost=False, raise_errors=True)
+    except Timeout as exc:
+        raise ValueError('Market data provider timed out') from exc
     except Exception as exc:
         raise ValueError('Market data provider failed') from exc
     if frame.empty:
         raise ValueError('Market data provider returned no candles')
     frame = frame.reset_index().rename(columns={'Datetime':'timestamp', 'Date':'timestamp', 'Open':'open', 'High':'high', 'Low':'low', 'Close':'close', 'Volume':'volume'})
-    try:
-        info = ticker.info
-        details = {k: info.get(k) for k in ('shortName', 'currency', 'exchange', 'exchangeTimezoneName') if info.get(k) is not None}
-    except Exception:
-        details = {}
-    try:
-        news = headlines(ticker.news, as_of)
-    except Exception:
-        news = []
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        info_future = pool.submit(lambda: ticker.info)
+        news_future = pool.submit(lambda: ticker.news)
+        try:
+            info = info_future.result()
+            details = {k: info.get(k) for k in ('shortName', 'currency', 'exchange', 'exchangeTimezoneName') if info.get(k) is not None}
+        except Exception:
+            details = {}
+        try:
+            news = headlines(news_future.result(), as_of)
+        except Exception:
+            news = []
     return frame, details, news
+
+
+def alpaca(symbol, timeframe, as_of):
+    key, secret = os.getenv('ALPACA_API_KEY'), os.getenv('ALPACA_SECRET_KEY')
+    if not key or not secret:
+        raise ValueError('Alpaca credentials are missing')
+    symbol = symbol.upper()
+    if not re.fullmatch(r'[A-Z0-9.\-]{1,20}', symbol):
+        raise ValueError('Invalid Alpaca stock symbol')
+    intervals = {'1m': '1Min', '2m': '2Min', '5m': '5Min', '15m': '15Min', '30m': '30Min', '60m': '1Hour'}
+    if timeframe not in intervals:
+        raise ValueError('Unsupported Alpaca timeframe')
+    headers = {'APCA-API-KEY-ID': key, 'APCA-API-SECRET-KEY': secret}
+    params = {'timeframe': intervals[timeframe], 'feed': 'iex', 'adjustment': 'raw', 'start': (as_of - pd.Timedelta(days=30)).isoformat(), 'end': as_of.isoformat(), 'sort': 'desc', 'limit': 1000}
+    bars = []
+    try:
+        while True:
+            response = httpx.get(f'https://data.alpaca.markets/v2/stocks/{symbol}/bars', headers=headers, params=params, timeout=15)
+            if response.status_code in (401, 403):
+                raise ValueError('Alpaca credentials or data access rejected')
+            if response.status_code == 429:
+                raise ValueError('Alpaca rate limit reached')
+            response.raise_for_status()
+            data = response.json()
+            page = data.get('bars') or []
+            if not isinstance(page, list):
+                raise ValueError('Invalid Alpaca candle response')
+            bars.extend(page)
+            token = data.get('next_page_token')
+            if len(bars) >= 51 or not token:
+                break
+            if not page or token == params.get('page_token'):
+                raise ValueError('Invalid Alpaca candle response')
+            params['page_token'] = token
+    except httpx.TimeoutException as exc:
+        raise ValueError('Alpaca market data timed out') from exc
+    except (httpx.HTTPError, TypeError, AttributeError) as exc:
+        raise ValueError('Alpaca market data request failed') from exc
+    if not bars:
+        raise ValueError('Alpaca returned no candles')
+    frame = pd.DataFrame(list(reversed(bars))).rename(columns={'t': 'timestamp', 'o': 'open', 'h': 'high', 'l': 'low', 'c': 'close', 'v': 'volume'})
+    return frame, {'exchangeTimezoneName': 'America/New_York', 'currency': 'USD'}, []

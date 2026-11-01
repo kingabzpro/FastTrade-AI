@@ -2,14 +2,19 @@
 
 const $ = (id) => document.getElementById(id);
 const riskFields = [
-  ['position', 'Position · shares'], ['equity', 'Account equity'],
-  ['exposure', 'Current exposure'], ['daily_loss', 'Daily loss'],
-  ['trade_count', 'Trades today'], ['quantity', 'Proposed shares'],
-  ['max_position', 'Max position value'], ['max_exposure', 'Max exposure'],
-  ['max_daily_loss', 'Max daily loss'], ['max_trades', 'Max trades'],
-  ['min_confidence', 'Min confidence · 0–1'],
+  ['position', 'Position · shares', 'Shares of this asset you currently own.'],
+  ['equity', 'Account equity', 'Total account value in the instrument’s currency.'],
+  ['exposure', 'Current exposure', 'Gross value of your long positions in the instrument’s currency.'],
+  ['daily_loss', 'Daily loss', 'Today’s loss as a positive amount in the instrument’s currency.'],
+  ['trade_count', 'Trades today', 'Number of trades already made today.'],
+  ['quantity', 'Proposed shares', 'Shares to buy or sell; a sale cannot exceed your position.'],
+  ['max_position', 'Max position value', 'Maximum value of this asset after a purchase, not a share count.'],
+  ['max_exposure', 'Max exposure', 'Maximum gross long exposure after a purchase.'],
+  ['max_daily_loss', 'Max daily loss', 'Daily loss at which buy and sell signals are blocked.'],
+  ['max_trades', 'Max trades', 'Trade count at which buy and sell signals are blocked.'],
+  ['min_confidence', 'Min confidence · 0–1', 'Minimum model confidence for a buy or sell signal.'],
 ];
-for (const [name, label] of riskFields) {
+for (const [name, label, description] of riskFields) {
   const wrap = document.createElement('label');
   wrap.textContent = label.toUpperCase();
   const input = document.createElement('input');
@@ -21,7 +26,10 @@ for (const [name, label] of riskFields) {
     ));
   }
   input.placeholder = 'Not set'; input.name = name; input.id = `risk-${name}`;
-  wrap.append(input); $('risk-fields').append(wrap);
+  const help = document.createElement('span');
+  help.className = 'risk-help'; help.id = `risk-help-${name}`; help.textContent = description;
+  input.setAttribute('aria-describedby', help.id);
+  wrap.append(input, help); $('risk-fields').append(wrap);
 }
 
 let current = null;
@@ -63,7 +71,7 @@ function render(result, record = true) {
   selectedCandle = null;
   const market = result.market, feature = market.features, decision = result.decision;
   const stale = Boolean(result.stale_preview), sample = result.source === 'Synthetic sample CSV';
-  const source = sample ? 'SYNTHETIC SAMPLE' : result.source === 'CSV' ? 'HISTORICAL CSV' : 'YAHOO FINANCE';
+  const source = sample ? 'SYNTHETIC SAMPLE' : result.source === 'CSV' ? 'HISTORICAL CSV' : 'ALPACA IEX';
   const time = formatTime(market.candle_timestamp);
   $('chart-badge').className = `pill ${stale ? 'warning' : 'good'}`;
   setText('chart-badge', stale ? 'STALE · RESEARCH ONLY' : source);
@@ -90,6 +98,11 @@ function render(result, record = true) {
     const value = document.createElement('span'); value.className = 'prob-value'; value.textContent = `${Math.round(probs[name] * 100)}%`;
     row.append(label, track, value); list.append(row);
   }
+  const comparison = result.rule_comparison;
+  const status = !comparison ? 'unavailable' : comparison.agreement;
+  $('rule-status').dataset.state = status;
+  setText('rule-status', {agree: 'SIGNALS AGREE', disagree: 'SIGNALS DIFFER', no_signal: 'NO RULE SIGNAL', unavailable: 'UNAVAILABLE'}[status] || 'UNAVAILABLE');
+  setText('rule-detail', comparison?.signal ? `Indicator rule: ${comparison.signal} · Model: ${action}` : comparison ? 'The indicator rule has no directional signal.' : 'Rule comparison unavailable.');
   const signalOnly = result.actionable_signal == null;
   const blocked = !signalOnly && result.risk_rejections.length > 0 && action !== 'HOLD';
   document.querySelector('.risk-result').classList.toggle('blocked', blocked || stale);
@@ -259,20 +272,11 @@ $('chart').addEventListener('keydown', event => {
 window.addEventListener('resize', drawChart);
 $('chart-window').addEventListener('change', () => { selectedCandle = null; drawChart(); });
 $('chart-overlay').addEventListener('change', drawChart);
-function syncSourceControls() {
-  const sample = $('source').value === 'sample';
-  setText('strip-source', sample ? 'Synthetic sample' : 'Yahoo Finance');
-  if (sample) $('timeframe').value = '5m';
-  $('timeframe').disabled = sample;
-  $('source-hint').hidden = !sample;
-}
-$('source').addEventListener('change', syncSourceControls);
-syncSourceControls();
 $('chart-window').disabled = true; $('chart-overlay').disabled = true;
 
 function syncNavigation() {
   const destination = ['#chart-panel', '#history-panel'].includes(location.hash) ? location.hash : '#workspace';
-  for (const link of document.querySelectorAll('.nav-item[href^="#"], .mobile-nav a[href^="#"]')) {
+  for (const link of document.querySelectorAll('.mobile-nav a[href^="#"]')) {
     const active = link.getAttribute('href') === destination;
     link.classList.toggle('active', active);
     if (active) link.setAttribute('aria-current', 'location');
@@ -291,7 +295,7 @@ $('analysis-form').addEventListener('submit', async (event) => {
   event.preventDefault();
   const symbol = $('symbol').value.trim().toUpperCase();
   if (!symbol) { $('symbol').focus(); return; }
-  const payload = {symbol, timeframe: $('timeframe').value, sample: $('source').value === 'sample'};
+  const payload = {symbol, timeframe: $('timeframe').value};
   for (const [name] of riskFields) {
     const raw = $(`risk-${name}`).value.trim();
     if (raw !== '') payload[name] = Number(raw);
@@ -313,7 +317,6 @@ $('analysis-form').addEventListener('submit', async (event) => {
   } finally {
     button.disabled = false; button.querySelector('span').textContent = 'Run analysis';
     fields.forEach(field => { field.disabled = false; });
-    syncSourceControls();
     $('analysis-form').setAttribute('aria-busy', 'false');
   }
 });

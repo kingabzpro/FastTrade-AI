@@ -1,0 +1,2 @@
+docs/backtest-2026-09-28-alpaca/*.csv -text whitespace=cr-at-eol
+docs/backtest-2026-09-28-alpaca/*.json -text whitespace=cr-at-eol

@@ -49,6 +49,8 @@ def test_csv_cli_missing_risk_is_signal_only(monkeypatch, tmp_path):
     args = cli.parser().parse_args(['analyze', 'TEST', '--csv', str(path), '--as-of', '2026-01-02T19:30:00Z'])
     result = cli.run(args)
     assert result['decision']['action'] == 'BUY'
+    assert result['rule_comparison']['signal'] in ('BUY', 'SELL', None)
+    assert result['rule_comparison']['agreement'] in ('agree', 'disagree', 'no_signal')
     assert result['actionable_signal'] is None
     assert result['risk_rejections'] == []
 
@@ -146,7 +148,7 @@ def test_yahoo_1m_requests_supported_history(monkeypatch):
 
 
 def test_stale_preview_cannot_be_actionable(monkeypatch):
-    monkeypatch.setattr(cli, 'yahoo', lambda *args: (candles(), {'shortName': 'Current'}, [{'title': 'new', 'source': 'X', 'published': '2026-01-03T00:00:00+00:00'}]))
+    monkeypatch.setattr(cli, 'alpaca', lambda *args: (candles(), {'shortName': 'Current'}, [{'title': 'new', 'source': 'X', 'published': '2026-01-03T00:00:00+00:00'}]))
     states = []
     monkeypatch.setattr(cli, 'predict', lambda state, *args: states.append(state) or decisions.normalize(answer(), 1))
     args = cli.parser().parse_args(['analyze', 'TEST', '--as-of', '2026-01-03T00:00:00Z', '--position', '0', '--equity', '10000', '--exposure', '0', '--daily-loss', '0', '--trade-count', '0', '--quantity', '1', '--max-position', '1000', '--max-exposure', '5000', '--max-daily-loss', '200', '--max-trades', '5', '--min-confidence', '0'])
@@ -278,3 +280,50 @@ def test_calibrate_command_writes_artifact_and_refuses_overwrite(monkeypatch, tm
     assert written['method'] == 'temperature'
     monkeypatch.setattr(cli.sys, 'argv', ['ft', 'calibrate', '--report', str(report_path), '--data-dir', str(tmp_path), '--output', str(artifact_path)])
     assert cli.main() == 1
+
+
+@pytest.mark.parametrize(('rule', 'agreement'), [('BUY', 'agree'), ('SELL', 'disagree'), (None, 'no_signal')])
+def test_rule_comparison_does_not_change_risk_gate(monkeypatch, tmp_path, rule, agreement):
+    path = tmp_path / 'candles.csv'
+    candles().to_csv(path, index=False)
+    monkeypatch.setattr(cli, 'predict', lambda *args: decisions.normalize(answer(), 1))
+    monkeypatch.setattr(cli, 'rule_signal', lambda snapshot: rule)
+    args = cli.parser().parse_args(['analyze', 'TEST', '--csv', str(path), '--as-of', '2026-01-02T19:30:00Z', *full_risk_args(), '--min-confidence', '0.9'])
+    result = cli.run(args)
+    assert result['rule_comparison'] == {'signal': rule, 'agreement': agreement}
+    assert result['decision']['action'] == 'BUY'
+    assert result['actionable_signal'] == 'HOLD'
+    assert 'Confidence below threshold' in result['risk_rejections']
+
+
+def test_yahoo_timeout_reports_provider_connectivity(monkeypatch):
+    import yfinance
+    from curl_cffi.requests.exceptions import Timeout
+    class Ticker:
+        def history(self, **kwargs):
+            raise Timeout('network details')
+    monkeypatch.setattr(yfinance, 'Ticker', lambda symbol: Ticker())
+    with pytest.raises(ValueError, match='Market data provider timed out'):
+        market.yahoo('NVDA', '5m', pd.Timestamp('2026-01-02T19:30Z'))
+
+
+def test_yahoo_fetches_details_and_headlines_concurrently(monkeypatch):
+    import threading
+    import yfinance
+    barrier = threading.Barrier(2, timeout=3)
+    class Ticker:
+        def history(self, **kwargs):
+            return candles().set_index('timestamp').rename_axis('Datetime').rename(columns=str.capitalize)
+        @property
+        def info(self):
+            barrier.wait()
+            return {'shortName': 'Example', 'exchangeTimezoneName': 'America/New_York'}
+        @property
+        def news(self):
+            barrier.wait()
+            return [{'title': 'Earlier', 'providerPublishTime': 1767380400, 'publisher': 'Source'}]
+    monkeypatch.setattr(yfinance, 'Ticker', lambda symbol: Ticker())
+    frame, details, news = market.yahoo('TEST', '5m', pd.Timestamp('2026-01-02T19:30Z'))
+    assert len(frame) == 60
+    assert details['shortName'] == 'Example'
+    assert [item['title'] for item in news] == ['Earlier']

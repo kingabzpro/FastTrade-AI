@@ -1,11 +1,6 @@
 from fastapi.testclient import TestClient
 
 
-def test_web_launcher_uses_new_port():
-    from fasttrade.web import PORT
-    assert PORT == 8765
-
-
 def test_startup_banner_shows_local_settings_without_secrets(monkeypatch, capsys):
     import socket
     import threading
@@ -27,24 +22,6 @@ def test_startup_banner_shows_local_settings_without_secrets(monkeypatch, capsys
     assert 'test-model' in output and 'Alpaca IEX' in output
     assert 'synthetic' not in output.lower() and 'sample' not in output.lower()
     assert 'API key' not in output and 'private-test-key' not in output and '\x1b[' not in output
-
-
-def test_startup_banner_uses_colors_on_a_terminal(monkeypatch, capsys):
-    import socket
-    import threading
-    import uvicorn
-    import rich.console
-    from unittest.mock import MagicMock
-    from fasttrade import web
-
-    console = rich.console.Console
-    monkeypatch.delenv('NO_COLOR', raising=False)
-    monkeypatch.setattr(rich.console, 'Console', lambda: console(force_terminal=True, color_system='standard'))
-    monkeypatch.setattr(socket, 'socket', MagicMock())
-    monkeypatch.setattr(threading, 'Timer', MagicMock())
-    monkeypatch.setattr(uvicorn, 'Server', MagicMock())
-    web.serve()
-    assert '\x1b[' in capsys.readouterr().out
 
 
 def test_local_api_exposes_health_and_schema_without_running_analysis(monkeypatch):

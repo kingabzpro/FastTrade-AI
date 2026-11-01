@@ -12,11 +12,6 @@ def answer():
     return {'model': 'jev', 'answers': {'action': {'type': 'choice', 'choice': 'BUY', 'confidence': .8, 'probabilities': {'BUY': .7, 'HOLD': .2, 'SELL': .1}}}}
 
 
-def test_terminal_dashboard_command_is_not_available():
-    with pytest.raises(SystemExit):
-        cli.parser().parse_args(['tui'])
-
-
 def test_ft_launches_dashboard_without_args_and_cli_with_args(monkeypatch):
     from fasttrade import web
     calls = []

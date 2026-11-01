@@ -11,26 +11,13 @@
   </p>
 </div>
 
-<div align="center">
-  <a href="#how-it-works"><img src="https://img.shields.io/badge/VS%20SPY-%2B2.46%20pp-0B8F61?style=for-the-badge" alt="2.46 percentage points over SPY"></a>
-  <a href="#how-it-works"><img src="https://img.shields.io/badge/AVG%20MODEL%20REQUEST-%3C0.6%20sec-536DE0?style=for-the-badge" alt="Average model request under 0.6 seconds"></a>
-  <a href="#how-it-works"><img src="https://img.shields.io/badge/1%2C000%20DECISIONS-%240.0343-D59015?style=for-the-badge" alt="Estimated model cost 0.0343 dollars per 1,000 decisions"></a>
-</div>
-
 ## How it works
 
 FastTrade reads market data and technical indicators, asks Jev for a BUY, HOLD or SELL preference, then checks any supplied portfolio limits.
 
-In a 25-stock backtest from October 5–27, 2026, FastTrade returned **+2.31%** versus **−0.15% for SPY**, including assumed commissions and slippage.
+A retrospective 25-stock backtest for October 2026 returned **+2.04%** with Alpaca IEX data, versus **−0.17% for SPY**, including simulated fees and slippage. The earlier Yahoo-data run returned +2.31% versus −0.15% for SPY. See the [Alpaca comparison](docs/backtest-2026-09-28-alpaca/README.md) for methods and limitations.
 
-Across 100 decisions, model requests averaged **599 ms** and cost an estimated **$0.0343 per 1,000 similar decisions** at [TypeSafe's pricing](https://typesafe.ai/). Actual billing may differ.
-
-FastTrade supports compatible System One API endpoints, so you can change the model or provider in `.env`.
-
-Next, we plan a live-market experiment using Jev's decisions to measure whether they can be profitable.
-
-> [!NOTE]
-> The backtest is retrospective and may contain hindsight; it does not establish a live trading edge. An [earlier six-month benchmark](docs/benchmark-2026-h1.md) returned +6.60% versus SPY's +9.35%.
+Both results use a hindsight-selected universe and may contain model lookahead; neither establishes a live trading edge. The IEX feed represents one exchange, so its prices and volume can differ from consolidated data.
 
 ## Get started
 
@@ -54,8 +41,8 @@ To use a compatible endpoint, set `SYSTEMONE_URL`, `SYSTEMONE_MODEL` and `TYPESA
 
 ## Explore
 
-- [Backtest report and frozen inputs](docs/backtest-2026-09-28/report-measured.json)
-- [Method, limitations and rerun command](docs/backtest-2026-09-28/README.md)
+- [Alpaca IEX backtest and frozen inputs](docs/backtest-2026-09-28-alpaca/README.md)
+- [Earlier Yahoo backtest](docs/backtest-2026-09-28/README.md)
 - [Usage guide: analysis, benchmarks and backtesting](docs/usage.md)
 - [API reference](http://127.0.0.1:8765/docs) when the app is running
 - [Apache 2.0 license](LICENSE)

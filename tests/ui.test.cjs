@@ -31,9 +31,10 @@ function result(symbol = 'NVDA') {
     market: { symbol, timeframe: '5m', candle_timestamp: '2026-01-02T20:55:00Z', features: {
       price: 142.85, rsi_14: 54, macd: .12, vwap_delta: .003, volume_ratio: 1.2, atr_14: .8,
     }, headlines: [] },
-    source: 'Synthetic sample CSV', stale_preview: false,
+    source: 'Alpaca IEX', stale_preview: false,
     decision: { action: 'BUY', probabilities: { BUY: .7, HOLD: .2, SELL: .1 }, model: 'test', latency_us: 1000 },
-    actionable_signal: 'HOLD', risk_rejections: ['Synthetic sample data: research preview only'],
+    actionable_signal: 'HOLD', risk_rejections: [],
+    rule_comparison: { signal: 'BUY', agreement: 'agree' },
     indicator_interpretations: ['Price is above VWAP.'],
     candles: Array.from({ length: 65 }, (_, i) => ({
       timestamp: new Date(Date.UTC(2026, 0, 2, 15, 30) + i * 300000).toISOString(),
@@ -43,15 +44,12 @@ function result(symbol = 'NVDA') {
   };
 }
 
-test('chart controls wait for data and sample mode enforces its five-minute timeframe', async () => {
+test('dashboard uses Alpaca data without a source selector', async () => {
   assert.equal(await page.locator('#chart-window').isDisabled(), true);
   assert.equal(await page.locator('#chart-overlay').isDisabled(), true);
-  await page.selectOption('#timeframe', '15m');
-  await page.selectOption('#source', 'sample');
-  assert.equal(await page.locator('#timeframe').inputValue(), '5m');
-  assert.equal(await page.locator('#timeframe').isDisabled(), true);
-  await page.selectOption('#source', 'yahoo');
-  assert.equal(await page.locator('#timeframe').isDisabled(), false);
+  assert.equal(await page.locator('#source').count(), 0);
+  assert.equal(await page.locator('#timeframe').isEnabled(), true);
+  assert.match(await page.locator('#strip-source').innerText(), /Alpaca IEX/);
 });
 
 test('collapsed invalid risk settings open so the invalid field can receive focus', async () => {
@@ -61,6 +59,22 @@ test('collapsed invalid risk settings open so the invalid field can receive focu
   await page.locator('#analyze').click();
   assert.equal(await page.locator('.risk-settings').getAttribute('open'), '');
   assert.equal(await page.locator('#risk-min_confidence').evaluate(el => el === document.activeElement), true);
+});
+
+test('risk inputs explain their meaning and connect help to each input', async () => {
+  await page.locator('.risk-settings summary').click();
+  for (const input of await page.locator('#risk-fields input').all()) {
+    const description = await input.getAttribute('aria-describedby');
+    assert.ok(description);
+    assert.ok((await page.locator(`#${description}`).innerText()).length > 10);
+  }
+  assert.match(await page.locator('.risk-settings').innerText(), /not the chance of profit/i);
+  assert.match(await page.locator('.risk-settings').innerText(), /no orders/i);
+  await page.setViewportSize({ width: 320, height: 844 });
+  await page.locator('#risk-position').focus();
+  await page.keyboard.press('Tab');
+  assert.equal(await page.locator('#risk-equity').evaluate(el => el === document.activeElement), true);
+  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
 });
 
 test('positive portfolio amounts reject zero and accept fractional values or omission', async () => {
@@ -76,10 +90,8 @@ test('positive portfolio amounts reject zero and accept fractional values or omi
   }
 });
 
-test('desktop and mobile navigation mark the selected destination', async () => {
-  await page.locator('.sidebar a[href="#history-panel"]').click();
-  await page.waitForFunction(() => document.querySelector('.sidebar a[href="#history-panel"]').getAttribute('aria-current') === 'location');
-  assert.equal(await page.locator('.sidebar a[href="#workspace"]').getAttribute('aria-current'), null);
+test('workspace has no sidebar and mobile navigation marks the selected destination', async () => {
+  assert.equal(await page.locator('.sidebar').count(), 0);
   await page.setViewportSize({ width: 390, height: 844 });
   await page.locator('.mobile-nav a[href="#chart-panel"]').click();
   await page.waitForFunction(() => document.querySelector('.mobile-nav a[href="#chart-panel"]').getAttribute('aria-current') === 'location');
@@ -105,17 +117,17 @@ test('loading, chart inspection, history replay and failures restore usable cont
   const pending = new Promise(resolve => { release = resolve; });
   await page.route('**/api/analyze', async route => {
     assert.equal(route.request().postDataJSON().timeframe, '5m');
+    assert.notEqual(route.request().postDataJSON().sample, true);
     await pending;
     await route.fulfill({ json: result() });
   });
-  await page.selectOption('#source', 'sample');
   await page.locator('#analyze').click();
   assert.equal(await page.locator('#analyze').isDisabled(), true);
   assert.equal(await page.locator('#analysis-form').getAttribute('aria-busy'), 'true');
   release();
   await page.waitForFunction(() => !document.getElementById('decision-content').hidden);
   assert.match(await page.locator('#risk-action').innerText(), /HOLD/);
-  assert.equal(await page.locator('#timeframe').isDisabled(), true);
+  assert.equal(await page.locator('#timeframe').isEnabled(), true);
   assert.equal(await page.locator('#chart-overlay').isEnabled(), true);
   await page.selectOption('#chart-overlay', 'ema_9');
   await page.locator('#chart').focus();
@@ -146,9 +158,27 @@ test('loading, chart inspection, history replay and failures restore usable cont
   assert.equal(await page.locator('.history-link').isEnabled(), true);
 });
 
+test('shows rule agreement without claiming certainty', async () => {
+  const data = result();
+  await page.route('**/api/analyze', route => route.fulfill({ json: data }));
+  await page.locator('#analyze').click();
+  await page.waitForFunction(() => !document.getElementById('decision-content').hidden);
+  assert.equal(await page.locator('#rule-status').innerText(), 'SIGNALS AGREE');
+  assert.match(await page.locator('#rule-comparison').innerText(), /BUY/);
+  assert.match(await page.locator('#rule-comparison').innerText(), /unvalidated/i);
+  data.rule_comparison = { signal: 'SELL', agreement: 'disagree' };
+  await page.locator('#analyze').click();
+  await page.waitForFunction(() => document.getElementById('rule-status').textContent === 'SIGNALS DIFFER');
+  assert.match(await page.locator('#rule-comparison').innerText(), /SELL/);
+  data.rule_comparison = { signal: null, agreement: 'no_signal' };
+  await page.locator('#analyze').click();
+  await page.waitForFunction(() => document.getElementById('rule-status').textContent === 'NO RULE SIGNAL');
+  assert.match(await page.locator('#rule-comparison').innerText(), /unvalidated/i);
+});
+
 test('incomplete portfolio shows signal only in the decision and history', async () => {
   const data = result();
-  data.source = 'Yahoo Finance';
+  data.source = 'Alpaca IEX';
   data.actionable_signal = null;
   data.risk_rejections = [];
   await page.route('**/api/analyze', route => route.fulfill({ json: data }));

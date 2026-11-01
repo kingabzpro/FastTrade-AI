@@ -2,11 +2,17 @@
 
 ## Configuration
 
-Set `TYPESAFE_API_KEY` in `.env` or your environment. The defaults are `SYSTEMONE_URL=https://api.typesafe.ai/v1/systemone` and `SYSTEMONE_MODEL=jev-latest`; override them in `.env` to use a compatible provider. Only send credentials to an endpoint you trust. Git ignores `.env`.
+Set `TYPESAFE_API_KEY`, `ALPACA_API_KEY`, and `ALPACA_SECRET_KEY` in `.env` or your environment. The defaults are `SYSTEMONE_URL=https://api.typesafe.ai/v1/systemone` and `SYSTEMONE_MODEL=jev-latest`; override them in `.env` to use a compatible provider. Only send credentials to an endpoint you trust. Git ignores `.env`.
 
 The startup banner shows local links, the selected model, and the default data source. It does not check provider connectivity or display API-key details. Terminal colors are disabled when `NO_COLOR` is set or output is redirected.
 
 Pandas is temporarily capped below 3.1 because the current yfinance quote parser uses an operation deprecated in pandas 3.1. NumPy is capped below 2.5 to avoid a separate compatibility warning in pandas 2.x.
+
+## Market data
+
+The dashboard and live CLI analysis use Alpaca stock bars with the free `iex` feed and raw prices. IEX represents one US exchange, not consolidated market volume; prices, volume, VWAP, and model decisions can differ from Yahoo or SIP. Alpaca bars can include extended-hours trades. The feed may omit intervals with no trades, and stale bars remain blocked from actionable signals. Company profiles and news are not supplied by this data path. See [Alpaca market data](https://docs.alpaca.markets/us/docs/market-data-faq).
+
+Supported live intervals are 1m, 2m, 5m, 15m, 30m, and 60m. The 90m interval remains available for CLI CSV analysis only. Alpaca returns the most recent bars available at the requested time; timestamps and freshness are validated before use. Credentials stay server-side; never put them in a request or share them.
 
 ## Portfolio and risk inputs
 
@@ -23,7 +29,19 @@ These values illustrate the input format, not recommended limits or confidence t
 - `max-position` limits position value at the last close, not the number of shares.
 - `trade-count` and `max-trades` count trades. `min-confidence` accepts a value from 0 to 1 and requires your own validation.
 
-The browser shows stale candles as a labeled historical preview and blocks portfolio actions. The CLI rejects stale data. Errors have no actionable signal and produce a nonzero CLI exit code. Each analysis makes a model request and may incur a charge, including synthetic samples.
+The dashboard and live CLI show stale candles as a labeled historical preview and block portfolio actions. CLI JSON exposes the model preference as `model_signal` (also `decision.action`); `actionable_signal` remains null without complete portfolio inputs and stale data cannot produce an actionable trade. Explicit historical and CSV CLI runs still enforce the requested freshness limit. Errors have no actionable signal and produce a nonzero CLI exit code. Each analysis makes a model request and may incur a charge, including synthetic samples.
+
+## Rules-based comparison
+
+The dashboard and analysis JSON compare the model preference with an unvalidated rule using the same completed candles: BUY when EMA 9 is above EMA 21 and MACD is above its signal line; SELL when both comparisons are below. Ties or mixed indicators produce no directional signal. The `rule_comparison` field reports the rule signal and whether it agrees with the model; a model HOLD disagrees with a directional rule. Agreement does not establish accuracy, independent confirmation, or a chance of profit. This comparison does not alter the risk checks or actionable signal.
+
+## Concurrent ticker analysis
+
+```powershell
+uv run ft analyze-batch AAPL MSFT NVDA --timeframe 5m --concurrency 3
+```
+
+The command runs up to 50 distinct US stock tickers using Alpaca IEX with 1–5 concurrent workers (default 3). Each ticker uses the normal analysis pipeline and can incur one paid model request. Results are printed in input order, with a result or error for each ticker; the exit code is nonzero if any ticker fails. Stale results are marked as historical previews; they still request the model and may incur charges. Results are signal only: batch mode does not accept portfolio settings or CSV input. It does not account for aggregate portfolio exposure or place orders.
 
 ## CSV and historical research
 
@@ -99,7 +117,7 @@ Run `uv run ft`, then open the [interactive API reference](http://127.0.0.1:8765
 Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8765/api/analyze -ContentType 'application/json' -Body '{"symbol":"NVDA","timeframe":"5m","sample":true}'
 ```
 
-Synthetic samples support only `5m` and block portfolio actions. API access is limited to this computer. The interactive documentation loads interface assets from a CDN; keep the server off public networks.
+The dashboard uses Alpaca IEX. The API sample flag is for demos only; synthetic samples support only `5m` and block portfolio actions. API access is limited to this computer. The interactive documentation loads interface assets from a CDN; keep the server off public networks.
 
 ## Tests
 

@@ -2,14 +2,16 @@ import argparse
 import json
 import math
 import os
+import re
 import sys
 import time
 from datetime import datetime, timezone
+from concurrent.futures import ThreadPoolExecutor
 
 import pandas as pd
 from dotenv import load_dotenv
-from .market import yahoo, validate_candles, INTERVALS
-from .indicators import features
+from .market import alpaca, validate_candles, INTERVALS
+from .indicators import features, rule_signal
 from .decisions import predict
 from .risk import evaluate
 
@@ -19,6 +21,10 @@ def parser():
     sub = p.add_subparsers(dest='command', required=True)
     a = sub.add_parser('analyze', help='Analyze completed candles')
     add_analysis_arguments(a)
+    batch = sub.add_parser('analyze-batch', help='Analyze multiple tickers concurrently (signal only)', description='Each ticker may incur a paid model request. Results are signal only; no orders are placed.')
+    batch.add_argument('symbols', nargs='+', help='US stock ticker symbols (up to 50)')
+    batch.add_argument('--timeframe', choices=INTERVALS, default='5m')
+    batch.add_argument('--concurrency', type=int, choices=range(1, 6), default=3, metavar='1-5')
     b = sub.add_parser('benchmark', help='Run a weekly historical model benchmark')
     b.add_argument('--start', required=True, help='First decision date (YYYY-MM-DD)')
     b.add_argument('--end', required=True, help='Last valuation date (YYYY-MM-DD, inclusive)')
@@ -73,7 +79,7 @@ def run(args):
     if args.csv:
         frame, details, news = pd.read_csv(args.csv), {}, []
     else:
-        frame, details, news = yahoo(args.symbol, args.timeframe, as_of)
+        frame, details, news = alpaca(args.symbol, args.timeframe, as_of)
         if args.as_of:
             # Current company details do not have historical availability timestamps.
             details = {k: v for k, v in details.items() if k == 'exchangeTimezoneName'}
@@ -140,9 +146,12 @@ def run(args):
         result_extra = {}
     if stale_preview:
         reasons.append('Stale market data: research preview only')
+    rule = rule_signal(snapshot)
+    comparison = {'signal': rule, 'agreement': 'no_signal' if rule is None else 'agree' if rule == decision['action'] else 'disagree'}
     interpretations = [f"Price {'above' if snapshot['price'] > snapshot['vwap'] else 'at or below'} session VWAP", f"MACD {'above' if snapshot['macd'] > snapshot['macd_signal'] else 'at or below'} its signal", f"Volume {'above' if snapshot['volume_ratio'] > 1 else 'at or below'} 20-bar average"]
     risk_ms = (time.perf_counter_ns() - risk_start) / 1e6
-    result = {'notice': 'Research only; model preferences are not probabilities of profitable trades.', 'market': state, 'decision': decision, 'indicator_interpretations': interpretations, 'risk_rejections': reasons, 'actionable_signal': (decision['action'] if not reasons else 'HOLD') if risk_complete else None, 'stale_preview': stale_preview, **result_extra}
+    result = {'market': state, 'model_signal': decision['action'], 'decision': decision, 'rule_comparison': comparison, 'indicator_interpretations': interpretations, 'risk_rejections': reasons, 'actionable_signal': (decision['action'] if not reasons else 'HOLD') if risk_complete else None, 'stale_preview': stale_preview, **result_extra}
+    result['source'] = 'CSV' if args.csv else 'Alpaca IEX'
     if getattr(args, 'include_chart', False):
         chart = frame.copy()
         for n in (9, 21, 50):
@@ -154,9 +163,30 @@ def run(args):
         chart['timestamp'] = chart.timestamp.map(lambda t: t.isoformat())
         result['candles'] = chart.astype(object).where(pd.notna(chart), None).to_dict('records')
         result['portfolio'] = risk_args
-        result['source'] = 'CSV' if args.csv else 'Yahoo Finance'
     result['timings_ms'] = {'indicators': indicator_ms, 'model': decision['latency_us'] / 1000, 'risk': risk_ms, 'total': (time.perf_counter_ns() - started) / 1e6}
     return result
+
+
+def run_batch(args):
+    symbols = [symbol.upper() for symbol in args.symbols]
+    if len(symbols) > 50 or any(not re.fullmatch(r'[A-Z0-9.^=\-]{1,20}', symbol) for symbol in symbols):
+        raise ValueError('Provide at most 50 valid ticker symbols')
+    if len(set(symbols)) != len(symbols):
+        raise ValueError('Duplicate ticker symbols are not allowed')
+    load_dotenv()
+
+    def analyze(symbol):
+        analysis_args = parser().parse_args(['analyze', symbol, '--timeframe', args.timeframe])
+        analysis_args.allow_stale_preview = True
+        try:
+            return {'symbol': symbol, 'result': run(analysis_args)}
+        except (ValueError, OSError, KeyError) as exc:
+            return {'symbol': symbol, 'error': str(exc), 'actionable_signal': None}
+        except Exception:
+            return {'symbol': symbol, 'error': 'Unexpected analysis failure', 'actionable_signal': None}
+
+    with ThreadPoolExecutor(max_workers=args.concurrency) as pool:
+        return {'results': list(pool.map(analyze, symbols))}
 
 
 def dashboard():
@@ -169,7 +199,13 @@ def dashboard():
 
 def main():
     args = parser().parse_args()
+    if args.command == 'analyze' and not args.csv and not args.as_of:
+        args.allow_stale_preview = True
     try:
+        if args.command == 'analyze-batch':
+            result = run_batch(args)
+            print(json.dumps(result, indent=2, allow_nan=False))
+            return int(any('error' in item for item in result['results']))
         if args.command == 'benchmark':
             from .benchmark import run as run_benchmark
             result = run_benchmark(args)

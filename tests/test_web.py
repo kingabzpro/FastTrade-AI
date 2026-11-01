@@ -24,7 +24,8 @@ def test_startup_banner_shows_local_settings_without_secrets(monkeypatch, capsys
     assert 'http://127.0.0.1:8765/' in output
     assert 'http://127.0.0.1:8765/docs' in output
     assert '/openapi.json' not in output and '/api/health' not in output
-    assert 'test-model' in output and 'Yahoo Finance' in output
+    assert 'test-model' in output and 'Alpaca IEX' in output
+    assert 'synthetic' not in output.lower() and 'sample' not in output.lower()
     assert 'API key' not in output and 'private-test-key' not in output and '\x1b[' not in output
 
 
@@ -131,6 +132,7 @@ def test_local_api_rejects_external_origins_and_invalid_input(monkeypatch):
     assert client.post('/api/analyze', headers={'Origin': 'https://evil.example'}, json={'symbol': 'NVDA'}).status_code == 403
     assert client.post('/api/analyze', json={'symbol': '../bad'}).status_code == 422
     assert client.post('/api/analyze', json={'symbol': 'NVDA', 'timeframe': 'bad'}).status_code == 422
+    assert client.post('/api/analyze', json={'symbol': 'NVDA', 'timeframe': '90m'}).status_code == 422
     assert client.post('/api/analyze', json={'symbol': 'NVDA', 'systemone_url': 'https://evil.example'}).status_code == 422
 
 
@@ -177,3 +179,16 @@ def test_sample_without_portfolio_is_signal_only(monkeypatch):
     assert result['decision']['action'] == 'BUY'
     assert result['actionable_signal'] is None
     assert any('sample' in reason.lower() for reason in result['risk_rejections'])
+
+
+def test_market_timeout_explains_yahoo_connectivity(monkeypatch):
+    from fasttrade import web
+    def fail(args):
+        raise ValueError('Market data provider timed out')
+    monkeypatch.setattr(web, 'run_analysis', fail)
+    client = TestClient(web.app, base_url='http://127.0.0.1:8765')
+    response = client.post('/api/analyze', json={'symbol': 'NVDA'})
+    assert response.status_code == 503
+    assert 'Yahoo Finance' in response.json()['error']
+    assert 'timed out' in response.json()['error']
+    assert response.json()['actionable_signal'] is None

@@ -54,3 +54,17 @@ def test_risk_rejects_oversize_and_short():
     args = dict(position=0, equity=1000, exposure=0, daily_loss=0, trade_count=0, quantity=10, max_position=500, max_exposure=800, max_daily_loss=100, max_trades=5, min_confidence=.5)
     assert evaluate('BUY', .8, 100, **args)
     assert evaluate('SELL', .8, 100, **args)
+
+
+@pytest.mark.parametrize(('ema9', 'ema21', 'macd', 'signal', 'expected'), [
+    (11, 10, 2, 1, 'BUY'),
+    (9, 10, 0, 1, 'SELL'),
+    (11, 10, 0, 1, None),
+    (10, 10, 2, 1, None),
+    (11, 10, 1, 1, None),
+    (float('nan'), 10, 2, 1, None),
+    (float('inf'), 10, 2, 1, None),
+])
+def test_rule_signal_requires_agreement_between_trend_and_momentum(ema9, ema21, macd, signal, expected):
+    from fasttrade.indicators import rule_signal
+    assert rule_signal({'ema_9': ema9, 'ema_21': ema21, 'macd': macd, 'macd_signal': signal}) == expected

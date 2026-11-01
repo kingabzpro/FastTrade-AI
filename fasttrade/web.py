@@ -20,8 +20,8 @@ app.mount('/static', StaticFiles(directory=ROOT / 'static'), name='static')
 
 class AnalysisRequest(BaseModel):
     model_config = ConfigDict(extra='forbid', allow_inf_nan=False)
-    symbol: str = Field(min_length=1, max_length=20, pattern=r'^[A-Za-z0-9.\^=\-]+$', description='Yahoo Finance ticker symbol')
-    timeframe: Literal['1m', '2m', '5m', '15m', '30m', '60m', '90m'] = '5m'
+    symbol: str = Field(min_length=1, max_length=20, pattern=r'^[A-Za-z0-9.\^=\-]+$', description='US stock ticker symbol')
+    timeframe: Literal['1m', '2m', '5m', '15m', '30m', '60m'] = '5m'
     sample: bool = Field(default=False, description='Use synthetic five-minute candles; portfolio actions are blocked')
     position: float | None = Field(default=None, ge=0)
     equity: float | None = Field(default=None, gt=0)
@@ -52,10 +52,16 @@ class DecisionResponse(BaseModel):
     usage: dict[str, int | None] | None = None
 
 
+class RuleComparison(BaseModel):
+    signal: Literal['BUY', 'SELL'] | None
+    agreement: Literal['agree', 'disagree', 'no_signal']
+
+
 class AnalysisResponse(BaseModel):
-    notice: str
     market: dict[str, Any] = Field(description='Symbol, timeframe, candle timestamp, feature snapshot, ticker details, and headlines')
+    model_signal: Literal['BUY', 'HOLD', 'SELL'] = Field(description='Model preference; not a risk-checked action')
     decision: DecisionResponse
+    rule_comparison: RuleComparison = Field(description='Unvalidated indicator-based comparison; agreement does not establish accuracy')
     indicator_interpretations: list[str]
     risk_rejections: list[str]
     actionable_signal: Literal['BUY', 'HOLD', 'SELL'] | None = Field(description='Risk-checked signal, or null when portfolio and risk inputs are incomplete')
@@ -106,7 +112,16 @@ async def analyze(body: AnalysisRequest):
         args.csv = str(ROOT.parent / 'data' / 'candles.csv')
         args.as_of = '2026-01-02T21:00:00Z'
     errors = {
+        'Alpaca credentials are missing': 'Add ALPACA_API_KEY and ALPACA_SECRET_KEY to .env before analyzing.',
+        'Alpaca credentials or data access rejected': 'Alpaca rejected the credentials or data access.',
+        'Alpaca rate limit reached': 'Alpaca rate limit reached. Try again later.',
+        'Alpaca market data timed out': 'Alpaca market data timed out. Check your connection or try again later.',
+        'Alpaca market data request failed': 'Alpaca market data is unavailable. Check the symbol and connection.',
+        'Alpaca returned no candles': 'Alpaca returned no candles for this symbol and timeframe.',
+        'Unsupported Alpaca timeframe': 'This timeframe is not supported by Alpaca.',
+        'Invalid Alpaca stock symbol': 'Enter a valid US stock ticker for Alpaca.',
         'Market data provider failed': 'Market data is unavailable. Check the symbol, timeframe, and connection.',
+        'Market data provider timed out': 'Yahoo Finance timed out. Check your connection or try again later.',
         'Market data provider returned no candles': 'No candles returned. Check the symbol and timeframe.',
         'At least 50 completed candles required': 'Not enough candles. Try another timeframe.',
         'No completed candles': 'No completed candles are available.',
@@ -159,7 +174,7 @@ def serve():
         ('Dashboard', url, 'bold #dce5ff'),
         ('API docs', url + 'docs', '#dce5ff'),
         ('Model', os.getenv('SYSTEMONE_MODEL', 'jev-latest'), '#b7c4ff'),
-        ('Market data', 'Yahoo Finance · synthetic sample available', '#b7c4ff'),
+        ('Market data', 'Alpaca IEX', '#b7c4ff'),
     ):
         info.add_row(label, Text(value, style=style))
     console.print()

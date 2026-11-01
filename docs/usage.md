@@ -57,7 +57,7 @@ The latest completed candle must be no older than two intervals by default; over
 
 Historical evaluation excludes later headlines and current company metadata. Only supply `--spread` and `--liquidity` when you know their values; otherwise the analyzer reports them as unavailable. Output separates features, headlines, model preferences, indicator observations, risk rejections, and the final signal.
 
-yfinance is an unofficial research tool. Yahoo data can be delayed, incomplete, or unavailable, with limited intraday history. The CLI does not check exchange calendars or establish that a market is open. Historical simulations do not establish a validated live strategy.
+The CLI does not check exchange calendars or establish that a market is open. Historical simulations do not establish a validated live strategy.
 
 ## Historical benchmark
 
@@ -65,7 +65,7 @@ yfinance is an unofficial research tool. Yahoo data can be delayed, incomplete, 
 
 The simulation starts with $10,000 split equally into independent stock allocations. BUY invests available cash, SELL liquidates that stock's shares, and HOLD leaves it unchanged. Fills use the next common hourly open; the final incomplete week is excluded if there is no later execution candle in the requested range. Positions are valued at the last available common candle close, and SPY is measured from the first execution open to that same close. The report includes model responses, per-decision execution prices, cash and shares, and directional accuracy: BUY is correct when the price rises by the next review's execution open, SELL when it falls, with the final close used for the last review. HOLD is excluded; SELL when no shares are held is still a directional forecast, not a successful trade.
 
-Data is Yahoo adjusted hourly OHLCV, with 30 calendar days requested for indicator warmup; at least 50 prior completed bars are required. Missing common candles abort the run. Yahoo restricts older intraday data, and revised prices or nondeterministic model responses can change a rerun. The benchmark omits news, company details, portfolio risk checks, commissions, spread, slippage, taxes, and financing. The model may know the historical period, so these retrospective results do not establish a live edge. For US-listed assets only; results are not directly comparable with the earlier January–June 2026 benchmark, which used unadjusted intraday model inputs and adjusted daily execution prices.
+This command uses Yahoo through yfinance, an unofficial research tool; data can be delayed, incomplete, or unavailable. It requests adjusted hourly OHLCV with 30 calendar days for indicator warmup; at least 50 prior completed bars are required. Missing common candles abort the run. Yahoo restricts older intraday data, and revised prices or nondeterministic model responses can change a rerun. The benchmark omits news, company details, portfolio risk checks, commissions, spread, slippage, taxes, and financing. The model may know the historical period, so these retrospective results do not establish a live edge. For US-listed assets only; results are not directly comparable with the earlier January–June 2026 benchmark, which used unadjusted intraday model inputs and adjusted daily execution prices.
 
 The [October 2026 example report](benchmark-2026-10.json) contains the individual decisions from a live run of this command on 28 October 2026.
 
@@ -111,13 +111,13 @@ In `analyze`, `--calibration PATH` loads an artifact, adds `calibrated_confidenc
 Run `uv run ft`, then open the [interactive API reference](http://127.0.0.1:8765/docs) or [OpenAPI schema](http://127.0.0.1:8765/openapi.json).
 
 - `GET /api/health` checks server availability; it does not check market-data or model connectivity.
-- `POST /api/analyze` accepts a symbol, timeframe, optional `sample` flag, and portfolio/risk fields. The server reads its own API key; do not include credentials in requests.
+- `POST /api/analyze` accepts a symbol, timeframe, optional `sample` flag, and portfolio/risk fields. The server reads its own credentials; do not include them in requests.
 
 ```powershell
-Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8765/api/analyze -ContentType 'application/json' -Body '{"symbol":"NVDA","timeframe":"5m","sample":true}'
+Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8765/api/analyze -ContentType 'application/json' -Body '{"symbol":"NVDA","timeframe":"5m"}'
 ```
 
-The dashboard uses Alpaca IEX. The API sample flag is for demos only; synthetic samples support only `5m` and block portfolio actions. API access is limited to this computer. The interactive documentation loads interface assets from a CDN; keep the server off public networks.
+For demos, set `sample` to `true`; synthetic samples support only `5m` and block portfolio actions. API access is limited to this computer. The interactive documentation loads interface assets from a CDN; keep the server off public networks.
 
 ## Tests
 

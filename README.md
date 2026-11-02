@@ -35,9 +35,19 @@ Open [localhost:8765](http://127.0.0.1:8765/), choose a market, and run an analy
 
 Analysis history is kept for the current session by default. Enable “Save history on this device” to retain up to 50 analyses and 2 MiB in browser storage. Reopening a saved analysis does not run the model; its original candle time and data source are shown. You can delete individual entries or clear the history. Turning saving off leaves previously saved entries on the device until cleared. Saved results can reveal trading activity; credentials and portfolio inputs are excluded. Browser storage is device-local, is not a secure backup, and does not sync across devices. The app separately stores the most recent market and model preference.
 
-For a single ticker, run `uv run ft analyze NVDA --timeframe 5m`.
+For a single ticker:
 
-For concurrent CLI analysis, run `uv run ft analyze-batch AAPL MSFT NVDA --concurrency 3`. Each ticker may incur a paid model request; batch results are signal only.
+```powershell
+uv run ft analyze NVDA --timeframe 5m
+```
+
+For concurrent CLI analysis:
+
+```powershell
+uv run ft analyze-batch AAPL MSFT NVDA --concurrency 3
+```
+
+Each ticker may incur a paid model request; batch results are signal only.
 
 To use a compatible endpoint, set `SYSTEMONE_URL`, `SYSTEMONE_MODEL` and `TYPESAFE_API_KEY` in `.env`. The endpoint must support the System One `state`/`questions` request and `choice` response. The key is sent as a bearer token; use only an endpoint you trust.
 

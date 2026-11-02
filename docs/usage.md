@@ -49,7 +49,31 @@ The dashboard and analysis JSON compare the model preference with an unvalidated
 uv run ft analyze-batch AAPL MSFT NVDA --timeframe 5m --concurrency 3
 ```
 
-The command runs up to 50 distinct US stock tickers using Alpaca IEX with 1–5 concurrent workers (default 3). Each ticker uses the normal analysis pipeline and can incur one paid model request. Results are printed in input order, with a result or error for each ticker; the exit code is nonzero if any ticker fails. Stale results are marked as historical previews; they still request the model and may incur charges. Results are signal only: batch mode does not accept portfolio settings or CSV input. It does not account for aggregate portfolio exposure or place orders.
+The command runs up to 50 distinct US stock tickers using Alpaca IEX by default (or `--source yahoo`) with 1–5 concurrent workers (default 3). Each ticker uses the normal analysis pipeline and can incur one paid model request. Results are printed in input order, with a result or error for each ticker; the exit code is nonzero if any ticker fails. The batch `usage` summary adds provider-reported input and output tokens and reports when token information is unavailable. `complete` is false when a call fails or usage is missing, so reported totals may omit billable usage; they are not a cost cap or invoice. Stale results are marked as historical previews; they still request the model and may incur charges. Results are signal only: batch mode does not accept portfolio settings or CSV input. It does not account for aggregate portfolio exposure or place orders.
+
+## Local batch API
+
+The authenticated batch API is disabled until `FASTTRADE_BATCH_KEYS` is set in the server environment (or `.env` when using `uv run ft`). Configure a JSON object keyed by a long, random API key. Each value specifies USD `estimate_per_call`, `request_cap`, and `daily_budget`, with up to six decimal places. The values below illustrate the format, not provider prices or recommended limits. Protect these keys like passwords and keep them out of source control.
+
+```powershell
+$env:FASTTRADE_BATCH_KEYS = '{"replace-with-random-secret":{"estimate_per_call":"0.01","request_cap":"0.10","daily_budget":"1.00"}}'
+uv run ft
+```
+
+Use `X-API-Key` on each request, and a unique `Idempotency-Key` on submissions. Reuse that idempotency key only to retry the same request. Estimate and submit the same JSON body with `symbols` (1–50 distinct tickers), optional `timeframe` and optional `source`:
+
+```powershell
+$headers = @{ 'X-API-Key' = 'replace-with-random-secret'; 'Idempotency-Key' = 'unique-request-id' }
+$body = @{ symbols = @('AAPL', 'MSFT'); timeframe = '5m'; source = 'alpaca' } | ConvertTo-Json
+Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8765/v1/analyze:batch/estimate -Headers $headers -ContentType 'application/json' -Body $body
+Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8765/v1/analyze:batch -Headers $headers -ContentType 'application/json' -Body $body
+```
+
+Fewer than 10 symbols return results synchronously; larger submissions return a job ID. Poll `GET /v1/jobs/{id}` for progress and `GET /v1/usage` for that key's current UTC-day reservations and reported tokens. Each result is either an analysis or an explicit error. Per-symbol execution is limited to 90 seconds, with at most four analyses running concurrently. A timed-out call may continue in the background and incur charges; it retains its worker slot and reservation, and the same idempotency key will not rerun it.
+
+The API reserves the configured **estimated** cost before starting, including for failures and timeouts. It rejects requests exceeding the per-request cap or remaining daily estimated budget. These are limits on estimates, not guarantees on provider charges: actual token counts and prices can differ, and failed calls may have unreported usage. Use provider-side spending limits for a hard billing cap.
+
+Jobs, partial results, request hashes and budget reservations are stored in `~/.fasttrade/batch.sqlite3`, or the path in `FASTTRADE_BATCH_DATABASE`. Secure this file: results can reveal research activity. Key hashes, not API keys, are stored in it. Run a single server process. On restart, jobs for still-configured keys resume work that had not started; calls already started when the server stopped are marked as having an unavailable outcome and are never automatically repeated. Revoked keys do not resume jobs. Retrying the same idempotency key returns the original job. Deleting the database removes this retry and budget history. This API is local-only and is not a replacement for the multi-user security controls in Phase 1.
 
 ## CSV and historical research
 

@@ -1,5 +1,6 @@
 """Local-only browser interface for the existing signal engine."""
 from pathlib import Path
+from contextlib import asynccontextmanager
 from datetime import time, timedelta
 import math
 import os
@@ -21,7 +22,16 @@ from .market import INTERVALS, alpaca, alpaca_news, validate_candles
 
 ROOT = Path(__file__).resolve().parent
 PORT = 8765
-app = FastAPI(title='FastTrade AI API', version='0.1.0', description='Local signal-only market research API. It never places orders.')
+
+
+@asynccontextmanager
+async def lifespan(app):
+    from .batch_api import _recover
+    await run_in_threadpool(_recover, AnalysisRequest, analyze)
+    yield
+
+
+app = FastAPI(title='FastTrade AI API', version='0.1.0', description='Local signal-only market research API. It never places orders.', lifespan=lifespan)
 app.mount('/static', StaticFiles(directory=ROOT / 'static'), name='static')
 _spy_cache = None
 _spy_lock = Lock()
@@ -287,6 +297,10 @@ async def analyze(body: AnalysisRequest):
         return JSONResponse({'error': errors.get(str(exc), 'Analysis failed. Check data and settings.'), 'actionable_signal': None}, status_code=503)
     except Exception:
         return JSONResponse({'error': 'Analysis failed. Check data and settings.', 'actionable_signal': None}, status_code=503)
+
+
+from .batch_api import make_batch_router
+app.include_router(make_batch_router(AnalysisRequest, analyze))
 
 
 def serve():

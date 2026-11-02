@@ -33,6 +33,8 @@ Market data comes from Alpaca’s free IEX feed, a single US exchange; its price
 
 Open [localhost:8765](http://127.0.0.1:8765/), choose a market, and run an analysis. FastTrade shows model preferences, charts and risk checks; **it never places orders**. Without complete portfolio settings, the result is signal only.
 
+Analysis history is kept for the current session by default. Enable “Save history on this device” to retain up to 50 analyses and 2 MiB in browser storage. Reopening a saved analysis does not run the model; its original candle time and data source are shown. You can delete individual entries or clear the history. Turning saving off leaves previously saved entries on the device until cleared. Saved results can reveal trading activity; credentials and portfolio inputs are excluded. Browser storage is device-local, is not a secure backup, and does not sync across devices. The app separately stores the most recent market and model preference.
+
 For a single ticker, run `uv run ft analyze NVDA --timeframe 5m`.
 
 For concurrent CLI analysis, run `uv run ft analyze-batch AAPL MSFT NVDA --concurrency 3`. Each ticker may incur a paid model request; batch results are signal only.

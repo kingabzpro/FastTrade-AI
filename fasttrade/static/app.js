@@ -37,6 +37,59 @@ let selectedCandle = null;
 let chartLayoutState = null;
 const history = [];
 const setText = (id, text) => { $(id).textContent = text; };
+const historyKey = 'fasttrade-history';
+let savedHistory = [];
+let historyReadable = true;
+const pick = (object, keys) => Object.fromEntries(keys.filter(key => object?.[key] !== undefined).map(key => [key, object[key]]));
+function historySnapshot(result) {
+  const market = pick(result.market, ['symbol', 'timeframe', 'candle_timestamp']);
+  market.features = pick(result.market.features, ['price', 'rsi_14', 'macd', 'vwap_delta', 'volume_ratio', 'atr_14']);
+  market.headlines = (result.market.headlines || []).map(item => pick(item, ['title', 'source', 'published']));
+  const decision = pick(result.decision, ['action', 'model', 'latency_us']);
+  decision.probabilities = pick(result.decision.probabilities, ['BUY', 'HOLD', 'SELL']);
+  return {...pick(result, ['source', 'stale_preview', 'actionable_signal', 'risk_rejections', 'indicator_interpretations']), market, decision,
+    rule_comparison: result.rule_comparison ? pick(result.rule_comparison, ['signal', 'agreement']) : null,
+    candles: (result.candles || []).map(item => pick(item, ['timestamp', 'open', 'high', 'low', 'close', 'volume', 'ema_9', 'ema_21', 'ema_50', 'vwap']))};
+}
+function saveHistory(entries = savedHistory) {
+  if (!historyReadable) { setText('history-storage-status', 'Stored history is unavailable; clear it to start again.'); return false; }
+  const kept = entries.slice(0, 50);
+  let data = JSON.stringify({version: 1, enabled: $('history-save').checked, entries: kept});
+  while (new TextEncoder().encode(data).length > 2 * 1024 * 1024 && kept.length > 1) {
+    kept.pop(); data = JSON.stringify({version: 1, enabled: $('history-save').checked, entries: kept});
+  }
+  if (new TextEncoder().encode(data).length > 2 * 1024 * 1024) {
+    setText('history-storage-status', 'This analysis is too large to save; previous saved history is unchanged.'); return false;
+  }
+  try {
+    localStorage.setItem(historyKey, data); savedHistory = kept;
+    setText('history-storage-status', kept.length < entries.length ? 'Older saved analyses were removed to fit the storage limit.' : '');
+    return true;
+  } catch { setText('history-storage-status', 'Browser storage is full or unavailable; history was not saved.'); return false; }
+}
+try {
+  const stored = JSON.parse(localStorage.getItem(historyKey) || 'null');
+  if (stored) {
+    if (stored.version !== 1 || !Array.isArray(stored.entries) || stored.entries.some(item => !item?.market?.features || !item?.decision || !Array.isArray(item.risk_rejections) || !Array.isArray(item.candles))) throw new Error('Invalid history');
+    savedHistory = stored.entries.slice(0, 50);
+    $('history-save').checked = stored.enabled === true;
+    if (stored.enabled) history.push(...savedHistory);
+  }
+} catch { historyReadable = false; setText('history-storage-status', 'Stored history is unavailable or invalid; clear it to start again.'); }
+$('history-save').addEventListener('change', () => {
+  if ($('history-save').checked) {
+    for (const entry of savedHistory) if (!history.includes(entry)) history.push(entry);
+    saveHistory(history);
+  } else saveHistory();
+  renderHistory();
+});
+$('history-clear').addEventListener('click', () => {
+  try {
+    localStorage.removeItem(historyKey); historyReadable = true; savedHistory = []; history.length = 0;
+    if ($('history-save').checked) saveHistory(); else setText('history-storage-status', '');
+    renderHistory();
+  } catch { setText('history-storage-status', 'Browser storage is unavailable; saved history could not be cleared.'); }
+});
 const number = (value, digits = 2) => Number(value).toLocaleString('en-US', {minimumFractionDigits: digits, maximumFractionDigits: digits});
 function formatTime(value) {
   const date = new Date(value);
@@ -117,7 +170,7 @@ function render(result, record = true) {
   $('chart-window').disabled = false; $('chart-overlay').disabled = false;
   $('decision-empty').hidden = true; $('decision-content').hidden = false;
   $('decision-badge').className = `pill ${stale ? 'warning' : 'good'}`;
-  setText('decision-badge', stale ? 'STALE DATA' : 'ANALYSIS READY');
+  setText('decision-badge', !record ? 'PREVIOUS RESULT' : stale ? 'STALE DATA' : 'ANALYSIS READY');
   const action = decision.action;
   $('model-action').className = `action ${action.toLowerCase()}`; setText('model-action', action);
   const probs = decision.probabilities || {};
@@ -141,7 +194,7 @@ function render(result, record = true) {
   const signalOnly = result.actionable_signal == null;
   const blocked = !signalOnly && result.risk_rejections.length > 0 && action !== 'HOLD';
   document.querySelector('.risk-result').classList.toggle('blocked', blocked || stale);
-  setText('risk-label', signalOnly ? 'PORTFOLIO' : 'RISK-CHECKED SIGNAL');
+  setText('risk-label', signalOnly ? 'PORTFOLIO' : record ? 'RISK-CHECKED SIGNAL' : 'PREVIOUS RISK-CHECKED SIGNAL');
   setText('risk-action', signalOnly ? 'SIGNAL ONLY' : blocked ? 'BLOCKED · HOLD' : result.actionable_signal);
   setText('risk-reasons', result.risk_rejections.length ? result.risk_rejections.join(' · ') : signalOnly ? 'Add portfolio and risk settings for a risk-checked signal.' : 'No risk rejections. Signal only; no orders are placed.');
   setText('model-name', decision.model); setText('model-latency', `${number(decision.latency_us / 1000, 0)} ms`);
@@ -171,7 +224,8 @@ function render(result, record = true) {
     const meta = document.createElement('small'); meta.textContent = `${headline.source} · ${formatTime(headline.published)}`;
     item.append(meta); $('news').append(item);
   }
-  if (stale) showNotice('The latest candle is stale. This is a historical research preview; portfolio actions are blocked.', 'warning');
+  if (!record) showNotice(`Previous analysis from ${time}, source ${result.source}. No new model request was made; this is not a current signal.`, 'warning');
+  else if (stale) showNotice('The latest candle is stale. This is a historical research preview; portfolio actions are blocked.', 'warning');
   else if (sample) showNotice('Synthetic sample candles are displayed. The model response is real; this is not live market data.', 'warning');
   else showNotice(`Analysis complete. Candle started ${time}. Model preferences are not trading outcomes.`, 'success');
   drawChart();
@@ -180,7 +234,8 @@ function render(result, record = true) {
       localStorage.setItem('fasttrade-last-analysis', JSON.stringify({symbol: market.symbol, timeframe: market.timeframe,
         action: decision.action, candle_timestamp: market.candle_timestamp, source: result.source}));
     } catch { /* Storage may be unavailable. */ }
-    history.unshift(result); if (history.length > 50) history.pop();
+    history.unshift(historySnapshot(result)); if (history.length > 50) history.pop();
+    if ($('history-save').checked) saveHistory(history);
     renderHistory();
   }
 }
@@ -194,13 +249,22 @@ function renderHistory() {
     button.type = 'button'; button.className = 'history-link'; button.textContent = `${result.market.symbol} · ${result.market.timeframe}`;
     button.addEventListener('click', () => { render(result, false); $('chart-panel').scrollIntoView(); });
     first.append(button); row.append(first);
-    const cells = [['Model', result.decision.action], ['Risk-checked', result.actionable_signal == null ? 'SIGNAL ONLY' : result.risk_rejections.length && result.decision.action !== 'HOLD' ? 'BLOCKED · HOLD' : result.actionable_signal], ['Data time', formatTime(result.market.candle_timestamp)], ['Latency', `${number(result.decision.latency_us / 1000, 0)} ms`]];
+    const cells = [['Model', result.decision.action], ['Risk-checked', result.actionable_signal == null ? 'SIGNAL ONLY' : result.risk_rejections.length && result.decision.action !== 'HOLD' ? 'BLOCKED · HOLD' : result.actionable_signal], ['Data time', formatTime(result.market.candle_timestamp)], ['Source', result.source], ['Latency', `${number(result.decision.latency_us / 1000, 0)} ms`]];
     for (const [label, value] of cells) {
       const cell = document.createElement('td'); cell.dataset.label = label; cell.textContent = value; row.append(cell);
     }
-    body.append(row);
+    const actions = document.createElement('td'); actions.dataset.label = 'Actions';
+    const remove = document.createElement('button'); remove.type = 'button'; remove.className = 'history-delete'; remove.textContent = 'Delete';
+    remove.setAttribute('aria-label', `Delete ${result.market.symbol} analysis from ${formatTime(result.market.candle_timestamp)}`);
+    remove.addEventListener('click', () => {
+      const remaining = savedHistory.filter(item => item !== result);
+      if (remaining.length !== savedHistory.length && !saveHistory(remaining)) return;
+      history.splice(history.indexOf(result), 1); renderHistory();
+    });
+    actions.append(remove); row.append(actions); body.append(row);
   }
 }
+renderHistory();
 
 function visibleCandles() {
   return current?.candles?.slice(-Number($('chart-window').value)) || [];

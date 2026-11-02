@@ -106,7 +106,7 @@ def _view(row):
     state = row['state']
     if state in ('queued', 'running') and row['owner'] != _instance:
         state = 'interrupted'
-    return {'id': row['id'], 'status': state, 'progress': sum(item is not None for item in results),
+    return {'id': row['id'], 'status': state, 'progress': sum(item is not None and item.get('status') != 'started' for item in results),
             'total': len(results), 'results': results, 'estimated_cost': _dollars(row['reserved_micro']),
             'usage': _usage(results)}
 
@@ -152,12 +152,17 @@ def _create(body, idem, key_hash, limits):
 def _process(job_id, key_hash, body, analysis_request, analyze):
     with closing(_db()) as db, db:
         db.execute("UPDATE jobs SET state = 'running' WHERE id = ?", (job_id,))
-    results = [None] * len(body.symbols)
+        results = json.loads(db.execute('SELECT results FROM jobs WHERE id = ?', (job_id,)).fetchone()[0])
     started = {}
+    result_lock = threading.Lock()
     def one(index, symbol):
         if not _slots.acquire(timeout=_symbol_timeout_seconds):
             return {'symbol': symbol, 'error': 'Analysis timed out waiting for a worker', 'actionable_signal': None}
         try:
+            with result_lock:
+                results[index] = {'symbol': symbol, 'status': 'started'}
+                with closing(_db()) as db, db:
+                    db.execute('UPDATE jobs SET results = ? WHERE id = ?', (json.dumps(results, allow_nan=False), job_id))
             started[index] = time.monotonic()
             try:
                 response = asyncio.run(analyze(analysis_request(symbol=symbol, timeframe=body.timeframe, source=body.source)))
@@ -171,19 +176,20 @@ def _process(job_id, key_hash, body, analysis_request, analyze):
     pool = None
     try:
         pool = ThreadPoolExecutor(max_workers=4)
-        futures = {pool.submit(one, i, symbol): i for i, symbol in enumerate(body.symbols)}
+        futures = {pool.submit(one, i, symbol): i for i, symbol in enumerate(body.symbols) if results[i] is None}
         pending = set(futures)
         while pending:
             done, _ = wait(pending, timeout=.1, return_when=FIRST_COMPLETED)
             now = time.monotonic()
             timed_out = {future for future in pending if futures[future] in started and now - started[futures[future]] >= _symbol_timeout_seconds}
-            for future in done | timed_out:
-                index = futures[future]
-                results[index] = future.result() if future in done else {'symbol': body.symbols[index], 'error': 'Analysis timed out', 'actionable_signal': None}
             if done or timed_out:
-                pending -= done | timed_out
-                with closing(_db()) as db, db:
-                    db.execute('UPDATE jobs SET results = ? WHERE id = ?', (json.dumps(results, allow_nan=False), job_id))
+                with result_lock:
+                    for future in done | timed_out:
+                        index = futures[future]
+                        results[index] = future.result() if future in done else {'symbol': body.symbols[index], 'error': 'Analysis timed out', 'actionable_signal': None}
+                    pending -= done | timed_out
+                    with closing(_db()) as db, db:
+                        db.execute('UPDATE jobs SET results = ? WHERE id = ?', (json.dumps(results, allow_nan=False), job_id))
         with closing(_db()) as db, db:
             db.execute("UPDATE jobs SET state = 'completed' WHERE id = ?", (job_id,))
     except Exception:
@@ -193,6 +199,37 @@ def _process(job_id, key_hash, body, analysis_request, analyze):
         if pool is not None:
             pool.shutdown(wait=False)
     return _find(job_id, key_hash)
+
+
+def _recover(analysis_request, analyze):
+    from dotenv import load_dotenv
+    load_dotenv()
+    try:
+        configured = json.loads(os.environ.get('FASTTRADE_BATCH_KEYS', '{}'))
+        if not isinstance(configured, dict):
+            return
+    except (ValueError, TypeError):
+        return
+    authorized = set()
+    for key in configured:
+        try:
+            authorized.add(_authenticate(key)[0])
+        except HTTPException:
+            continue
+    if not authorized:
+        return
+    with closing(_db()) as db, db:
+        db.execute('BEGIN IMMEDIATE')
+        rows = [row for row in db.execute("SELECT * FROM jobs WHERE state IN ('queued', 'running') AND owner != ?", (_instance,)).fetchall() if row['key_hash'] in authorized]
+        for row in rows:
+            results = json.loads(row['results'])
+            for index, result in enumerate(results):
+                if result is not None and result.get('status') == 'started':
+                    results[index] = {'symbol': result['symbol'], 'error': 'Interrupted; outcome unavailable', 'actionable_signal': None}
+            db.execute("UPDATE jobs SET owner = ?, state = 'queued', results = ? WHERE id = ?", (_instance, json.dumps(results), row['id']))
+    for row in rows:
+        body = BatchRequest.model_validate_json(row['request'])
+        _workers.submit(_process, row['id'], row['key_hash'], body, analysis_request, analyze)
 
 
 def make_batch_router(analysis_request, analyze):

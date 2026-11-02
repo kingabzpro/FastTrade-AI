@@ -159,7 +159,7 @@ function render(result, record = true) {
   selectedCandle = null;
   const market = result.market, feature = market.features, decision = result.decision;
   const stale = Boolean(result.stale_preview), sample = result.source === 'Synthetic sample CSV';
-  const source = sample ? 'SYNTHETIC SAMPLE' : result.source === 'CSV' ? 'HISTORICAL CSV' : 'ALPACA IEX';
+  const source = sample ? 'SYNTHETIC SAMPLE' : result.source === 'CSV' ? 'HISTORICAL CSV' : result.source === 'Yahoo Finance' ? 'YAHOO FINANCE' : 'ALPACA IEX';
   const time = formatTime(market.candle_timestamp);
   $('chart-badge').className = `pill ${stale ? 'warning' : 'good'}`;
   setText('chart-badge', stale ? 'STALE · RESEARCH ONLY' : source);
@@ -399,7 +399,7 @@ $('analysis-form').addEventListener('submit', async (event) => {
   event.preventDefault();
   const symbol = $('symbol').value.trim().toUpperCase();
   if (!symbol) { $('symbol').focus(); return; }
-  const payload = {symbol, timeframe: $('timeframe').value};
+  const payload = {symbol, timeframe: $('timeframe').value, source: $('source').value};
   for (const [name] of riskFields) {
     const raw = $(`risk-${name}`).value.trim();
     if (raw !== '') payload[name] = Number(raw);

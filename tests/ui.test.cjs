@@ -48,12 +48,20 @@ function result(symbol = 'NVDA') {
   };
 }
 
-test('dashboard uses Alpaca data without a source selector', async () => {
+test('dashboard defaults to Alpaca and can analyze with Yahoo Finance', async () => {
   assert.equal(await page.locator('#chart-window').isDisabled(), true);
   assert.equal(await page.locator('#chart-overlay').isDisabled(), true);
-  assert.equal(await page.locator('#source').count(), 0);
+  assert.equal(await page.locator('#source').inputValue(), 'alpaca');
   assert.equal(await page.locator('#timeframe').isEnabled(), true);
   assert.match(await page.locator('.summary-card').first().innerText(), /SPY price/);
+  let requested;
+  const data = result(); data.source = 'Yahoo Finance';
+  await page.route('**/api/analyze', route => { requested = route.request().postDataJSON(); return route.fulfill({json: data}); });
+  await page.locator('#source').selectOption('yahoo');
+  await page.locator('#analyze').click();
+  await page.waitForFunction(() => !document.getElementById('decision-content').hidden);
+  assert.equal(requested.source, 'yahoo');
+  assert.match(await page.locator('#chart-subtitle').innerText(), /YAHOO FINANCE/);
 });
 
 test('dashboard uses white and dark blue for its main accents', async () => {

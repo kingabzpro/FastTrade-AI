@@ -195,6 +195,9 @@ def run_batch(args):
     summary = {'input_tokens_reported': sum(item['input_tokens'] for item in usage if item is not None),
                'output_tokens_reported': sum(item['output_tokens'] for item in usage if item is not None and item['output_tokens'] is not None),
                'complete': all(item is not None and item['output_tokens'] is not None for item in usage)}
+    summary['status'] = ('Token information available' if summary['complete'] else
+                         'Token information unavailable for some analyses' if any(item is not None for item in usage) else
+                         'Token information unavailable')
     return {'results': results, 'usage': summary}
 
 

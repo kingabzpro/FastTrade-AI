@@ -227,3 +227,46 @@ def test_concurrent_batches_cannot_exceed_daily_reservation(batch_client, monkey
         responses = list(pool.map(send, ['A', 'B']))
     assert sorted(response.status_code for response in responses) == [200, 403]
     assert len(seen) == 1
+
+
+def test_recovery_resumes_only_work_not_started_before_restart(batch_client, monkeypatch):
+    import json
+    from contextlib import closing
+    from fasttrade import batch_api, web
+    client, seen = batch_client
+    key_hash, limits = batch_api._authenticate('test-key')
+    body = batch_api.BatchRequest(symbols=['A', 'B', 'C'])
+    job, _ = batch_api._create(body, 'recover', key_hash, limits)
+    results = [{'symbol': 'A', 'result': {'decision': {'usage': {'input_tokens': 5, 'output_tokens': 1}}}},
+               {'symbol': 'B', 'status': 'started'}, None]
+    with closing(batch_api._db()) as db, db:
+        db.execute("UPDATE jobs SET owner = 'previous-process', state = 'running', results = ? WHERE id = ?", (json.dumps(results), job['id']))
+    headers = {'X-API-Key': 'test-key', 'Idempotency-Key': 'recover'}
+    with client:
+        for _ in range(100):
+            result = client.get('/v1/jobs/' + job['id'], headers=headers).json()
+            if result['status'] == 'completed':
+                break
+            time.sleep(.02)
+        assert result['status'] == 'completed' and result['progress'] == 3
+        assert result['results'][1]['error'] == 'Interrupted; outcome unavailable'
+        assert result['results'][2]['result']['decision']['usage']['input_tokens'] == 10
+        assert seen == ['C']
+        assert client.post('/v1/analyze:batch', json=body.model_dump(), headers=headers).json() == result
+
+
+def test_recovery_does_not_run_jobs_for_revoked_keys(batch_client, monkeypatch):
+    from contextlib import closing
+    from fasttrade import batch_api, web
+    client, seen = batch_client
+    key_hash, limits = batch_api._authenticate('test-key')
+    job, _ = batch_api._create(batch_api.BatchRequest(symbols=['A']), 'revoked', key_hash, limits)
+    with closing(batch_api._db()) as db, db:
+        db.execute("UPDATE jobs SET owner = 'previous-process' WHERE id = ?", (job['id'],))
+    monkeypatch.setenv('FASTTRADE_BATCH_KEYS', '{}')
+    batch_api._recover(web.AnalysisRequest, web.analyze)
+    time.sleep(.05)
+    assert seen == []
+    with closing(batch_api._db()) as db:
+        row = db.execute('SELECT owner, reserved_micro FROM jobs WHERE id = ?', (job['id'],)).fetchone()
+    assert row['owner'] == 'previous-process' and row['reserved_micro'] == 10000

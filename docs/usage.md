@@ -10,9 +10,15 @@ Pandas is temporarily capped below 3.1 because the current yfinance quote parser
 
 ## Market data
 
-The dashboard and live CLI analysis use Alpaca stock bars with the free `iex` feed and raw prices. IEX represents one US exchange, not consolidated market volume; prices, volume, VWAP, and model decisions can differ from Yahoo or SIP. Alpaca bars can include extended-hours trades. The feed may omit intervals with no trades, and stale bars remain blocked from actionable signals. Company profiles and news are not supplied by this data path. See [Alpaca market data](https://docs.alpaca.markets/us/docs/market-data-faq).
+The dashboard and live CLI analysis use Alpaca stock bars with the free `iex` feed and raw prices. IEX represents one US exchange, not consolidated market volume; prices, volume, VWAP, and model decisions can differ from Yahoo or SIP. Alpaca bars can include extended-hours trades. The feed may omit intervals with no trades, and stale bars remain blocked from actionable signals. Company profiles and news are not supplied to the decision model by this data path. See [Alpaca market data](https://docs.alpaca.markets/us/docs/market-data-faq).
 
-Supported live intervals are 1m, 2m, 5m, 15m, 30m, and 60m. The 90m interval remains available for CLI CSV analysis only. Alpaca returns the most recent bars available at the requested time; timestamps and freshness are validated before use. Credentials stay server-side; never put them in a request or share them.
+On page load, the dashboard fetches SPY's latest completed 5-minute IEX candle, the most recent change between completed candles exactly 10 minutes apart, and the latest SPY headline from [Alpaca News](https://docs.alpaca.markets/us/reference/news-3). The last available change remains visible when data is stale; it is unavailable if no such pair exists in the returned data. This market overview is cached in the server process for 10 minutes. News may be delayed or unavailable depending on account access. A failed price or news request is shown as unavailable; a partial result can remain cached for 10 minutes.
+
+Every page load also requests SPY's deterministic rule and model preference using the same latest completed 10-minute candles. **The automatic model request can incur charges**; results, including failures, are cached for 10 minutes per server process. Outside normal weekday New York trading hours, a successful previous result remains unchanged; during normal hours it is reused when the latest completed candle is unchanged. Normal-hour detection does not account for exchange holidays or early closures. No portfolio fields are sent. The unvalidated indicator rule shows HOLD when the indicators provide no directional signal; neither signal is risk-checked or an order. Old market data is labeled stale and research-only. The news headline is fetched separately and is not a model input.
+
+The last manual analysis stores only its symbol, timeframe, model preference, candle timestamp, and source in browser local storage. Portfolio values and credentials are not stored there. Browser data is device-specific and can be cleared using browser settings.
+
+Dashboard analysis supports 1m, 2m, 5m, 15m, 30m, and 60m. The CLI and automatic SPY signals also support 10m; 90m remains available for CLI CSV analysis only. Alpaca returns the most recent bars available at the requested time; timestamps and freshness are validated before use. Credentials stay server-side; never put them in a request or share them.
 
 ## Portfolio and risk inputs
 

@@ -289,6 +289,10 @@ async def analyze(body: AnalysisRequest):
         return JSONResponse({'error': 'Analysis failed. Check data and settings.', 'actionable_signal': None}, status_code=503)
 
 
+from .batch_api import make_batch_router
+app.include_router(make_batch_router(AnalysisRequest, analyze))
+
+
 def serve():
     import os
     import socket

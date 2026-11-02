@@ -7,6 +7,14 @@ import pytest
 from fasttrade import cli
 
 
+def test_batch_passes_selected_provider(monkeypatch):
+    seen = []
+    monkeypatch.setattr(cli, 'run', lambda args: seen.append(args.source) or {'source': 'Yahoo Finance'})
+    args = cli.parser().parse_args(['analyze-batch', 'AAPL', 'MSFT', '--source', 'yahoo'])
+    cli.run_batch(args)
+    assert seen == ['yahoo', 'yahoo']
+
+
 def test_batch_runs_tickers_concurrently_and_returns_partial_results(monkeypatch, capsys):
     barrier = threading.Barrier(2, timeout=3)
     def analyze(args):

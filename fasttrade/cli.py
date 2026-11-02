@@ -10,7 +10,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 import pandas as pd
 from dotenv import load_dotenv
-from .market import alpaca, validate_candles, INTERVALS
+from .market import alpaca, yahoo, validate_candles, INTERVALS
 from .indicators import features, rule_signal
 from .decisions import predict
 from .risk import evaluate
@@ -24,6 +24,7 @@ def parser():
     batch = sub.add_parser('analyze-batch', help='Analyze multiple tickers concurrently (signal only)', description='Each ticker may incur a paid model request. Results are signal only; no orders are placed.')
     batch.add_argument('symbols', nargs='+', help='US stock ticker symbols (up to 50)')
     batch.add_argument('--timeframe', choices=INTERVALS, default='5m')
+    batch.add_argument('--source', choices=('alpaca', 'yahoo'), default='alpaca', help='Market data provider (default: alpaca)')
     batch.add_argument('--concurrency', type=int, choices=range(1, 6), default=3, metavar='1-5')
     b = sub.add_parser('benchmark', help='Run a weekly historical model benchmark')
     b.add_argument('--start', required=True, help='First decision date (YYYY-MM-DD)')
@@ -53,7 +54,9 @@ def parser():
 def add_analysis_arguments(a):
     a.add_argument('symbol')
     a.add_argument('--timeframe', choices=INTERVALS, default='5m')
-    a.add_argument('--csv', help='CSV with timezone-aware candle start timestamps')
+    source = a.add_mutually_exclusive_group()
+    source.add_argument('--csv', help='CSV with timezone-aware candle start timestamps')
+    source.add_argument('--source', choices=('alpaca', 'yahoo'), default='alpaca', help='Market data provider (default: alpaca)')
     a.add_argument('--as-of', help='Timezone-aware evaluation time; defaults to now')
     a.add_argument('--session-timezone', help='Exchange timezone; defaults to America/New_York for CSV')
     a.add_argument('--max-age-seconds', type=float, help='Maximum age since candle close; defaults to two intervals')
@@ -79,7 +82,8 @@ def run(args):
     if args.csv:
         frame, details, news = pd.read_csv(args.csv), {}, []
     else:
-        frame, details, news = alpaca(args.symbol, args.timeframe, as_of)
+        provider = yahoo if args.source == 'yahoo' else alpaca
+        frame, details, news = provider(args.symbol, args.timeframe, as_of)
         if args.as_of:
             # Current company details do not have historical availability timestamps.
             details = {k: v for k, v in details.items() if k == 'exchangeTimezoneName'}
@@ -151,7 +155,7 @@ def run(args):
     interpretations = [f"Price {'above' if snapshot['price'] > snapshot['vwap'] else 'at or below'} session VWAP", f"MACD {'above' if snapshot['macd'] > snapshot['macd_signal'] else 'at or below'} its signal", f"Volume {'above' if snapshot['volume_ratio'] > 1 else 'at or below'} 20-bar average"]
     risk_ms = (time.perf_counter_ns() - risk_start) / 1e6
     result = {'market': state, 'model_signal': decision['action'], 'decision': decision, 'rule_comparison': comparison, 'indicator_interpretations': interpretations, 'risk_rejections': reasons, 'actionable_signal': (decision['action'] if not reasons else 'HOLD') if risk_complete else None, 'stale_preview': stale_preview, **result_extra}
-    result['source'] = 'CSV' if args.csv else 'Alpaca IEX'
+    result['source'] = 'CSV' if args.csv else 'Yahoo Finance' if args.source == 'yahoo' else 'Alpaca IEX'
     if getattr(args, 'include_chart', False):
         chart = frame.copy()
         for n in (9, 21, 50):
@@ -176,7 +180,7 @@ def run_batch(args):
     load_dotenv()
 
     def analyze(symbol):
-        analysis_args = parser().parse_args(['analyze', symbol, '--timeframe', args.timeframe])
+        analysis_args = parser().parse_args(['analyze', symbol, '--timeframe', args.timeframe, '--source', args.source])
         analysis_args.allow_stale_preview = True
         try:
             return {'symbol': symbol, 'result': run(analysis_args)}

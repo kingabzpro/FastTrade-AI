@@ -33,6 +33,7 @@ class AnalysisRequest(BaseModel):
     model_config = ConfigDict(extra='forbid', allow_inf_nan=False)
     symbol: str = Field(min_length=1, max_length=20, pattern=r'^[A-Za-z0-9.\^=\-]+$', description='US stock ticker symbol')
     timeframe: Literal['1m', '2m', '5m', '15m', '30m', '60m'] = '5m'
+    source: Literal['alpaca', 'yahoo'] = 'alpaca'
     sample: bool = Field(default=False, description='Use synthetic five-minute candles; portfolio actions are blocked')
     position: float | None = Field(default=None, ge=0)
     equity: float | None = Field(default=None, gt=0)

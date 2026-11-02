@@ -96,6 +96,8 @@ def alpaca_news(symbol, as_of):
 
 
 def yahoo(symbol, timeframe, as_of):
+    if timeframe not in ('1m', '2m', '5m', '15m', '30m', '60m', '90m'):
+        raise ValueError('Unsupported Yahoo Finance timeframe')
     import yfinance as yf
     from curl_cffi.requests.exceptions import Timeout
     ticker = yf.Ticker(symbol)

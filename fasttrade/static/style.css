@@ -390,6 +390,7 @@ body { background: #e5e5e7; color: var(--text); }
 .card h2 { color: #15212d; font-size: 16px; font-weight: 600; }
 .section-kicker { color: #566a7c; font-size: 10px; letter-spacing: .04em; }
 .control-grid { margin-top: 14px; }
+@media (min-width: 1101px) { .control-grid { grid-template-columns: repeat(3, minmax(0, 1fr)) 190px; } }
 input, select { background: #f9fcff; border-color: #cadbe9; }
 #analyze { background: #3466f6; box-shadow: none; }
 #analyze:hover { background: #2456e4; box-shadow: none; }

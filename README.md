@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="fasttrade/static/logo.svg" alt="FastTrade AI logo" width="72">
+  <img src="docs/fasttrade-banner.jpg" alt="FastTrade AI: market data, model signals, and candlestick chart">
   <h1>FastTrade AI</h1>
   <p>Market research, model signals, and risk checks.</p>
 </div>

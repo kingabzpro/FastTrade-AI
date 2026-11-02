@@ -15,9 +15,19 @@
 
 FastTrade reads market data and technical indicators, asks Jev for a BUY, HOLD or SELL preference, then checks any supplied portfolio limits.
 
-A retrospective 25-stock backtest for October 2026 returned **+2.04%** with Alpaca IEX data, versus **−0.17% for SPY**, including simulated fees and slippage. The earlier Yahoo-data run returned +2.31% versus −0.15% for SPY. See the [Alpaca comparison](docs/backtest-2026-09-28-alpaca/README.md) for methods and limitations.
+## Benchmark results
 
-Both results use a hindsight-selected universe and may contain model lookahead; neither establishes a live trading edge. The IEX feed represents one exchange, so its prices and volume can differ from consolidated data.
+| Measure | FastTrade | SPY buy-and-hold |
+| --- | ---: | ---: |
+| Return, Jan–Jun 2026 | +6.60% | +9.35% |
+| Return, Oct 2026 (Alpaca IEX) | +2.04% | −0.17% |
+| Directional accuracy, Jan–Jun | 49.01% (199 of 406) | Not measured |
+| Mean model request time, Jan–Jun | 862 ms | Not applicable |
+| Estimated model cost, Jan–Jun | $0.0224 for 650 decisions | Not applicable |
+
+The [six-month benchmark](docs/benchmark-2026-h1.md) uses 25 stocks and excludes trading costs; directional accuracy measures BUY/SELL price direction, excludes HOLD, and is not a trade success rate. Timing includes network time but excludes market-data downloads. Cost uses the historical $0.042 per million input-token rate and reported usage; actual charges and current pricing may differ. The [October Alpaca backtest](docs/backtest-2026-09-28-alpaca/README.md) includes simulated fees and slippage, but excludes model charges.
+
+Both are retrospective studies using a hindsight-selected universe and may contain model lookahead; neither establishes a live trading edge. IEX represents one exchange, so its prices and volume can differ from consolidated data.
 
 ## Get started
 

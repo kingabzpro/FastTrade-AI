@@ -408,6 +408,70 @@ test('incomplete portfolio shows signal only in the decision and history', async
   assert.equal(await page.locator('#risk-action').innerText(), 'SIGNAL ONLY');
 });
 
+test('optional history survives reload, reopens without analysis, and can be deleted', async () => {
+  let calls = 0;
+  const data = result('NVDA');
+  data.portfolio = {equity: 12345};
+  data.api_key = 'private-secret';
+  await page.route('**/api/analyze', route => { calls++; return route.fulfill({json: data}); });
+  assert.equal(await page.locator('#history-save').isChecked(), false);
+  await page.locator('#history-save').check();
+  await page.locator('#analyze').click();
+  await page.waitForFunction(() => document.querySelectorAll('#history tbody tr').length === 1);
+  const stored = await page.evaluate(() => localStorage.getItem('fasttrade-history'));
+  assert.ok(stored);
+  assert.doesNotMatch(stored, /private-secret|12345|api_key|portfolio/i);
+  await page.reload();
+  assert.equal(await page.locator('#history-save').isChecked(), true);
+  assert.match(await page.locator('#history tbody').innerText(), /Alpaca IEX/);
+  await page.locator('.history-link').click();
+  assert.equal(calls, 1);
+  assert.equal(await page.locator('#model-action').innerText(), 'BUY');
+  assert.match(await page.locator('#notice').innerText(), /previous.*2026.*no new model/i);
+  await page.locator('.history-delete').click();
+  assert.equal(await page.locator('#history tbody tr').count(), 0);
+  await page.reload();
+  assert.equal(await page.locator('#history tbody tr').count(), 0);
+});
+
+test('history storage failures are visible and do not block analysis', async () => {
+  await page.evaluate(() => {
+    const original = Storage.prototype.setItem;
+    Storage.prototype.setItem = function (key, value) {
+      if (key === 'fasttrade-history') throw new DOMException('Full', 'QuotaExceededError');
+      return original.call(this, key, value);
+    };
+  });
+  await page.locator('#history-save').check({force: true});
+  assert.match(await page.locator('#history-storage-status').innerText(), /storage.*unavailable|storage.*full/i);
+  await page.route('**/api/analyze', route => route.fulfill({json: result()}));
+  await page.locator('#analyze').click();
+  await page.waitForFunction(() => !document.getElementById('decision-content').hidden);
+  assert.equal(await page.locator('#model-action').innerText(), 'BUY');
+});
+
+test('history size limit preserves earlier saved results and clear removes them', async () => {
+  const data = result();
+  await page.route('**/api/analyze', route => route.fulfill({json: data}));
+  await page.locator('#history-save').check();
+  await page.locator('#analyze').click();
+  await page.waitForFunction(() => document.querySelectorAll('#history tbody tr').length === 1);
+  data.market.headlines = [{title: 'x'.repeat(2 * 1024 * 1024), source: 'test', published: '2026-01-02T20:55:00Z'}];
+  await page.locator('#analyze').click();
+  await page.waitForFunction(() => document.querySelectorAll('#history tbody tr').length === 2);
+  const saved = JSON.parse(await page.evaluate(() => localStorage.getItem('fasttrade-history')));
+  assert.equal(saved.entries.length, 1);
+  assert.match(await page.locator('#history-storage-status').innerText(), /too large/i);
+  await page.locator('#history-save').uncheck();
+  await page.reload();
+  assert.equal(await page.locator('#history tbody tr').count(), 0);
+  await page.locator('#history-save').check();
+  assert.equal(await page.locator('#history tbody tr').count(), 1);
+  await page.locator('#history-clear').click();
+  await page.reload();
+  assert.equal(await page.locator('#history tbody tr').count(), 0);
+});
+
 test('reopening history respects the reduced-motion setting', async () => {
   await page.route('**/api/analyze', route => route.fulfill({ json: result() }));
   await page.locator('#analyze').click();

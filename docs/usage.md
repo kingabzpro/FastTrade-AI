@@ -18,6 +18,8 @@ Every page load also requests SPY's deterministic rule and model preference usin
 
 The last manual analysis stores only its symbol, timeframe, model preference, candle timestamp, and source in browser local storage. Portfolio values and credentials are not stored there. Browser data is device-specific and can be cleared using browser settings.
 
+Analysis history is kept for the current session by default. Enable “Save history on this device” to retain up to 50 analyses and 2 MiB in browser storage. Reopening a saved analysis does not run the model; its original candle time and data source are shown. Delete individual entries or clear history in the dashboard. Turning saving off leaves previously saved entries on the device until cleared. Saved results can reveal trading activity; credentials and portfolio inputs are excluded. Browser storage is device-local, is not a secure backup, and does not sync across devices.
+
 Dashboard analysis supports 1m, 2m, 5m, 15m, 30m, and 60m. Alpaca and CSV CLI analysis and automatic SPY signals also support 10m; Yahoo does not. The CLI supports 90m with Yahoo or CSV. Both providers return the most recent bars available at the requested time; timestamps and freshness are validated before use. Credentials stay server-side; never put them in a request or share them.
 
 ## Portfolio and risk inputs

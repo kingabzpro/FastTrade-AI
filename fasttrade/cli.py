@@ -190,7 +190,12 @@ def run_batch(args):
             return {'symbol': symbol, 'error': 'Unexpected analysis failure', 'actionable_signal': None}
 
     with ThreadPoolExecutor(max_workers=args.concurrency) as pool:
-        return {'results': list(pool.map(analyze, symbols))}
+        results = list(pool.map(analyze, symbols))
+    usage = [item.get('result', {}).get('decision', {}).get('usage') for item in results]
+    summary = {'input_tokens_reported': sum(item['input_tokens'] for item in usage if item is not None),
+               'output_tokens_reported': sum(item['output_tokens'] for item in usage if item is not None and item['output_tokens'] is not None),
+               'complete': all(item is not None and item['output_tokens'] is not None for item in usage)}
+    return {'results': results, 'usage': summary}
 
 
 def dashboard():

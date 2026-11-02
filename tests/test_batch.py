@@ -15,6 +15,26 @@ def test_batch_passes_selected_provider(monkeypatch):
     assert seen == ['yahoo', 'yahoo']
 
 
+def test_batch_summarizes_reported_usage_and_marks_missing_or_failed_calls(monkeypatch):
+    def analyze(args):
+        if args.symbol == 'FAIL':
+            raise ValueError('Provider failed')
+        usage = {'input_tokens': 100, 'output_tokens': 7} if args.symbol == 'A' else {'input_tokens': 200, 'output_tokens': None}
+        return {'decision': {'usage': usage}}
+    monkeypatch.setattr(cli, 'run', analyze)
+    args = cli.parser().parse_args(['analyze-batch', 'A', 'B', 'FAIL'])
+    result = cli.run_batch(args)
+    assert result['usage'] == {'input_tokens_reported': 300, 'output_tokens_reported': 7, 'complete': False}
+    assert [item['symbol'] for item in result['results']] == ['A', 'B', 'FAIL']
+    assert result['results'][2]['error'] == 'Provider failed'
+
+
+def test_batch_usage_is_complete_only_when_every_result_reports_both_counts(monkeypatch):
+    monkeypatch.setattr(cli, 'run', lambda args: {'decision': {'usage': {'input_tokens': 3, 'output_tokens': 0}}})
+    args = cli.parser().parse_args(['analyze-batch', 'A', 'B'])
+    assert cli.run_batch(args)['usage'] == {'input_tokens_reported': 6, 'output_tokens_reported': 0, 'complete': True}
+
+
 def test_batch_runs_tickers_concurrently_and_returns_partial_results(monkeypatch, capsys):
     barrier = threading.Barrier(2, timeout=3)
     def analyze(args):

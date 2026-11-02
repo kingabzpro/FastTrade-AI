@@ -105,6 +105,16 @@ def test_analysis_uses_existing_engine_and_risk_inputs(monkeypatch):
     assert seen[0].include_chart and seen[0].allow_stale_preview
 
 
+def test_analysis_api_passes_provider_and_rejects_invalid_choice(monkeypatch):
+    from fasttrade import web
+    seen = []
+    monkeypatch.setattr(web, 'run_analysis', lambda args: seen.append(args.source) or {'source': 'Yahoo Finance'})
+    client = TestClient(web.app, base_url='http://127.0.0.1:8765')
+    assert client.post('/api/analyze', json={'symbol': 'SPY', 'source': 'yahoo'}).status_code == 200
+    assert seen == ['yahoo']
+    assert client.post('/api/analyze', json={'symbol': 'SPY', 'source': 'other'}).status_code == 422
+
+
 def test_spy_overview_uses_completed_bars_and_reports_news_failure(monkeypatch):
     import pandas as pd
     import pytest

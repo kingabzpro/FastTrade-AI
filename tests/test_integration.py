@@ -50,6 +50,30 @@ def test_csv_cli_missing_risk_is_signal_only(monkeypatch, tmp_path):
     assert result['risk_rejections'] == []
 
 
+def test_cli_selects_yahoo_and_validates_candles(monkeypatch):
+    monkeypatch.setattr(cli, 'alpaca', lambda *args: pytest.fail('Alpaca must not be called'))
+    monkeypatch.setattr(cli, 'yahoo', lambda *args: (candles(), {}, []))
+    monkeypatch.setattr(cli, 'predict', lambda *args: decisions.normalize(answer(), 1))
+    args = cli.parser().parse_args(['analyze', 'TEST', '--source', 'yahoo', '--as-of', '2026-01-02T19:30:00Z'])
+    assert cli.run(args)['source'] == 'Yahoo Finance'
+    bad = candles().iloc[-10:]
+    monkeypatch.setattr(cli, 'yahoo', lambda *args: (bad, {}, []))
+    with pytest.raises(ValueError, match='50'):
+        cli.run(args)
+    def fail(*args):
+        raise ValueError('Market data provider failed')
+    monkeypatch.setattr(cli, 'yahoo', fail)
+    with pytest.raises(ValueError, match='provider failed'):
+        cli.run(args)
+
+
+def test_yahoo_rejects_unsupported_interval_without_request(monkeypatch):
+    import yfinance
+    monkeypatch.setattr(yfinance, 'Ticker', lambda *args: pytest.fail('request must not start'))
+    with pytest.raises(ValueError, match='Yahoo Finance.*timeframe'):
+        market.yahoo('SPY', '10m', pd.Timestamp('2026-01-02T19:30Z'))
+
+
 def test_partial_portfolio_has_no_actionable_signal(monkeypatch, tmp_path):
     path = tmp_path / 'candles.csv'
     candles().to_csv(path, index=False)

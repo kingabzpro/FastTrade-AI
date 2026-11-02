@@ -31,15 +31,15 @@ Both are retrospective studies using a hindsight-selected universe and may conta
 
 ## Get started
 
-Install [uv](https://docs.astral.sh/uv/) and Python 3.10+, then add your [TypeSafe](https://typesafe.ai/) key and [Alpaca](https://alpaca.markets/) API credentials to `.env`:
+Install [uv](https://docs.astral.sh/uv/) and Python 3.10+, then add your [TypeSafe](https://typesafe.ai/) key to `.env`. Add [Alpaca](https://alpaca.markets/) credentials if you plan to use Alpaca:
 
 ```powershell
 Copy-Item .env.example .env
-# Set TYPESAFE_API_KEY, ALPACA_API_KEY and ALPACA_SECRET_KEY in .env
+# Set TYPESAFE_API_KEY; set ALPACA_API_KEY and ALPACA_SECRET_KEY for Alpaca
 uv run ft
 ```
 
-Market data comes from Alpaca’s free IEX feed, a single US exchange; its prices and volumes may differ from consolidated data.
+Choose Alpaca IEX or Yahoo Finance in the dashboard. Alpaca is the default and uses its free IEX feed, a single US exchange; prices and volumes can differ between sources. The automatic SPY summary uses Alpaca regardless of the selection.
 
 Open [localhost:8765](http://127.0.0.1:8765/), choose a market, and run an analysis. FastTrade shows model preferences, charts and risk checks; **it never places orders**. Without complete portfolio settings, the result is signal only.
 
@@ -51,11 +51,15 @@ For a single ticker:
 uv run ft analyze NVDA --timeframe 5m
 ```
 
+Add `--source yahoo` to use Yahoo Finance instead of the default Alpaca source.
+
 For concurrent CLI analysis:
 
 ```powershell
 uv run ft analyze-batch AAPL MSFT NVDA --concurrency 3
 ```
+
+Batch analysis also accepts `--source yahoo`.
 
 Each ticker may incur a paid model request; batch results are signal only.
 

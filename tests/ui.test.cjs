@@ -8,7 +8,7 @@ const { chromium } = require('playwright');
 let server, browser, page, url;
 before(async () => {
   const root = join(__dirname, '../fasttrade/static');
-  const files = new Map(['index.html', 'style.css', 'app.js', 'chart-math.js', 'logo.svg', 'favicon.ico']
+  const files = new Map(['index.html', 'style.css', 'app.js', 'chart-math.js', 'logo.svg', 'favicon.svg', 'favicon.ico']
     .map(name => [name === 'index.html' ? '/' : `/static/${name}`, readFileSync(join(root, name))]));
   server = createServer((req, res) => {
     const types = { css: 'text/css', js: 'text/javascript', svg: 'image/svg+xml', ico: 'image/x-icon' };
@@ -23,6 +23,8 @@ after(async () => { await browser?.close(); server?.close(); });
 beforeEach(async () => {
   await page?.close();
   page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, reducedMotion: 'reduce' });
+  await page.route('**/api/market-overview', route => route.fulfill({json: result().market_overview}));
+  await page.route('**/api/spy-signals', route => route.fulfill({json: {deterministic: 'HOLD', model: 'BUY', stale: false, candle_timestamp: '2026-01-02T20:55:00Z'}}));
   await page.goto(url);
 });
 
@@ -32,6 +34,8 @@ function result(symbol = 'NVDA') {
       price: 142.85, rsi_14: 54, macd: .12, vwap_delta: .003, volume_ratio: 1.2, atr_14: .8,
     }, headlines: [] },
     source: 'Alpaca IEX', stale_preview: false,
+    market_overview: {symbol: 'SPY', timeframe: '5m', price: 500, change_pct: 0.5,
+      candle_timestamp: '2026-01-02T20:55:00Z', change_candle_timestamp: '2026-01-02T20:55:00Z', stale: false, news_status: 'available', news: []},
     decision: { action: 'BUY', probabilities: { BUY: .7, HOLD: .2, SELL: .1 }, model: 'test', latency_us: 1000 },
     actionable_signal: 'HOLD', risk_rejections: [],
     rule_comparison: { signal: 'BUY', agreement: 'agree' },
@@ -49,7 +53,72 @@ test('dashboard uses Alpaca data without a source selector', async () => {
   assert.equal(await page.locator('#chart-overlay').isDisabled(), true);
   assert.equal(await page.locator('#source').count(), 0);
   assert.equal(await page.locator('#timeframe').isEnabled(), true);
-  assert.match(await page.locator('#strip-source').innerText(), /Alpaca IEX/);
+  assert.match(await page.locator('.summary-card').first().innerText(), /SPY price/);
+});
+
+test('dashboard uses white and dark blue for its main accents', async () => {
+  const colors = await page.evaluate(() => ({
+    button: getComputedStyle(document.querySelector('#analyze')).backgroundColor,
+    rail: getComputedStyle(document.querySelector('.desktop-rail nav a.active')).backgroundColor,
+    card: getComputedStyle(document.querySelector('.summary-card')).backgroundColor,
+  }));
+  assert.equal(colors.button, 'rgb(28, 49, 85)');
+  assert.equal(colors.rail, 'rgb(28, 49, 85)');
+  assert.equal(colors.card, 'rgb(255, 255, 255)');
+});
+
+test('notifications use distinct success, warning and error colors', async () => {
+  const data = result('SPY');
+  await page.route('**/api/analyze', route => route.fulfill({json: data}));
+  await page.locator('#analyze').click();
+  await page.waitForFunction(() => document.getElementById('notice').classList.contains('success'));
+  assert.equal(await page.locator('#notice').evaluate(el => getComputedStyle(el).color), 'rgb(20, 100, 68)');
+  data.stale_preview = true;
+  await page.locator('#analyze').click();
+  await page.waitForFunction(() => document.getElementById('notice').classList.contains('warning') && getComputedStyle(document.getElementById('notice')).color === 'rgb(123, 82, 13)');
+  assert.equal(await page.locator('#notice').evaluate(el => getComputedStyle(el).color), 'rgb(123, 82, 13)');
+  await page.unroute('**/api/analyze');
+  await page.route('**/api/analyze', route => route.fulfill({status: 503, json: {error: 'Unavailable'}}));
+  await page.locator('#analyze').click();
+  await page.waitForFunction(() => document.getElementById('notice').classList.contains('error') && getComputedStyle(document.getElementById('notice')).color === 'rgb(151, 45, 61)');
+  assert.equal(await page.locator('#notice').evaluate(el => getComputedStyle(el).color), 'rgb(151, 45, 61)');
+});
+
+test('down candles stay distinguishable without relying on color', async () => {
+  const data = result();
+  data.candles[10].close = data.candles[10].open - .2;
+  await page.route('**/api/analyze', route => route.fulfill({json: data}));
+  await page.evaluate(() => {
+    const original = CanvasRenderingContext2D.prototype.strokeRect;
+    CanvasRenderingContext2D.prototype.strokeRect = function (...args) { window.downCandles = (window.downCandles || 0) + 1; return original.apply(this, args); };
+  });
+  await page.locator('#analyze').click();
+  await page.waitForFunction(() => !document.getElementById('decision-content').hidden);
+  assert.ok(await page.evaluate(() => window.downCandles > 0));
+});
+
+test('chart uses green and red candles and a blue overlay', async () => {
+  const data = result('SPY');
+  data.candles[10].close = data.candles[10].open - .2;
+  await page.route('**/api/analyze', route => route.fulfill({json: data}));
+  await page.evaluate(() => {
+    window.chartColors = [];
+    for (const method of ['fillRect', 'strokeRect', 'stroke']) {
+      const original = CanvasRenderingContext2D.prototype[method];
+      CanvasRenderingContext2D.prototype[method] = function (...args) {
+        window.chartColors.push(method === 'fillRect' ? this.fillStyle : this.strokeStyle);
+        return original.apply(this, args);
+      };
+    }
+  });
+  await page.locator('#analyze').click();
+  await page.waitForFunction(() => !document.getElementById('decision-content').hidden);
+  assert.equal(await page.locator('#chart-overlay').inputValue(), 'ema_9');
+  assert.match(await page.locator('#overlay-name').innerText(), /EMA 9/);
+  const colors = await page.evaluate(() => window.chartColors);
+  assert.ok(colors.includes('#0b8055'));
+  assert.ok(colors.includes('#bd374b'));
+  assert.ok(colors.includes('#245de0'));
 });
 
 test('collapsed invalid risk settings open so the invalid field can receive focus', async () => {
@@ -90,11 +159,159 @@ test('positive portfolio amounts reject zero and accept fractional values or omi
   }
 });
 
-test('workspace has no sidebar and mobile navigation marks the selected destination', async () => {
-  assert.equal(await page.locator('.sidebar').count(), 0);
+test('desktop rail and mobile navigation link to real destinations', async () => {
+  assert.equal(await page.locator('.desktop-rail').isVisible(), true);
+  assert.equal(await page.locator('.desktop-rail a[href="#chart-panel"]').count(), 1);
   await page.setViewportSize({ width: 390, height: 844 });
+  assert.equal(await page.locator('.desktop-rail').isHidden(), true);
   await page.locator('.mobile-nav a[href="#chart-panel"]').click();
   await page.waitForFunction(() => document.querySelector('.mobile-nav a[href="#chart-panel"]').getAttribute('aria-current') === 'location');
+});
+
+test('SPY summary remains separate from other results and errors', async () => {
+  await page.waitForFunction(() => document.getElementById('summary-decision').textContent === 'BUY');
+  assert.equal(await page.locator('#summary-rule').innerText(), 'HOLD');
+  await page.route('**/api/analyze', route => route.fulfill({ json: result() }));
+  await page.locator('#analyze').click();
+  await page.waitForFunction(() => !document.getElementById('decision-content').hidden);
+  assert.equal(await page.locator('#summary-rule').innerText(), 'HOLD');
+  assert.equal(await page.locator('#summary-decision').innerText(), 'BUY');
+  assert.equal(await page.locator('#model-action').innerText(), 'BUY');
+  await page.unroute('**/api/analyze');
+  await page.route('**/api/analyze', route => route.fulfill({ status: 503, json: {error: 'Unavailable'} }));
+  await page.locator('#analyze').click();
+  await page.waitForFunction(() => document.getElementById('notice').classList.contains('error'));
+  assert.equal(await page.locator('#summary-decision').innerText(), 'BUY');
+});
+
+test('SPY cards show separate completed-bar change and recent news', async () => {
+  const data = result('NVDA');
+  data.market_overview = {symbol: 'SPY', timeframe: '5m', price: 500, change_pct: -1.25,
+    candle_timestamp: '2026-01-02T20:55:00Z', change_candle_timestamp: '2026-01-02T20:50:00Z', stale: true, news_status: 'available',
+    news: [{title: 'Market headline', source: 'Example', published: '2026-01-02T20:00:00Z'}]};
+  await page.route('**/api/market-overview', route => route.fulfill({json: data.market_overview}));
+  await page.reload();
+  await page.route('**/api/analyze', route => route.fulfill({json: data}));
+  await page.locator('#analyze').click();
+  await page.waitForFunction(() => !document.getElementById('decision-content').hidden);
+  assert.match(await page.locator('#summary-price').innerText(), /500/);
+  assert.match(await page.locator('#summary-change').innerText(), /-1.25%/);
+  assert.equal(await page.locator('#price-stale').isVisible(), true);
+  assert.equal(await page.locator('#summary-rule').innerText(), 'HOLD');
+  assert.equal(await page.locator('#summary-decision').innerText(), 'BUY');
+  assert.equal(await page.locator('#model-action').innerText(), 'BUY');
+  assert.match(await page.locator('#summary-news').innerText(), /Market headline/);
+  assert.match(await page.locator('#summary-news').getAttribute('title'), /Example/);
+});
+
+test('SPY overview and signals load on refresh without triggering a manual analysis', async () => {
+  let calls = 0;
+  await page.route('**/api/analyze', () => { calls++; });
+  await page.reload();
+  await page.waitForFunction(() => document.getElementById('summary-price').textContent === '500.00');
+  assert.equal(calls, 0);
+  assert.match(await page.locator('#summary-change').innerText(), /Up \+0.50%/);
+});
+
+test('SPY signals load automatically with a spinner and show independent results', async () => {
+  let release;
+  const pending = new Promise(resolve => { release = resolve; });
+  await page.route('**/api/spy-signals', async route => {
+    assert.equal(route.request().method(), 'POST');
+    await pending;
+    await route.fulfill({json: {deterministic: 'HOLD', model: 'SELL', stale: true, candle_timestamp: '2026-01-02T20:55:00Z'}});
+  });
+  try {
+    await page.emulateMedia({reducedMotion: 'no-preference'});
+    await page.reload();
+    assert.equal(await page.locator('#summary-rule .spy-spinner').isVisible(), true);
+    assert.equal(await page.locator('#summary-decision .spy-spinner').isVisible(), true);
+    assert.equal(await page.locator('#summary-rule .spy-spinner').evaluate(el => getComputedStyle(el).animationName), 'spin');
+    await page.emulateMedia({reducedMotion: 'reduce'});
+    assert.equal(await page.locator('#summary-rule .spy-spinner').evaluate(el => getComputedStyle(el).animationName), 'none');
+    release();
+    await page.waitForFunction(() => document.getElementById('summary-decision').textContent === 'SELL');
+    assert.equal(await page.locator('#summary-rule').innerText(), 'HOLD');
+    assert.equal(await page.locator('#rule-stale').isVisible(), true);
+    assert.equal(await page.locator('#model-stale').isVisible(), true);
+    assert.equal(await page.locator('#spy-status').count(), 0);
+    assert.equal(await page.locator('#last-analysis').count(), 0);
+    assert.equal(await page.locator('.summary-card small').count(), 0);
+  } finally { release(); }
+});
+
+test('all summary cards stay on SPY when another symbol is analyzed', async () => {
+  await page.evaluate(() => localStorage.setItem('fasttrade-last-analysis', JSON.stringify({symbol: 'MU', timeframe: '5m', action: 'BUY', candle_timestamp: '2026-01-02T20:55:00Z', source: 'Alpaca IEX'})));
+  await page.reload();
+  await page.waitForFunction(() => document.getElementById('summary-price').textContent === '500.00');
+  assert.equal(await page.locator('#summary-rule').innerText(), 'HOLD');
+  assert.equal(await page.locator('#summary-decision').innerText(), 'BUY');
+  await page.fill('#symbol', 'MU');
+  await page.route('**/api/analyze', route => route.fulfill({json: result('MU')}));
+  await page.locator('#analyze').click();
+  await page.waitForFunction(() => !document.getElementById('decision-content').hidden);
+  assert.match(await page.locator('#chart-symbol').innerText(), /MU/);
+  assert.equal(await page.locator('#summary-rule').innerText(), 'HOLD');
+  assert.equal(await page.locator('#summary-decision').innerText(), 'BUY');
+});
+
+test('SPY model card reflects the actual BUY HOLD or SELL output', async () => {
+  let calls = 0;
+  let action = 'BUY';
+  await page.route('**/api/spy-signals', route => { calls++; return route.fulfill({json: {deterministic: 'HOLD', model: action, stale: false}}); });
+  assert.equal(await page.locator('#symbol').inputValue(), 'SPY');
+  for (action of ['BUY', 'HOLD', 'SELL']) {
+    await page.reload();
+    await page.waitForFunction(expected => document.getElementById('summary-decision').textContent === expected, action);
+    assert.equal(await page.locator('#summary-decision').innerText(), action);
+  }
+  assert.equal(calls, 3);
+});
+
+test('last model preference returns after refresh without saving portfolio data or calling the model', async () => {
+  let calls = 0;
+  const data = result('SPY');
+  data.portfolio = {equity: 12345};
+  await page.route('**/api/analyze', route => { calls++; return route.fulfill({json: data}); });
+  await page.locator('#analyze').click();
+  await page.waitForFunction(() => !document.getElementById('decision-content').hidden);
+  const saved = await page.evaluate(() => localStorage.getItem('fasttrade-last-analysis'));
+  assert.ok(saved);
+  assert.doesNotMatch(saved, /12345|portfolio|key/i);
+  data.market.symbol = 'MU';
+  data.decision.action = 'SELL';
+  await page.fill('#symbol', 'MU');
+  await page.locator('#analyze').click();
+  await page.waitForFunction(() => document.getElementById('model-action').textContent === 'SELL');
+  assert.equal(await page.locator('#summary-decision').innerText(), 'BUY');
+  await page.reload();
+  assert.equal(calls, 2);
+  assert.equal(await page.locator('#summary-decision').innerText(), 'BUY');
+  assert.equal(await page.locator('#last-analysis').count(), 0);
+  assert.match(await page.evaluate(() => localStorage.getItem('fasttrade-last-analysis')), /MU/);
+  assert.equal(await page.locator('#decision-content').isHidden(), true);
+});
+
+test('analysis stays usable when browser storage is unavailable', async () => {
+  await page.evaluate(() => { Storage.prototype.setItem = () => { throw new Error('storage blocked'); }; });
+  await page.route('**/api/analyze', route => route.fulfill({json: result('SPY')}));
+  await page.locator('#analyze').click();
+  await page.waitForFunction(() => !document.getElementById('decision-content').hidden);
+  assert.equal(await page.locator('#summary-decision').innerText(), 'BUY');
+  assert.equal(await page.locator('#model-action').innerText(), 'BUY');
+});
+
+test('long SPY news stays the same height as the other summary cards', async () => {
+  const overview = result().market_overview;
+  overview.news = [{title: 'A very long SPY market headline '.repeat(12), source: 'Market News', published: '2026-01-02T20:00:00Z'}];
+  await page.route('**/api/market-overview', route => route.fulfill({json: overview}));
+  await page.reload();
+  await page.waitForFunction(() => document.getElementById('summary-news').textContent.startsWith('A very long'));
+  for (const width of [1440, 820, 390]) {
+    await page.setViewportSize({width, height: 900});
+    const heights = await page.locator('.summary-card').evaluateAll(cards => cards.map(card => card.getBoundingClientRect().height));
+    assert.ok(Math.abs(heights[0] - heights[4]) < 1, `news card height at ${width}px: ${heights}`);
+  }
 });
 
 test('tablet and phone layouts keep chart, headings and controls within their cards', async () => {
@@ -189,4 +406,23 @@ test('incomplete portfolio shows signal only in the decision and history', async
   assert.match(await page.locator('#history tbody').innerText(), /SIGNAL ONLY/);
   await page.locator('.history-link').click();
   assert.equal(await page.locator('#risk-action').innerText(), 'SIGNAL ONLY');
+});
+
+test('reopening history respects the reduced-motion setting', async () => {
+  await page.route('**/api/analyze', route => route.fulfill({ json: result() }));
+  await page.locator('#analyze').click();
+  await page.waitForFunction(() => !document.getElementById('decision-content').hidden);
+  await page.evaluate(() => {
+    const chart = document.getElementById('chart-panel');
+    chart.scrollIntoView = options => { chart.dataset.scrollBehavior = options?.behavior || 'auto'; };
+  });
+  await page.locator('.history-link').click();
+  assert.equal(await page.locator('#chart-panel').getAttribute('data-scroll-behavior'), 'auto');
+  assert.equal(await page.locator('html').evaluate(el => getComputedStyle(el).scrollBehavior), 'auto');
+});
+
+test('loading indicator does not animate with reduced motion', async () => {
+  await page.locator('#notice').evaluate(el => el.classList.add('loading'));
+  const icon = page.locator('#notice .notice-icon');
+  assert.equal(await icon.evaluate(el => getComputedStyle(el).animationName), 'none');
 });

@@ -49,6 +49,41 @@ function showNotice(message, state = '') {
   notice.querySelector('.notice-icon use').setAttribute('href', '#' + (noticeIcons[state] || 'i-spark'));
   notice.querySelector('span:last-child').textContent = message;
 }
+async function loadMarketOverview() {
+  try {
+    const response = await fetch('/api/market-overview');
+    if (!response.ok) throw new Error('Market overview unavailable');
+    const spyOverview = await response.json();
+    const change = spyOverview.change_pct;
+    const news = spyOverview.news?.[0];
+    setText('summary-price', Number.isFinite(spyOverview.price) ? number(spyOverview.price) : 'Unavailable');
+    setText('summary-change', Number.isFinite(change) ? `${change > 0 ? 'Up +' : change < 0 ? 'Down ' : 'Unchanged '}${number(change)}%` : 'Unavailable');
+    $('summary-change').className = Number.isFinite(change) ? change > 0 ? 'up-value' : change < 0 ? 'down-value' : '' : '';
+    setText('summary-news', news?.title || (spyOverview.news_status === 'available' ? 'No recent headlines' : 'News unavailable'));
+    $('summary-news').title = news ? `${news.source} · ${formatTime(news.published)}` : $('summary-news').textContent;
+    $('price-stale').hidden = !spyOverview.stale;
+  } catch {
+    setText('summary-price', 'Unavailable'); setText('summary-change', 'Unavailable');
+    setText('summary-news', 'News unavailable');
+  }
+}
+async function loadSpySignals() {
+  try {
+    const response = await fetch('/api/spy-signals', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: '{}'});
+    if (!response.ok) throw new Error('SPY signals unavailable');
+    const spySignals = await response.json();
+    $('rule-stale').hidden = !spySignals.stale;
+    $('model-stale').hidden = !spySignals.stale;
+    for (const [id, value] of [['summary-rule', spySignals.deterministic], ['summary-decision', spySignals.model]]) {
+      setText(id, ['BUY', 'HOLD', 'SELL'].includes(value) ? value : 'Unavailable');
+    }
+  } catch {
+    setText('summary-rule', 'Unavailable'); setText('summary-decision', 'Unavailable');
+  }
+}
+loadMarketOverview();
+loadSpySignals();
+
 function clearResults() {
   current = null;
   selectedCandle = null;
@@ -138,9 +173,13 @@ function render(result, record = true) {
   }
   if (stale) showNotice('The latest candle is stale. This is a historical research preview; portfolio actions are blocked.', 'warning');
   else if (sample) showNotice('Synthetic sample candles are displayed. The model response is real; this is not live market data.', 'warning');
-  else showNotice(`Analysis complete. Candle started ${time}. Model preferences are not trading outcomes.`);
+  else showNotice(`Analysis complete. Candle started ${time}. Model preferences are not trading outcomes.`, 'success');
   drawChart();
   if (record) {
+    try {
+      localStorage.setItem('fasttrade-last-analysis', JSON.stringify({symbol: market.symbol, timeframe: market.timeframe,
+        action: decision.action, candle_timestamp: market.candle_timestamp, source: result.source}));
+    } catch { /* Storage may be unavailable. */ }
     history.unshift(result); if (history.length > 50) history.pop();
     renderHistory();
   }
@@ -153,7 +192,7 @@ function renderHistory() {
     const row = document.createElement('tr');
     const first = document.createElement('td'); first.dataset.label = 'Market'; const button = document.createElement('button');
     button.type = 'button'; button.className = 'history-link'; button.textContent = `${result.market.symbol} · ${result.market.timeframe}`;
-    button.addEventListener('click', () => { render(result, false); $('chart-panel').scrollIntoView({behavior: 'smooth'}); });
+    button.addEventListener('click', () => { render(result, false); $('chart-panel').scrollIntoView(); });
     first.append(button); row.append(first);
     const cells = [['Model', result.decision.action], ['Risk-checked', result.actionable_signal == null ? 'SIGNAL ONLY' : result.risk_rejections.length && result.decision.action !== 'HOLD' ? 'BLOCKED · HOLD' : result.actionable_signal], ['Data time', formatTime(result.market.candle_timestamp)], ['Latency', `${number(result.decision.latency_us / 1000, 0)} ms`]];
     for (const [label, value] of cells) {
@@ -205,20 +244,21 @@ function drawChart() {
 
   candles.forEach((c, i) => {
     if (i && ChartMath.hasTimeGap(candles[i - 1].timestamp, c.timestamp, current.market.timeframe)) {
-      ctx.save(); ctx.setLineDash([2, 4]); ctx.strokeStyle = '#a56b20'; ctx.beginPath();
+      ctx.save(); ctx.setLineDash([2, 4]); ctx.strokeStyle = '#536b86'; ctx.beginPath();
       ctx.moveTo(x(i) - step / 2, top); ctx.lineTo(x(i) - step / 2, volumeBottom); ctx.stroke(); ctx.restore();
     }
     const up = c.close >= c.open;
-    ctx.strokeStyle = ctx.fillStyle = up ? '#087f5b' : '#bd3d51'; ctx.lineWidth = Math.min(1, step * .7);
+    ctx.strokeStyle = ctx.fillStyle = up ? '#0b8055' : '#bd374b'; ctx.lineWidth = Math.min(1, step * .7);
     ctx.beginPath(); ctx.moveTo(x(i), y(c.high)); ctx.lineTo(x(i), y(c.low)); ctx.stroke();
     const bodyTop = y(Math.max(c.open, c.close)), bodyBottom = y(Math.min(c.open, c.close));
-    ctx.fillRect(x(i) - bodyWidth / 2, bodyTop, bodyWidth, Math.max(1, bodyBottom - bodyTop));
-    ctx.fillStyle = up ? '#94cdb5' : '#e1a5ac';
+    if (up) ctx.fillRect(x(i) - bodyWidth / 2, bodyTop, bodyWidth, Math.max(1, bodyBottom - bodyTop));
+    else ctx.strokeRect(x(i) - bodyWidth / 2, bodyTop, bodyWidth, Math.max(1, bodyBottom - bodyTop));
+    ctx.fillStyle = '#a1b1c5';
     const volumeHeight = (volumeBottom - volumeTop - 13) * c.volume / maxVolume;
     ctx.fillRect(x(i) - bodyWidth / 2, volumeBottom - volumeHeight, bodyWidth, volumeHeight);
   });
   if (overlay !== 'none') {
-    ctx.strokeStyle = '#455fca'; ctx.lineWidth = 1.5; ctx.beginPath();
+    ctx.strokeStyle = '#245de0'; ctx.lineWidth = 1.5; ctx.beginPath();
     let drawing = false;
     candles.forEach((c, i) => {
       const value = c[overlay];
@@ -238,7 +278,7 @@ function drawChart() {
   });
   if (selectedCandle !== null) {
     selectedCandle = Math.min(selectedCandle, candles.length - 1);
-    ctx.save(); ctx.setLineDash([3, 3]); ctx.strokeStyle = '#536ab4bb'; ctx.beginPath();
+    ctx.save(); ctx.setLineDash([3, 3]); ctx.strokeStyle = '#1c3155bb'; ctx.beginPath();
     ctx.moveTo(x(selectedCandle), top); ctx.lineTo(x(selectedCandle), volumeBottom); ctx.stroke(); ctx.restore();
   }
   const selected = candles[selectedCandle === null ? candles.length - 1 : selectedCandle];
@@ -276,7 +316,7 @@ $('chart-window').disabled = true; $('chart-overlay').disabled = true;
 
 function syncNavigation() {
   const destination = ['#chart-panel', '#history-panel'].includes(location.hash) ? location.hash : '#workspace';
-  for (const link of document.querySelectorAll('.mobile-nav a[href^="#"]')) {
+  for (const link of document.querySelectorAll('.mobile-nav a[href^="#"], .desktop-rail nav a[href^="#"]')) {
     const active = link.getAttribute('href') === destination;
     link.classList.toggle('active', active);
     if (active) link.setAttribute('aria-current', 'location');

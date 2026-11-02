@@ -5,7 +5,7 @@ import httpx
 from concurrent.futures import ThreadPoolExecutor
 import pandas as pd
 
-INTERVALS = {'1m': 60, '2m': 120, '5m': 300, '15m': 900, '30m': 1800, '60m': 3600, '90m': 5400}
+INTERVALS = {'1m': 60, '2m': 120, '5m': 300, '10m': 600, '15m': 900, '30m': 1800, '60m': 3600, '90m': 5400}
 
 
 def validate_candles(frame, timeframe, as_of, max_age):
@@ -66,6 +66,35 @@ def headlines(items, as_of):
     return result[:10]
 
 
+def alpaca_news(symbol, as_of):
+    headers = {'APCA-API-KEY-ID': os.getenv('ALPACA_API_KEY'), 'APCA-API-SECRET-KEY': os.getenv('ALPACA_SECRET_KEY')}
+    if not all(headers.values()):
+        raise ValueError('News unavailable')
+    try:
+        response = httpx.get('https://data.alpaca.markets/v1beta1/news', headers=headers, params={
+            'symbols': symbol, 'start': (as_of - pd.Timedelta(days=7)).isoformat(),
+            'end': as_of.isoformat(), 'sort': 'desc', 'limit': 10,
+        }, timeout=5)
+        response.raise_for_status()
+        items = response.json()['news']
+        if not isinstance(items, list):
+            raise ValueError('Invalid news')
+    except (httpx.HTTPError, ValueError, TypeError, KeyError):
+        raise ValueError('News unavailable') from None
+    result = []
+    for item in items:
+        try:
+            title = item['headline']
+            published = pd.Timestamp(item['created_at'])
+            updated = pd.Timestamp(item['updated_at'])
+            if not isinstance(title, str) or not title.strip() or published.tzinfo is None or updated.tzinfo is None or published > as_of or updated > as_of:
+                continue
+            result.append({'title': title, 'source': str(item.get('source') or 'Alpaca News'), 'published': published.isoformat()})
+        except (KeyError, TypeError, ValueError, AttributeError, OverflowError):
+            continue
+    return result
+
+
 def yahoo(symbol, timeframe, as_of):
     import yfinance as yf
     from curl_cffi.requests.exceptions import Timeout
@@ -101,7 +130,7 @@ def alpaca(symbol, timeframe, as_of):
     symbol = symbol.upper()
     if not re.fullmatch(r'[A-Z0-9.\-]{1,20}', symbol):
         raise ValueError('Invalid Alpaca stock symbol')
-    intervals = {'1m': '1Min', '2m': '2Min', '5m': '5Min', '15m': '15Min', '30m': '30Min', '60m': '1Hour'}
+    intervals = {'1m': '1Min', '2m': '2Min', '5m': '5Min', '10m': '10Min', '15m': '15Min', '30m': '30Min', '60m': '1Hour'}
     if timeframe not in intervals:
         raise ValueError('Unsupported Alpaca timeframe')
     headers = {'APCA-API-KEY-ID': key, 'APCA-API-SECRET-KEY': secret}

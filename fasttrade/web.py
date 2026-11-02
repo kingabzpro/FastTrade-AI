@@ -1,5 +1,10 @@
 """Local-only browser interface for the existing signal engine."""
 from pathlib import Path
+from datetime import time, timedelta
+import math
+import os
+from threading import Lock
+from time import monotonic
 from typing import Any, Literal
 from urllib.parse import urlsplit
 
@@ -10,12 +15,18 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from starlette.concurrency import run_in_threadpool
 
 from .cli import parser, run as run_analysis
-from .market import INTERVALS
+from .decisions import predict
+from .indicators import features, rule_signal
+from .market import INTERVALS, alpaca, alpaca_news, validate_candles
 
 ROOT = Path(__file__).resolve().parent
 PORT = 8765
 app = FastAPI(title='FastTrade AI API', version='0.1.0', description='Local signal-only market research API. It never places orders.')
 app.mount('/static', StaticFiles(directory=ROOT / 'static'), name='static')
+_spy_cache = None
+_spy_lock = Lock()
+_spy_signals_cache = None
+_spy_signals_lock = Lock()
 
 
 class AnalysisRequest(BaseModel):
@@ -41,6 +52,10 @@ class AnalysisRequest(BaseModel):
         if value not in INTERVALS:
             raise ValueError('Unsupported timeframe')
         return value
+
+
+class SpySignalsRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid')
 
 
 class DecisionResponse(BaseModel):
@@ -72,18 +87,103 @@ class AnalysisResponse(BaseModel):
     timings_ms: dict[str, float]
 
 
+def spy_overview(timeframe, as_of):
+    result = {'symbol': 'SPY', 'timeframe': timeframe, 'price': None, 'change_pct': None, 'change_candle_timestamp': None,
+              'candle_timestamp': None, 'stale': False, 'news': [], 'news_status': 'unavailable'}
+    try:
+        frame, _, _ = alpaca('SPY', timeframe, as_of)
+        try:
+            frame = validate_candles(frame, timeframe, as_of, 2 * INTERVALS[timeframe])
+        except ValueError as exc:
+            if str(exc) != 'Latest completed candle is stale':
+                raise
+            frame = validate_candles(frame, timeframe, as_of, float('inf'))
+            result['stale'] = True
+        last_time = frame.timestamp.iloc[-1]
+        result.update(price=float(frame.close.iloc[-1]), candle_timestamp=last_time.isoformat())
+        prices = dict(zip(frame.timestamp, frame.close))
+        for timestamp in reversed(frame.timestamp.tolist()):
+            previous = prices.get(timestamp - timedelta(minutes=10))
+            if previous is not None:
+                result.update(change_pct=(float(prices[timestamp]) / float(previous) - 1) * 100,
+                              change_candle_timestamp=timestamp.isoformat())
+                break
+    except (ValueError, TypeError, KeyError, IndexError):
+        pass
+    try:
+        result['news'] = alpaca_news('SPY', as_of)
+        result['news_status'] = 'available'
+    except ValueError:
+        pass
+    return result
+
+
+def outside_regular_hours(now):
+    local = now.tz_convert('America/New_York')
+    # shortcut: holidays and early closes are not modeled; use an exchange calendar for exact sessions.
+    return local.weekday() >= 5 or not time(9, 30) <= local.time() < time(16)
+
+
+def build_spy_signals(previous=None):
+    import pandas as pd
+
+    now = pd.Timestamp.now(tz='UTC')
+    if (previous and previous.get('deterministic') in ('BUY', 'HOLD', 'SELL')
+            and previous.get('model') in ('BUY', 'HOLD', 'SELL') and outside_regular_hours(now)):
+        return previous.copy()
+    result = {'deterministic': None, 'model': None, 'stale': False,
+              'candle_timestamp': None, 'market_error': False, 'model_error': False}
+    try:
+        frame, details, news = alpaca('SPY', '10m', now)
+        try:
+            frame = validate_candles(frame, '10m', now, 2 * INTERVALS['10m'])
+        except ValueError as exc:
+            if str(exc) != 'Latest completed candle is stale':
+                raise
+            frame = validate_candles(frame, '10m', now, float('inf'))
+            result['stale'] = True
+            now = frame.timestamp.iloc[-1] + timedelta(seconds=INTERVALS['10m'])
+            details = {k: v for k, v in details.items() if k == 'exchangeTimezoneName'}
+            news = []
+        if (previous and previous.get('candle_timestamp') == frame.timestamp.iloc[-1].isoformat()
+                and previous.get('deterministic') in ('BUY', 'HOLD', 'SELL')
+                and previous.get('model') in ('BUY', 'HOLD', 'SELL')):
+            return previous.copy()
+        snapshot = features(frame, details.get('exchangeTimezoneName') or 'America/New_York')
+        values = [snapshot[k] for k in ('ema_9', 'ema_21', 'macd', 'macd_signal')]
+        result['deterministic'] = (rule_signal(snapshot) or 'HOLD') if all(math.isfinite(v) for v in values) else None
+        result['candle_timestamp'] = frame.timestamp.iloc[-1].isoformat()
+    except (ValueError, TypeError, KeyError, IndexError, OverflowError):
+        result.update(market_error=True, model_error=True)
+        return result
+    state = {'symbol': 'SPY', 'timeframe': '10m', 'candle_timestamp': result['candle_timestamp'],
+             'evaluation_time': now.isoformat(), 'features': snapshot, 'ticker_details': details, 'headlines': news}
+    url = os.getenv('SYSTEMONE_URL', 'https://api.typesafe.ai/v1/systemone')
+    key = os.getenv('TYPESAFE_API_KEY')
+    try:
+        if not key and url.startswith('https://api.typesafe.ai/'):
+            raise ValueError('Missing model key')
+        result['model'] = predict(state, url, os.getenv('SYSTEMONE_MODEL', 'jev-latest'), key)['action']
+    except (ValueError, TypeError, KeyError, OverflowError):
+        result['model_error'] = True
+    return result
+
+
 @app.middleware('http')
 async def local_only(request: Request, call_next):
     if request.url.hostname not in ('127.0.0.1', 'localhost', '::1'):
-        return JSONResponse({'error': 'Local access only'}, status_code=403)
-    origin = request.headers.get('origin')
-    if origin:
+        response = JSONResponse({'error': 'Local access only'}, status_code=403)
+    elif origin := request.headers.get('origin'):
         parsed = urlsplit(origin)
         if parsed.scheme != request.url.scheme or parsed.netloc != request.headers.get('host'):
-            return JSONResponse({'error': 'Origin not allowed'}, status_code=403)
-    response = await call_next(request)
+            response = JSONResponse({'error': 'Origin not allowed'}, status_code=403)
+        else:
+            response = await call_next(request)
+    else:
+        response = await call_next(request)
     response.headers['Cache-Control'] = 'no-store'
     response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'DENY'
     return response
 
 
@@ -96,6 +196,50 @@ def index():
 def health():
     """Report local server availability, without checking market or model connectivity."""
     return {'status': 'ok', 'mode': 'signal-only'}
+
+
+@app.get('/api/market-overview', tags=['Market'])
+def market_overview():
+    """Return cached SPY context without making a model request."""
+    import pandas as pd
+    from dotenv import load_dotenv
+
+    global _spy_cache
+    with _spy_lock:
+        now = pd.Timestamp.now(tz='UTC')
+        if _spy_cache is None or monotonic() - _spy_cache[0] >= 600:
+            load_dotenv()
+            result = spy_overview('5m', now)
+            if result.get('price') is not None or result.get('news_status') == 'available':
+                _spy_cache = (monotonic(), result)
+            else:
+                _spy_cache = None
+        else:
+            result = _spy_cache[1]
+        result = result.copy()
+        if result.get('candle_timestamp'):
+            close_time = pd.Timestamp(result['candle_timestamp']) + pd.Timedelta(seconds=INTERVALS['5m'])
+            result['stale'] = (now - close_time).total_seconds() > 2 * INTERVALS['5m']
+        return result
+
+
+@app.post('/api/spy-signals', tags=['Analysis'])
+def spy_signals(body: SpySignalsRequest):
+    """Run one SPY model request per 10-minute cache window, without portfolio inputs."""
+    import pandas as pd
+    from dotenv import load_dotenv
+
+    global _spy_signals_cache
+    with _spy_signals_lock:
+        if _spy_signals_cache is None or monotonic() - _spy_signals_cache[0] >= 600:
+            load_dotenv()
+            result = build_spy_signals(_spy_signals_cache[1] if _spy_signals_cache else None)
+            _spy_signals_cache = (monotonic(), result)
+        result = _spy_signals_cache[1].copy()
+        if result.get('candle_timestamp'):
+            close_time = pd.Timestamp(result['candle_timestamp']) + pd.Timedelta(seconds=INTERVALS['10m'])
+            result['stale'] = (pd.Timestamp.now(tz='UTC') - close_time).total_seconds() > 2 * INTERVALS['10m']
+        return result
 
 
 @app.post('/api/analyze', tags=['Analysis'], responses={200: {'model': AnalysisResponse, 'description': 'Model preference and risk-checked signal'}, 503: {'description': 'Market or model unavailable; no actionable signal'}})

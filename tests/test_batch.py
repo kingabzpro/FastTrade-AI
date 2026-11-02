@@ -24,7 +24,7 @@ def test_batch_summarizes_reported_usage_and_marks_missing_or_failed_calls(monke
     monkeypatch.setattr(cli, 'run', analyze)
     args = cli.parser().parse_args(['analyze-batch', 'A', 'B', 'FAIL'])
     result = cli.run_batch(args)
-    assert result['usage'] == {'input_tokens_reported': 300, 'output_tokens_reported': 7, 'complete': False}
+    assert result['usage'] == {'input_tokens_reported': 300, 'output_tokens_reported': 7, 'complete': False, 'status': 'Token information unavailable for some analyses'}
     assert [item['symbol'] for item in result['results']] == ['A', 'B', 'FAIL']
     assert result['results'][2]['error'] == 'Provider failed'
 
@@ -32,7 +32,16 @@ def test_batch_summarizes_reported_usage_and_marks_missing_or_failed_calls(monke
 def test_batch_usage_is_complete_only_when_every_result_reports_both_counts(monkeypatch):
     monkeypatch.setattr(cli, 'run', lambda args: {'decision': {'usage': {'input_tokens': 3, 'output_tokens': 0}}})
     args = cli.parser().parse_args(['analyze-batch', 'A', 'B'])
-    assert cli.run_batch(args)['usage'] == {'input_tokens_reported': 6, 'output_tokens_reported': 0, 'complete': True}
+    assert cli.run_batch(args)['usage'] == {'input_tokens_reported': 6, 'output_tokens_reported': 0, 'complete': True, 'status': 'Token information available'}
+
+
+def test_missing_token_info_does_not_fail_successful_batch(monkeypatch):
+    monkeypatch.setattr(cli, 'run', lambda args: {'decision': {'action': 'BUY', 'usage': None}})
+    args = cli.parser().parse_args(['analyze-batch', 'A'])
+    result = cli.run_batch(args)
+    assert result['results'][0]['result']['decision']['action'] == 'BUY'
+    assert result['usage']['status'] == 'Token information unavailable'
+    assert result['usage']['complete'] is False
 
 
 def test_batch_runs_tickers_concurrently_and_returns_partial_results(monkeypatch, capsys):

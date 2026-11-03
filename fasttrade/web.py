@@ -1,15 +1,20 @@
 """Local-only browser interface for the existing signal engine."""
 from pathlib import Path
 from contextlib import asynccontextmanager
+from functools import lru_cache
 from datetime import time, timedelta
 import math
+import ipaddress
+import json
+import asyncio
 import os
 from threading import Lock
 from time import monotonic
 from typing import Any, Literal
 from urllib.parse import urlsplit
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Security, HTTPException
+from fastapi.security import APIKeyHeader
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -28,10 +33,25 @@ PORT = 8765
 async def lifespan(app):
     from .batch_api import _recover
     await run_in_threadpool(_recover, AnalysisRequest, analyze)
-    yield
+    async def monitor():
+        while True:
+            await asyncio.sleep(10)
+            await run_in_threadpool(_recover, AnalysisRequest, analyze)
+    task = asyncio.create_task(monitor())
+    try:
+        yield
+    finally:
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
 
 
-app = FastAPI(title='FastTrade AI API', version='0.1.0', description='Local signal-only market research API. It never places orders.', lifespan=lifespan)
+from dotenv import load_dotenv
+load_dotenv()
+_openapi_enabled = os.getenv('FASTTRADE_ENABLE_OPENAPI', 'true').lower() == 'true'
+app = FastAPI(title='FastTrade AI API', version='0.1.0', description='Local signal-only market research API. It never places orders.', lifespan=lifespan, openapi_url='/openapi.json' if _openapi_enabled else None, docs_url='/docs' if _openapi_enabled else None, redoc_url='/redoc' if _openapi_enabled else None)
 app.mount('/static', StaticFiles(directory=ROOT / 'static'), name='static')
 _spy_cache = None
 _spy_lock = Lock()
@@ -182,18 +202,78 @@ def build_spy_signals(previous=None):
     return result
 
 
+def check_api_rate_limit(identity, rate):
+    from limits import parse
+    return _rate_limiter(os.getenv('FASTTRADE_REDIS_URL', '')).limiter.hit(parse(f'{rate}/minute'), 'v1', identity)
+
+
+@lru_cache(maxsize=1)
+def _rate_limiter(url):
+    from slowapi import Limiter
+    if not url.startswith(('redis://', 'rediss://')):
+        raise RuntimeError('Redis rate limiter is not configured')
+    return Limiter(key_func=lambda: '', storage_uri=url, storage_options={'socket_connect_timeout': 2, 'socket_timeout': 2}, swallow_errors=False, in_memory_fallback_enabled=False)
+
+
+def _cors_origins():
+    origins = [value.strip() for value in os.getenv('FASTTRADE_CORS_ORIGINS', '').split(',') if value.strip()]
+    for origin in origins:
+        parsed = urlsplit(origin)
+        if parsed.scheme not in ('http', 'https') or not parsed.netloc or parsed.path or parsed.query or parsed.fragment or parsed.username or parsed.password or '*' in origin:
+            raise ValueError('Invalid CORS origin configuration')
+    return origins
+
+
 @app.middleware('http')
 async def local_only(request: Request, call_next):
-    if request.url.hostname not in ('127.0.0.1', 'localhost', '::1'):
-        response = JSONResponse({'error': 'Local access only'}, status_code=403)
-    elif origin := request.headers.get('origin'):
-        parsed = urlsplit(origin)
-        if parsed.scheme != request.url.scheme or parsed.netloc != request.headers.get('host'):
+    origin = request.headers.get('origin')
+    is_v1 = request.url.path.startswith('/v1/') or request.url.path == '/v1'
+    try:
+        origins = _cors_origins() if origin and is_v1 else []
+        parsed = urlsplit(origin) if origin else None
+        same_origin = bool(parsed and parsed.scheme == request.url.scheme and parsed.netloc == request.headers.get('host'))
+        allowed_origin = bool(origin and is_v1 and origin in origins)
+        try:
+            local_client = bool(request.client and ipaddress.ip_address(request.client.host).is_loopback)
+        except ValueError:
+            local_client = False
+        bind_host = os.getenv('FASTTRADE_HOST', '127.0.0.1')
+        try:
+            network_mode = bind_host != 'localhost' and not ipaddress.ip_address(bind_host).is_loopback
+        except ValueError:
+            network_mode = False
+        local_host = request.url.hostname in ('127.0.0.1', 'localhost', '::1')
+        if (not local_client and not network_mode) or (not local_host and not (network_mode and (is_v1 or request.url.path in ('/healthz', '/readyz')))) or (not local_client and not (is_v1 or request.url.path in ('/healthz', '/readyz'))):
+            response = JSONResponse({'error': 'Local access only'}, status_code=403)
+        elif network_mode and is_v1 and not os.getenv('FASTTRADE_BATCH_KEY_HASHES'):
+            response = JSONResponse({'error': 'Hashed API keys required for network access'}, status_code=503)
+        elif origin and not same_origin and not allowed_origin:
             response = JSONResponse({'error': 'Origin not allowed'}, status_code=403)
+        elif is_v1 and request.method == 'OPTIONS' and allowed_origin and request.headers.get('access-control-request-method'):
+            methods = ('GET', 'POST')
+            requested_headers = {value.strip().lower() for value in request.headers.get('access-control-request-headers', '').split(',') if value.strip()}
+            if request.headers['access-control-request-method'] not in methods or not requested_headers <= {'content-type', 'x-api-key', 'idempotency-key'}:
+                response = JSONResponse({'error': 'CORS request not allowed'}, status_code=403)
+            else:
+                response = JSONResponse({}, status_code=200, headers={'Access-Control-Allow-Methods': 'GET, POST', 'Access-Control-Allow-Headers': 'Content-Type, X-API-Key, Idempotency-Key'})
+        elif is_v1:
+            from .batch_api import _authenticate
+            try:
+                identity, limits = _authenticate(request.headers.get('x-api-key'))
+                allowed = await run_in_threadpool(check_api_rate_limit, identity, limits['rate_per_minute'])
+            except HTTPException as exc:
+                response = JSONResponse({'detail': exc.detail}, status_code=exc.status_code)
+            except Exception:
+                response = JSONResponse({'detail': 'Rate limiter unavailable'}, status_code=503)
+            else:
+                response = await call_next(request) if allowed else JSONResponse({'detail': 'Rate limit exceeded'}, status_code=429)
         else:
             response = await call_next(request)
-    else:
-        response = await call_next(request)
+        if allowed_origin:
+            response.headers['Access-Control-Allow-Origin'] = origin
+            response.headers.append('Vary', 'Origin')
+    except ValueError:
+        response = JSONResponse({'error': 'Invalid origin configuration'}, status_code=503)
     response.headers['Cache-Control'] = 'no-store'
     response.headers['X-Content-Type-Options'] = 'nosniff'
     response.headers['X-Frame-Options'] = 'DENY'
@@ -233,9 +313,41 @@ def liveness():
 @app.get('/readyz', tags=['System'])
 def readiness():
     model_configured = bool(configured_providers()['decision'])
-    return JSONResponse({'status': 'ready' if model_configured else 'not_ready',
-                         'model_configured': model_configured, 'upstream': 'not_checked'},
-                        status_code=200 if model_configured else 503)
+    limiter_status = 'not_required'
+    config_valid = True
+    try:
+        from .batch_api import _authenticate
+        _cors_origins()
+        host = os.getenv('FASTTRADE_HOST', '127.0.0.1')
+        ipaddress.ip_address('127.0.0.1' if host == 'localhost' else host)
+        port = int(os.getenv('FASTTRADE_PORT', str(PORT)))
+        if not 1 <= port <= 65535:
+            raise ValueError()
+        if os.getenv('FASTTRADE_BATCH_KEYS') and 'FASTTRADE_BATCH_KEY_HASHES' not in os.environ:
+            raise ValueError()
+        keys = json.loads(os.getenv('FASTTRADE_BATCH_KEY_HASHES', '{}'))
+        if not isinstance(keys, dict):
+            raise ValueError()
+        active = 0
+        for key in keys:
+            try:
+                _authenticate(key, prehashed=True)
+                active += 1
+            except HTTPException as exc:
+                if exc.status_code != 401:
+                    raise ValueError() from None
+        if keys and not active:
+            raise ValueError()
+        if keys:
+            limiter_status = 'available' if _rate_limiter(os.getenv('FASTTRADE_REDIS_URL', '')).limiter.storage.check() else 'unavailable'
+    except (ValueError, TypeError):
+        config_valid = False
+    except Exception:
+        limiter_status = 'unavailable'
+    ready = model_configured and config_valid and limiter_status != 'unavailable'
+    return JSONResponse({'status': 'ready' if ready else 'not_ready', 'model_configured': model_configured,
+                         'config_valid': config_valid, 'rate_limiter': limiter_status, 'upstream': 'not_checked'},
+                        status_code=200 if ready else 503)
 
 
 @app.get('/api/market-overview', tags=['Market'])
@@ -329,6 +441,14 @@ async def analyze(body: AnalysisRequest):
         return JSONResponse({'error': 'Analysis failed. Check data and settings.', 'actionable_signal': None}, status_code=503)
 
 
+@app.post('/v1/analyze', tags=['Analysis'])
+async def versioned_analyze(body: AnalysisRequest, x_api_key: str = Security(APIKeyHeader(name='X-API-Key', auto_error=False))):
+    from .batch_api import _authenticate, reserve_single
+    identity, limits = _authenticate(x_api_key)
+    await run_in_threadpool(reserve_single, identity, limits)
+    return await analyze(body)
+
+
 from .batch_api import make_batch_router
 app.include_router(make_batch_router(AnalysisRequest, analyze))
 
@@ -346,14 +466,49 @@ def serve():
     from rich.text import Text
     import uvicorn
 
-    url = f'http://127.0.0.1:{PORT}/'
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    load_dotenv()
+    host = os.getenv('FASTTRADE_HOST', '127.0.0.1')
     try:
-        sock.bind(('127.0.0.1', PORT))
+        address = ipaddress.ip_address('127.0.0.1' if host == 'localhost' else host)
+        port = int(os.getenv('FASTTRADE_PORT', str(PORT)))
+        if not 1 <= port <= 65535:
+            raise ValueError()
+        _cors_origins()
+    except ValueError:
+        raise SystemExit('Invalid host, port, or CORS configuration') from None
+    if not address.is_loopback:
+        try:
+            from .batch_api import _authenticate
+            hashes = json.loads(os.getenv('FASTTRADE_BATCH_KEY_HASHES', '{}'))
+            if not isinstance(hashes, dict) or not hashes:
+                raise ValueError()
+            valid = 0
+            for digest in hashes:
+                try:
+                    _authenticate(digest, prehashed=True)
+                    valid += 1
+                except HTTPException as exc:
+                    if exc.status_code != 401:
+                        raise ValueError() from None
+            if not valid:
+                raise ValueError()
+        except (ValueError, TypeError):
+            raise SystemExit('Network binding requires valid hashed API keys') from None
+        try:
+            if not _rate_limiter(os.getenv('FASTTRADE_REDIS_URL', '')).limiter.storage.check():
+                raise ValueError()
+        except Exception:
+            raise SystemExit('Network binding requires an available Redis rate limiter') from None
+        print('WARNING: network binding exposes the API; secure the network and credentials.')
+    display_host = '127.0.0.1' if address.is_unspecified else f'[{host}]' if address.version == 6 else host
+    url = f'http://{display_host}:{port}/'
+    sock = socket.socket(socket.AF_INET6 if address.version == 6 else socket.AF_INET, socket.SOCK_STREAM)
+    try:
+        sock.bind((host, port))
         sock.listen(128)
     except OSError:
         sock.close()
-        raise SystemExit(f'Port {PORT} is already in use. Close the existing server and try again.')
+        raise SystemExit(f'Port {port} is unavailable. Close the existing server and try again.')
     load_dotenv()
     console = Console()
     info = Table.grid(padding=(0, 2))
@@ -381,7 +536,7 @@ def serve():
     opener.daemon = True
     opener.start()
     try:
-        uvicorn.Server(uvicorn.Config(app, host='127.0.0.1', port=PORT, log_level='warning')).run(sockets=[sock])
+        uvicorn.Server(uvicorn.Config(app, host=host, port=port, log_level='warning', proxy_headers=False)).run(sockets=[sock])
     finally:
         opener.cancel()
         sock.close()

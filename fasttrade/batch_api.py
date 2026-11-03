@@ -4,6 +4,7 @@ import hashlib
 import hmac
 import json
 import os
+import re
 import sqlite3
 import threading
 import time
@@ -15,7 +16,8 @@ from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Literal
 
-from fastapi import APIRouter, Header, HTTPException
+from fastapi import APIRouter, Header, HTTPException, Security
+from fastapi.security import APIKeyHeader
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from starlette.concurrency import run_in_threadpool
@@ -41,6 +43,15 @@ class BatchRequest(BaseModel):
 _workers = ThreadPoolExecutor(max_workers=2, thread_name_prefix='batch-job')
 _slots = threading.BoundedSemaphore(4)
 _instance = uuid.uuid4().hex
+
+
+def _reset_instance_after_fork():
+    global _instance
+    _instance = uuid.uuid4().hex
+
+
+if hasattr(os, 'register_at_fork'):
+    os.register_at_fork(after_in_child=_reset_instance_after_fork)
 _symbol_timeout_seconds = 90
 
 
@@ -54,6 +65,8 @@ def _db():
         request_hash TEXT NOT NULL, request TEXT NOT NULL, day TEXT NOT NULL,
         reserved_micro INTEGER NOT NULL, state TEXT NOT NULL, owner TEXT NOT NULL,
         results TEXT NOT NULL, UNIQUE(key_hash, idem))''')
+    connection.execute('CREATE TABLE IF NOT EXISTS worker_leases (owner TEXT PRIMARY KEY, heartbeat REAL NOT NULL)')
+    connection.execute('CREATE TABLE IF NOT EXISTS single_reservations (id TEXT PRIMARY KEY, key_hash TEXT NOT NULL, day TEXT NOT NULL, reserved_micro INTEGER NOT NULL)')
     connection.commit()
     return connection
 
@@ -73,25 +86,58 @@ def _dollars(micro):
     return format(Decimal(micro) / 1000000, '.6f').rstrip('0').rstrip('.') or '0'
 
 
-def _authenticate(key):
+def _authenticate(key, *, prehashed=False):
+    if not key or not isinstance(key, str):
+        raise HTTPException(401, 'Invalid API key')
+    digest = key if prehashed else hashlib.sha256(key.encode()).hexdigest()
+    if os.getenv('FASTTRADE_BATCH_KEYS') and 'FASTTRADE_BATCH_KEY_HASHES' not in os.environ:
+        raise HTTPException(503, 'Migrate to FASTTRADE_BATCH_KEY_HASHES')
     try:
-        keys = json.loads(os.environ.get('FASTTRADE_BATCH_KEYS', '{}'))
-        if not isinstance(keys, dict):
+        keys = json.loads(os.environ.get('FASTTRADE_BATCH_KEY_HASHES', '{}'))
+        if not isinstance(keys, dict) or any(not isinstance(k, str) or not re.fullmatch(r'[0-9a-f]{64}', k) for k in keys):
             raise ValueError()
     except (ValueError, TypeError):
         raise HTTPException(503, 'Batch API configuration unavailable') from None
-    if not key or not isinstance(key, str):
-        raise HTTPException(401, 'Invalid API key')
-    match = next((config for candidate, config in keys.items() if hmac.compare_digest(candidate.encode(), key.encode())), None)
+    match = next((config for candidate, config in keys.items() if hmac.compare_digest(candidate.encode(), digest.encode())), None)
     if not isinstance(match, dict):
         raise HTTPException(401, 'Invalid API key')
     try:
+        if match.get('expires_at') is not None:
+            expiry = datetime.fromisoformat(match['expires_at'].replace('Z', '+00:00'))
+            if expiry.tzinfo is None:
+                raise ValueError()
+            if datetime.now(timezone.utc) >= expiry:
+                raise HTTPException(401, 'Invalid API key')
+        account = match.get('account', digest)
+        if not isinstance(account, str) or not re.fullmatch(r'[0-9a-f]{64}', account):
+            raise ValueError()
         limits = {name: _money(match[name]) for name in ('estimate_per_call', 'request_cap', 'daily_budget')}
-    except KeyError:
+        if not limits['estimate_per_call']:
+            raise ValueError()
+        rate = match.get('rate_per_minute', 60)
+        if type(rate) is not int or rate < 1 or rate > 100000:
+            raise ValueError()
+        limits['rate_per_minute'] = rate
+        tier = match.get('tier', 'standard')
+        if not isinstance(tier, str) or not tier or len(tier) > 64:
+            raise ValueError()
+        limits['tier'] = tier
+        for other_digest, other in keys.items():
+            if not isinstance(other, dict):
+                raise ValueError()
+            if other.get('account', other_digest) != account:
+                continue
+            if other.get('expires_at') is not None:
+                other_expiry = datetime.fromisoformat(other['expires_at'].replace('Z', '+00:00'))
+                if other_expiry.tzinfo is None:
+                    raise ValueError()
+                if datetime.now(timezone.utc) >= other_expiry:
+                    continue
+            if other.get('rate_per_minute', 60) != rate or any(_money(other[name]) != limits[name] for name in ('estimate_per_call', 'request_cap', 'daily_budget')):
+                raise ValueError()
+    except (KeyError, ValueError, TypeError, AttributeError):
         raise HTTPException(503, 'Invalid batch budget configuration') from None
-    if not limits['estimate_per_call']:
-        raise HTTPException(503, 'Invalid batch budget configuration')
-    return hashlib.sha256(key.encode()).hexdigest(), limits
+    return account, limits
 
 
 def _usage(results):
@@ -106,7 +152,10 @@ def _view(row):
     results = json.loads(row['results'])
     state = row['state']
     if state in ('queued', 'running') and row['owner'] != _instance:
-        state = 'interrupted'
+        with closing(_db()) as db:
+            live = db.execute('SELECT 1 FROM worker_leases WHERE owner = ? AND heartbeat > ?', (row['owner'], time.time() - 60)).fetchone()
+        if not live:
+            state = 'interrupted'
     return {'id': row['id'], 'status': state, 'progress': sum(item is not None and item.get('status') != 'started' for item in results),
             'total': len(results), 'results': results, 'estimated_cost': _dollars(row['reserved_micro']),
             'usage': _usage(results)}
@@ -118,6 +167,23 @@ def _find(job_id, key_hash):
     if not row:
         raise HTTPException(404, 'Job not found')
     return _view(row)
+
+
+def _spent(db, key_hash, day):
+    jobs = db.execute('SELECT COALESCE(SUM(reserved_micro), 0) FROM jobs WHERE key_hash = ? AND day = ?', (key_hash, day)).fetchone()[0]
+    singles = db.execute('SELECT COALESCE(SUM(reserved_micro), 0) FROM single_reservations WHERE key_hash = ? AND day = ?', (key_hash, day)).fetchone()[0]
+    return jobs + singles
+
+
+def reserve_single(key_hash, limits):
+    today = datetime.now(timezone.utc).date().isoformat()
+    with closing(_db()) as db:
+        db.execute('BEGIN IMMEDIATE')
+        cost = limits['estimate_per_call']
+        if cost > limits['request_cap'] or _spent(db, key_hash, today) + cost > limits['daily_budget']:
+            raise HTTPException(403, 'Estimated cost exceeds budget')
+        db.execute('INSERT INTO single_reservations VALUES (?, ?, ?, ?)', (uuid.uuid4().hex, key_hash, today, cost))
+        db.commit()
 
 
 def _create(body, idem, key_hash, limits):
@@ -137,7 +203,7 @@ def _create(body, idem, key_hash, limits):
             return _view(existing), False
         if estimate > limits['request_cap']:
             raise HTTPException(403, 'Estimated cost exceeds request cap')
-        spent = db.execute('SELECT COALESCE(SUM(reserved_micro), 0) FROM jobs WHERE key_hash = ? AND day = ?', (key_hash, today)).fetchone()[0]
+        spent = _spent(db, key_hash, today)
         if spent + estimate > limits['daily_budget']:
             raise HTTPException(403, 'Estimated cost exceeds daily budget')
         job_id = uuid.uuid4().hex
@@ -152,7 +218,7 @@ def _create(body, idem, key_hash, limits):
 
 def _process(job_id, key_hash, body, analysis_request, analyze):
     with closing(_db()) as db, db:
-        db.execute("UPDATE jobs SET state = 'running' WHERE id = ?", (job_id,))
+        db.execute("UPDATE jobs SET state = 'running' WHERE id = ? AND owner = ?", (job_id, _instance))
         results = json.loads(db.execute('SELECT results FROM jobs WHERE id = ?', (job_id,)).fetchone()[0])
     started = {}
     result_lock = threading.Lock()
@@ -161,9 +227,14 @@ def _process(job_id, key_hash, body, analysis_request, analyze):
             return {'symbol': symbol, 'error': 'Analysis timed out waiting for a worker', 'actionable_signal': None}
         try:
             with result_lock:
-                results[index] = {'symbol': symbol, 'status': 'started'}
-                with closing(_db()) as db, db:
-                    db.execute('UPDATE jobs SET results = ? WHERE id = ?', (json.dumps(results, allow_nan=False), job_id))
+                with closing(_db()) as db:
+                    db.execute('BEGIN IMMEDIATE')
+                    row = db.execute('SELECT owner FROM jobs WHERE id = ?', (job_id,)).fetchone()
+                    if row is None or row['owner'] != _instance:
+                        return {'symbol': symbol, 'error': 'Worker ownership lost', 'actionable_signal': None}
+                    results[index] = {'symbol': symbol, 'status': 'started'}
+                    db.execute('UPDATE jobs SET results = ? WHERE id = ? AND owner = ?', (json.dumps(results, allow_nan=False), job_id, _instance))
+                    db.commit()
             started[index] = time.monotonic()
             try:
                 response = asyncio.run(analyze(analysis_request(symbol=symbol, timeframe=body.timeframe, source=body.source, decision_provider=body.decision_provider)))
@@ -190,23 +261,28 @@ def _process(job_id, key_hash, body, analysis_request, analyze):
                         results[index] = future.result() if future in done else {'symbol': body.symbols[index], 'error': 'Analysis timed out', 'actionable_signal': None}
                     pending -= done | timed_out
                     with closing(_db()) as db, db:
-                        db.execute('UPDATE jobs SET results = ? WHERE id = ?', (json.dumps(results, allow_nan=False), job_id))
+                        db.execute('UPDATE jobs SET results = ? WHERE id = ? AND owner = ?', (json.dumps(results, allow_nan=False), job_id, _instance))
         with closing(_db()) as db, db:
-            db.execute("UPDATE jobs SET state = 'completed' WHERE id = ?", (job_id,))
+            db.execute("UPDATE jobs SET state = 'completed' WHERE id = ? AND owner = ?", (job_id, _instance))
     except Exception:
         with closing(_db()) as db, db:
-            db.execute("UPDATE jobs SET state = 'interrupted' WHERE id = ?", (job_id,))
+            db.execute("UPDATE jobs SET state = 'interrupted' WHERE id = ? AND owner = ?", (job_id, _instance))
     finally:
         if pool is not None:
             pool.shutdown(wait=False)
     return _find(job_id, key_hash)
 
 
+def _heartbeat():
+    with closing(_db()) as db, db:
+        db.execute('INSERT OR REPLACE INTO worker_leases VALUES (?, ?)', (_instance, time.time()))
+
+
 def _recover(analysis_request, analyze):
     from dotenv import load_dotenv
     load_dotenv()
     try:
-        configured = json.loads(os.environ.get('FASTTRADE_BATCH_KEYS', '{}'))
+        configured = json.loads(os.environ.get('FASTTRADE_BATCH_KEY_HASHES', '{}'))
         if not isinstance(configured, dict):
             return
     except (ValueError, TypeError):
@@ -214,14 +290,15 @@ def _recover(analysis_request, analyze):
     authorized = set()
     for key in configured:
         try:
-            authorized.add(_authenticate(key)[0])
+            authorized.add(_authenticate(key, prehashed=True)[0])
         except HTTPException:
             continue
     if not authorized:
         return
+    _heartbeat()
     with closing(_db()) as db, db:
         db.execute('BEGIN IMMEDIATE')
-        rows = [row for row in db.execute("SELECT * FROM jobs WHERE state IN ('queued', 'running') AND owner != ?", (_instance,)).fetchall() if row['key_hash'] in authorized]
+        rows = [row for row in db.execute("SELECT * FROM jobs WHERE state IN ('queued', 'running') AND owner != ? AND owner NOT IN (SELECT owner FROM worker_leases WHERE heartbeat > ?)", (_instance, time.time() - 60)).fetchall() if row['key_hash'] in authorized]
         for row in rows:
             results = json.loads(row['results'])
             for index, result in enumerate(results):
@@ -237,19 +314,19 @@ def make_batch_router(analysis_request, analyze):
     router = APIRouter(tags=['Batch'])
 
     @router.post('/v1/analyze:batch/estimate')
-    def estimate(body: BatchRequest, x_api_key: str = Header(default=None)):
+    def estimate(body: BatchRequest, x_api_key: str = Security(APIKeyHeader(name='X-API-Key', auto_error=False))):
         key_hash, limits = _authenticate(x_api_key)
         cost = limits['estimate_per_call'] * len(body.symbols)
         today = datetime.now(timezone.utc).date().isoformat()
         with closing(_db()) as db:
-            reserved = db.execute('SELECT COALESCE(SUM(reserved_micro), 0) FROM jobs WHERE key_hash = ? AND day = ?', (key_hash, today)).fetchone()[0]
+            reserved = _spent(db, key_hash, today)
         return {'estimated_cost': _dollars(cost), 'currency': 'USD', 'request_cap': _dollars(limits['request_cap']),
                 'daily_remaining': _dollars(max(0, limits['daily_budget'] - reserved)),
                 'within_request_cap': cost <= limits['request_cap'], 'within_daily_budget': cost + reserved <= limits['daily_budget'],
                 'note': 'Estimate, not a guarantee of actual charges'}
 
     @router.post('/v1/analyze:batch')
-    async def submit(body: BatchRequest, x_api_key: str = Header(default=None), idempotency_key: str = Header(default=None)):
+    async def submit(body: BatchRequest, x_api_key: str = Security(APIKeyHeader(name='X-API-Key', auto_error=False)), idempotency_key: str = Header(default=None)):
         key_hash, limits = _authenticate(x_api_key)
         job, created = await run_in_threadpool(_create, body, idempotency_key, key_hash, limits)
         if created:
@@ -264,18 +341,23 @@ def make_batch_router(analysis_request, analyze):
         return JSONResponse(job, status_code=202 if len(body.symbols) >= 10 or job['status'] in ('queued', 'running') else 200)
 
     @router.get('/v1/jobs/{job_id}')
-    def get_job(job_id: str, x_api_key: str = Header(default=None)):
+    def get_job(job_id: str, x_api_key: str = Security(APIKeyHeader(name='X-API-Key', auto_error=False))):
         key_hash, _ = _authenticate(x_api_key)
         return _find(job_id, key_hash)
 
     @router.get('/v1/usage')
-    def get_usage(x_api_key: str = Header(default=None)):
+    def get_usage(x_api_key: str = Security(APIKeyHeader(name='X-API-Key', auto_error=False))):
         key_hash, limits = _authenticate(x_api_key)
         today = datetime.now(timezone.utc).date().isoformat()
         with closing(_db()) as db:
             rows = db.execute('SELECT * FROM jobs WHERE key_hash = ? AND day = ?', (key_hash, today)).fetchall()
+            total_reserved = _spent(db, key_hash, today)
+            singles = db.execute('SELECT COUNT(*) FROM single_reservations WHERE key_hash = ? AND day = ?', (key_hash, today)).fetchone()[0]
         outcomes = [item for row in rows for item in json.loads(row['results'])]
-        return {'date_utc': today, 'estimated_reserved': _dollars(sum(row['reserved_micro'] for row in rows)),
-                'daily_budget': _dollars(limits['daily_budget']), 'currency': 'USD', 'usage': _usage(outcomes)}
+        usage = _usage(outcomes)
+        if singles:
+            usage.update(complete=False, status='Token information unavailable for individual analyses')
+        return {'date_utc': today, 'estimated_reserved': _dollars(total_reserved),
+                'daily_budget': _dollars(limits['daily_budget']), 'currency': 'USD', 'usage': usage}
 
     return router

@@ -44,6 +44,7 @@ class AnalysisRequest(BaseModel):
     symbol: str = Field(min_length=1, max_length=20, pattern=r'^[A-Za-z0-9.\^=\-]+$', description='US stock ticker symbol')
     timeframe: Literal['1m', '2m', '5m', '15m', '30m', '60m'] = '5m'
     source: Literal['alpaca', 'yahoo'] = 'alpaca'
+    decision_provider: Literal['jev', 'liquid', 'vllm', 'subq', 'baseten'] = 'jev'
     sample: bool = Field(default=False, description='Use synthetic five-minute candles; portfolio actions are blocked')
     position: float | None = Field(default=None, ge=0)
     equity: float | None = Field(default=None, gt=0)
@@ -74,6 +75,7 @@ class DecisionResponse(BaseModel):
     probabilities: dict[str, float]
     confidence: float
     model: str
+    provider: str = 'jev'
     latency_us: int
     usage: dict[str, int | None] | None = None
 
@@ -283,6 +285,7 @@ async def analyze(body: AnalysisRequest):
         'SystemOne request failed': 'Model request failed. Check your key, endpoint, and connection.',
         'SystemOne request failed: timeout': 'Model request timed out. Check the endpoint and retry.',
         'Invalid SystemOne response': 'The model returned an invalid response.',
+        **{f'{key} is missing': f'Add {key} to .env before analyzing.' for key in ('LIQUID_API_KEY', 'VLLM_SR_API_KEY', 'SUBQ_API_KEY', 'BASETEN_API_KEY')},
         'TYPESAFE_API_KEY is missing': 'Add TYPESAFE_API_KEY to .env before analyzing.',
     }
     try:

@@ -45,7 +45,7 @@ function historySnapshot(result) {
   const market = pick(result.market, ['symbol', 'timeframe', 'candle_timestamp']);
   market.features = pick(result.market.features, ['price', 'rsi_14', 'macd', 'vwap_delta', 'volume_ratio', 'atr_14']);
   market.headlines = (result.market.headlines || []).map(item => pick(item, ['title', 'source', 'published']));
-  const decision = pick(result.decision, ['action', 'model', 'latency_us']);
+  const decision = pick(result.decision, ['action', 'model', 'provider', 'latency_us']);
   decision.probabilities = pick(result.decision.probabilities, ['BUY', 'HOLD', 'SELL']);
   return {...pick(result, ['source', 'stale_preview', 'actionable_signal', 'risk_rejections', 'indicator_interpretations']), market, decision,
     rule_comparison: result.rule_comparison ? pick(result.rule_comparison, ['signal', 'agreement']) : null,
@@ -197,7 +197,7 @@ function render(result, record = true) {
   setText('risk-label', signalOnly ? 'PORTFOLIO' : record ? 'RISK-CHECKED SIGNAL' : 'PREVIOUS RISK-CHECKED SIGNAL');
   setText('risk-action', signalOnly ? 'SIGNAL ONLY' : blocked ? 'BLOCKED · HOLD' : result.actionable_signal);
   setText('risk-reasons', result.risk_rejections.length ? result.risk_rejections.join(' · ') : signalOnly ? 'Add portfolio and risk settings for a risk-checked signal.' : 'No risk rejections. Signal only; no orders are placed.');
-  setText('model-name', decision.model); setText('model-latency', `${number(decision.latency_us / 1000, 0)} ms`);
+  setText('model-name', `${decision.provider || 'jev'} / ${decision.model}`); setText('model-latency', `${number(decision.latency_us / 1000, 0)} ms`);
   const indicators = [
     ['RSI (14)', number(feature.rsi_14, 1), 'Momentum'], ['MACD', number(feature.macd, 3), 'Trend & momentum'],
     ['VWAP DELTA', `${feature.vwap_delta >= 0 ? '+' : ''}${number(feature.vwap_delta * 100)}%`, 'Price vs. VWAP'],
@@ -399,7 +399,7 @@ $('analysis-form').addEventListener('submit', async (event) => {
   event.preventDefault();
   const symbol = $('symbol').value.trim().toUpperCase();
   if (!symbol) { $('symbol').focus(); return; }
-  const payload = {symbol, timeframe: $('timeframe').value, source: $('source').value};
+  const payload = {symbol, timeframe: $('timeframe').value, source: $('source').value, decision_provider: $('decision-provider').value};
   for (const [name] of riskFields) {
     const raw = $(`risk-${name}`).value.trim();
     if (raw !== '') payload[name] = Number(raw);

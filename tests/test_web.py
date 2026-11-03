@@ -27,7 +27,7 @@ def test_startup_banner_shows_local_settings_without_secrets(monkeypatch, capsys
 def test_local_api_exposes_health_and_schema_without_running_analysis(monkeypatch):
     from fasttrade import web
     monkeypatch.setattr(web, 'run_analysis', lambda args: (_ for _ in ()).throw(AssertionError('unexpected analysis')))
-    client = TestClient(web.app, base_url='http://127.0.0.1:8765')
+    client = TestClient(web.app, base_url='http://127.0.0.1:8765', client=('127.0.0.1', 50000))
     assert client.get('/api/health').json() == {'status': 'ok', 'mode': 'signal-only'}
     schema = client.get('/openapi.json').json()
     assert '/api/analyze' in schema['paths'] and '/api/health' in schema['paths']
@@ -37,7 +37,7 @@ def test_local_api_exposes_health_and_schema_without_running_analysis(monkeypatc
 
 def test_brand_logo_is_served():
     from fasttrade.web import app
-    client = TestClient(app, base_url='http://127.0.0.1:8765')
+    client = TestClient(app, base_url='http://127.0.0.1:8765', client=('127.0.0.1', 50000))
     response = client.get('/static/logo.svg')
     assert response.status_code == 200
     assert '<svg' in response.text
@@ -72,7 +72,7 @@ def test_mobile_navigation_has_real_destinations():
             if tag == 'nav':
                 self.in_nav = False
 
-    page = TestClient(app, base_url='http://127.0.0.1:8765').get('/')
+    page = TestClient(app, base_url='http://127.0.0.1:8765', client=('127.0.0.1', 50000)).get('/')
     parser = NavLinks()
     parser.feed(page.text)
     assert {'#workspace', '#chart-panel', '#history-panel'} <= parser.links
@@ -82,7 +82,7 @@ def test_page_does_not_run_analysis_on_open(monkeypatch):
     from fasttrade import web
     calls = []
     monkeypatch.setattr(web, 'run_analysis', lambda args: calls.append(args))
-    client = TestClient(web.app, base_url='http://127.0.0.1:8765')
+    client = TestClient(web.app, base_url='http://127.0.0.1:8765', client=('127.0.0.1', 50000))
     page = client.get('/')
     assert page.status_code == 200
     assert 'FastTrade' in page.text
@@ -96,7 +96,7 @@ def test_analysis_uses_existing_engine_and_risk_inputs(monkeypatch):
         seen.append(args)
         return {'actionable_signal': 'HOLD', 'risk_rejections': ['Stale data'], 'decision': {'action': 'BUY'}}
     monkeypatch.setattr(web, 'run_analysis', analyze)
-    client = TestClient(web.app, base_url='http://127.0.0.1:8765')
+    client = TestClient(web.app, base_url='http://127.0.0.1:8765', client=('127.0.0.1', 50000))
     response = client.post('/api/analyze', json={'symbol': 'aapl', 'timeframe': '5m', 'position': 2})
     assert response.status_code == 200
     assert response.json()['actionable_signal'] == 'HOLD'
@@ -109,7 +109,7 @@ def test_analysis_api_passes_provider_and_rejects_invalid_choice(monkeypatch):
     from fasttrade import web
     seen = []
     monkeypatch.setattr(web, 'run_analysis', lambda args: seen.append(args.source) or {'source': 'Yahoo Finance'})
-    client = TestClient(web.app, base_url='http://127.0.0.1:8765')
+    client = TestClient(web.app, base_url='http://127.0.0.1:8765', client=('127.0.0.1', 50000))
     assert client.post('/api/analyze', json={'symbol': 'SPY', 'source': 'yahoo'}).status_code == 200
     assert seen == ['yahoo']
     assert client.post('/api/analyze', json={'symbol': 'SPY', 'source': 'other'}).status_code == 422
@@ -172,7 +172,7 @@ def test_spy_endpoint_caches_for_ten_minutes_without_model_calls(monkeypatch):
     monkeypatch.setattr(web, 'monotonic', lambda: clock[0])
     monkeypatch.setattr(web, 'run_analysis', lambda args: (_ for _ in ()).throw(AssertionError('unexpected model call')))
     monkeypatch.setattr(web, 'spy_overview', lambda timeframe, now: calls.append(timeframe) or {'symbol': 'SPY', 'timeframe': timeframe, 'price': 100, 'candle_timestamp': now.isoformat(), 'news_status': 'available'})
-    client = TestClient(web.app, base_url='http://127.0.0.1:8765')
+    client = TestClient(web.app, base_url='http://127.0.0.1:8765', client=('127.0.0.1', 50000))
     assert client.get('/api/market-overview').json()['symbol'] == 'SPY'
     clock[0] += 599
     assert client.get('/api/market-overview').json()['symbol'] == 'SPY'
@@ -189,7 +189,7 @@ def test_spy_signals_cache_for_ten_minutes_and_use_post(monkeypatch):
     monkeypatch.setattr(web, '_spy_signals_cache', None)
     monkeypatch.setattr(web, 'monotonic', lambda: clock[0])
     monkeypatch.setattr(web, 'build_spy_signals', lambda previous=None: calls.append('run') or {'deterministic': 'HOLD', 'model': 'BUY', 'stale': True})
-    client = TestClient(web.app, base_url='http://127.0.0.1:8765')
+    client = TestClient(web.app, base_url='http://127.0.0.1:8765', client=('127.0.0.1', 50000))
     assert client.get('/api/spy-signals').status_code == 405
     assert client.post('/api/spy-signals', json={}).json()['model'] == 'BUY'
     clock[0] += 599
@@ -204,7 +204,7 @@ def test_spy_signals_reject_cross_origin_and_non_json_requests(monkeypatch):
     from fasttrade import web
     monkeypatch.setattr(web, '_spy_signals_cache', None)
     monkeypatch.setattr(web, 'build_spy_signals', lambda: (_ for _ in ()).throw(AssertionError('unexpected model call')))
-    client = TestClient(web.app, base_url='http://127.0.0.1:8765')
+    client = TestClient(web.app, base_url='http://127.0.0.1:8765', client=('127.0.0.1', 50000))
     assert client.post('/api/spy-signals', json={}, headers={'Origin': 'https://evil.example'}).status_code == 403
     assert client.post('/api/spy-signals', content='{}', headers={'Content-Type': 'text/plain'}).status_code == 422
 
@@ -222,7 +222,7 @@ def test_concurrent_spy_signals_share_one_model_request(monkeypatch):
         assert release.wait(5)
         return {'deterministic': 'BUY', 'model': 'HOLD', 'stale': False}
     monkeypatch.setattr(web, 'build_spy_signals', build)
-    client = TestClient(web.app, base_url='http://127.0.0.1:8765')
+    client = TestClient(web.app, base_url='http://127.0.0.1:8765', client=('127.0.0.1', 50000))
     with ThreadPoolExecutor(max_workers=2) as pool:
         first = pool.submit(client.post, '/api/spy-signals', json={})
         assert started.wait(5)
@@ -246,7 +246,7 @@ def test_spy_closed_market_reuses_model_until_new_candle(monkeypatch):
     monkeypatch.setattr(web, 'outside_regular_hours', lambda now: False)
     monkeypatch.setattr(web, 'alpaca', lambda *args: (frame, {}, []))
     monkeypatch.setattr(web, 'predict', lambda state, *args: calls.append(state['candle_timestamp']) or {'action': 'BUY'})
-    client = TestClient(web.app, base_url='http://127.0.0.1:8765')
+    client = TestClient(web.app, base_url='http://127.0.0.1:8765', client=('127.0.0.1', 50000))
     assert client.post('/api/spy-signals', json={}).json()['model'] == 'BUY'
     clock[0] += 600
     assert client.post('/api/spy-signals', json={}).json()['model'] == 'BUY'
@@ -313,7 +313,7 @@ def test_spy_signals_share_a_validated_snapshot_without_portfolio(monkeypatch):
 def test_local_api_rejects_external_origins_and_invalid_input(monkeypatch):
     from fasttrade import web
     monkeypatch.setattr(web, 'run_analysis', lambda args: (_ for _ in ()).throw(AssertionError('unexpected call')))
-    client = TestClient(web.app, base_url='http://127.0.0.1:8765')
+    client = TestClient(web.app, base_url='http://127.0.0.1:8765', client=('127.0.0.1', 50000))
     assert client.post('/api/analyze', headers={'Origin': 'https://evil.example'}, json={'symbol': 'NVDA'}).status_code == 403
     assert client.post('/api/analyze', json={'symbol': '../bad'}).status_code == 422
     assert client.post('/api/analyze', json={'symbol': 'NVDA', 'timeframe': 'bad'}).status_code == 422
@@ -323,9 +323,9 @@ def test_local_api_rejects_external_origins_and_invalid_input(monkeypatch):
 
 def test_security_headers_apply_to_normal_and_rejected_requests():
     from fasttrade.web import app
-    client = TestClient(app, base_url='http://127.0.0.1:8765')
+    client = TestClient(app, base_url='http://127.0.0.1:8765', client=('127.0.0.1', 50000))
     responses = (client.get('/api/health'), client.get('/api/health', headers={'Origin': 'https://evil.example'}),
-                 TestClient(app, base_url='http://example.com').get('/api/health'))
+                 TestClient(app, base_url='http://example.com', client=('127.0.0.1', 50000)).get('/api/health'))
     for response in responses:
         assert response.headers['cache-control'] == 'no-store'
         assert response.headers['x-content-type-options'] == 'nosniff'
@@ -337,7 +337,7 @@ def test_provider_error_has_safe_message(monkeypatch):
     def fail(args):
         raise ValueError('SystemOne request failed: timeout')
     monkeypatch.setattr(web, 'run_analysis', fail)
-    client = TestClient(web.app, base_url='http://127.0.0.1:8765')
+    client = TestClient(web.app, base_url='http://127.0.0.1:8765', client=('127.0.0.1', 50000))
     response = client.post('/api/analyze', json={'symbol': 'NVDA'})
     assert response.status_code == 503
     assert response.json()['actionable_signal'] is None
@@ -347,7 +347,7 @@ def test_provider_error_has_safe_message(monkeypatch):
 def test_sample_cannot_produce_actionable_trade(monkeypatch):
     from fasttrade import web
     monkeypatch.setattr(web, 'run_analysis', lambda args: {'actionable_signal': 'BUY', 'risk_rejections': [], 'decision': {'action': 'BUY'}})
-    client = TestClient(web.app, base_url='http://127.0.0.1:8765')
+    client = TestClient(web.app, base_url='http://127.0.0.1:8765', client=('127.0.0.1', 50000))
     response = client.post('/api/analyze', json={'symbol': 'NVDA', 'sample': True})
     assert response.status_code == 200
     assert response.json()['actionable_signal'] == 'HOLD'
@@ -357,7 +357,7 @@ def test_sample_cannot_produce_actionable_trade(monkeypatch):
 def test_sample_end_to_end_with_mocked_model(monkeypatch):
     from fasttrade import cli, decisions, web
     monkeypatch.setattr(cli, 'predict', lambda *args: decisions.normalize({'model': 'test', 'answers': {'action': {'type': 'choice', 'choice': 'BUY', 'confidence': .9, 'probabilities': {'BUY': .8, 'HOLD': .1, 'SELL': .1}}}}, 1000))
-    client = TestClient(web.app, base_url='http://127.0.0.1:8765')
+    client = TestClient(web.app, base_url='http://127.0.0.1:8765', client=('127.0.0.1', 50000))
     data = {'symbol': 'NVDA', 'sample': True, 'position': 0, 'equity': 10000, 'exposure': 0, 'daily_loss': 0, 'trade_count': 0, 'quantity': 1, 'max_position': 1000, 'max_exposure': 5000, 'max_daily_loss': 200, 'max_trades': 5, 'min_confidence': 0}
     response = client.post('/api/analyze', json=data)
     assert response.status_code == 200
@@ -370,7 +370,7 @@ def test_sample_end_to_end_with_mocked_model(monkeypatch):
 def test_sample_without_portfolio_is_signal_only(monkeypatch):
     from fasttrade import cli, decisions, web
     monkeypatch.setattr(cli, 'predict', lambda *args: decisions.normalize({'model': 'test', 'answers': {'action': {'type': 'choice', 'choice': 'BUY', 'confidence': .9, 'probabilities': {'BUY': .8, 'HOLD': .1, 'SELL': .1}}}}, 1000))
-    client = TestClient(web.app, base_url='http://127.0.0.1:8765')
+    client = TestClient(web.app, base_url='http://127.0.0.1:8765', client=('127.0.0.1', 50000))
     result = client.post('/api/analyze', json={'symbol': 'NVDA', 'sample': True}).json()
     assert result['decision']['action'] == 'BUY'
     assert result['actionable_signal'] is None
@@ -382,7 +382,7 @@ def test_market_timeout_explains_yahoo_connectivity(monkeypatch):
     def fail(args):
         raise ValueError('Market data provider timed out')
     monkeypatch.setattr(web, 'run_analysis', fail)
-    client = TestClient(web.app, base_url='http://127.0.0.1:8765')
+    client = TestClient(web.app, base_url='http://127.0.0.1:8765', client=('127.0.0.1', 50000))
     response = client.post('/api/analyze', json={'symbol': 'NVDA'})
     assert response.status_code == 503
     assert 'Yahoo Finance' in response.json()['error']
@@ -395,7 +395,7 @@ def test_provider_configuration_exposes_only_configured_choices(monkeypatch):
     for key in ('TYPESAFE_API_KEY', 'LIQUID_API_KEY', 'VLLM_SR_API_KEY', 'SUBQ_API_KEY', 'BASETEN_API_KEY', 'ALPACA_API_KEY', 'ALPACA_SECRET_KEY'):
         monkeypatch.delenv(key, raising=False)
     monkeypatch.setenv('SUBQ_API_KEY', 'private-value')
-    client = TestClient(app, base_url='http://127.0.0.1:8765')
+    client = TestClient(app, base_url='http://127.0.0.1:8765', client=('127.0.0.1', 50000))
     response = client.get('/api/providers')
     assert response.status_code == 200
     assert response.json() == {'market': ['yahoo'], 'decision': ['subq']}
@@ -411,7 +411,7 @@ def test_provider_configuration_exposes_only_configured_choices(monkeypatch):
 def test_liveness_has_no_provider_dependency(monkeypatch):
     from fasttrade import web
     monkeypatch.setattr(web, 'configured_providers', lambda: (_ for _ in ()).throw(AssertionError('upstream/config access')))
-    client = TestClient(web.app, base_url='http://127.0.0.1:8765')
+    client = TestClient(web.app, base_url='http://127.0.0.1:8765', client=('127.0.0.1', 50000))
     response = client.get('/healthz')
     assert response.status_code == 200
     assert response.json() == {'status': 'ok'}
@@ -419,12 +419,89 @@ def test_liveness_has_no_provider_dependency(monkeypatch):
 
 def test_readiness_reports_model_configuration_without_upstream(monkeypatch):
     from fasttrade import web
-    client = TestClient(web.app, base_url='http://127.0.0.1:8765')
+    client = TestClient(web.app, base_url='http://127.0.0.1:8765', client=('127.0.0.1', 50000))
     monkeypatch.setattr(web, 'configured_providers', lambda: {'market': ['yahoo'], 'decision': []})
     response = client.get('/readyz')
     assert response.status_code == 503
-    assert response.json() == {'status': 'not_ready', 'model_configured': False, 'upstream': 'not_checked'}
+    assert response.json() == {'status': 'not_ready', 'model_configured': False, 'config_valid': True, 'rate_limiter': 'not_required', 'upstream': 'not_checked'}
     monkeypatch.setattr(web, 'configured_providers', lambda: {'market': ['yahoo'], 'decision': ['subq']})
     response = client.get('/readyz')
     assert response.status_code == 200
-    assert response.json() == {'status': 'ready', 'model_configured': True, 'upstream': 'not_checked'}
+    assert response.json() == {'status': 'ready', 'model_configured': True, 'config_valid': True, 'rate_limiter': 'not_required', 'upstream': 'not_checked'}
+
+
+def test_openapi_can_be_disabled_in_production(monkeypatch):
+    import os
+    import subprocess
+    import sys
+    env = os.environ.copy()
+    env['FASTTRADE_ENABLE_OPENAPI'] = 'false'
+    env['PYTHON_DOTENV_DISABLED'] = '1'
+    script = "from fasttrade.web import app; from fastapi.testclient import TestClient; c=TestClient(app,base_url='http://127.0.0.1:8765', client=('127.0.0.1', 50000)); print(c.get('/docs').status_code,c.get('/openapi.json').status_code,c.get('/redoc').status_code)"
+    output = subprocess.check_output([sys.executable, '-c', script], env=env, text=True)
+    assert output.strip() == '404 404 404'
+
+
+def test_remote_clients_cannot_reach_local_dashboard_with_spoofed_host(monkeypatch):
+    from fasttrade import web
+    client = TestClient(web.app, base_url='http://127.0.0.1:8765', client=('203.0.113.1', 41000))
+    assert client.get('/api/health').status_code == 403
+    assert client.get('/').status_code == 403
+
+
+def test_nonloopback_warning_and_safe_binding(monkeypatch, capsys):
+    import socket
+    import threading
+    import uvicorn
+    from unittest.mock import MagicMock
+    from fasttrade import web
+    monkeypatch.setenv('FASTTRADE_HOST', '0.0.0.0')
+    monkeypatch.setenv('FASTTRADE_PORT', '9876')
+    monkeypatch.setenv('FASTTRADE_BATCH_KEY_HASHES', '{"' + 'a' * 64 + '":{"estimate_per_call":"0.01","request_cap":"1","daily_budget":"1"}}')
+    monkeypatch.setenv('FASTTRADE_REDIS_URL', 'redis://localhost:6379/0')
+    monkeypatch.setattr(web, '_rate_limiter', MagicMock())
+    monkeypatch.setattr(socket, 'socket', MagicMock())
+    monkeypatch.setattr(threading, 'Timer', MagicMock())
+    server = MagicMock()
+    monkeypatch.setattr(uvicorn, 'Server', server)
+    web.serve()
+    output = capsys.readouterr().out.lower()
+    assert 'warning' in output and 'network' in output
+    assert server.call_args.args[0].port == 9876
+    assert server.call_args.args[0].host == '0.0.0.0'
+
+
+def test_readiness_checks_configured_api_rate_store(monkeypatch):
+    from fasttrade import web
+    client = TestClient(web.app, base_url='http://127.0.0.1:8765', client=('127.0.0.1', 50000))
+    monkeypatch.setattr(web, 'configured_providers', lambda: {'market': ['yahoo'], 'decision': ['subq']})
+    monkeypatch.setenv('FASTTRADE_BATCH_KEY_HASHES', '{"' + 'a' * 64 + '":{"estimate_per_call":"0.01","request_cap":"1","daily_budget":"1"}}')
+    monkeypatch.delenv('FASTTRADE_REDIS_URL', raising=False)
+    response = client.get('/readyz')
+    assert response.status_code == 503
+    assert response.json()['rate_limiter'] == 'unavailable'
+
+
+def test_malformed_key_entry_makes_readiness_fail(monkeypatch):
+    from fasttrade import web
+    client = TestClient(web.app, base_url='http://127.0.0.1:8765', client=('127.0.0.1', 50000))
+    monkeypatch.setattr(web, 'configured_providers', lambda: {'market': ['yahoo'], 'decision': ['subq']})
+    monkeypatch.setenv('FASTTRADE_BATCH_KEY_HASHES', '{"' + 'a' * 64 + '":null}')
+    response = client.get('/readyz')
+    assert response.status_code == 503
+    assert response.json()['config_valid'] is False
+
+
+def test_ipv4_mapped_ipv6_loopback_can_use_local_dashboard():
+    from fasttrade import web
+    client = TestClient(web.app, base_url='http://127.0.0.1:8765', client=('::ffff:127.0.0.1', 41000))
+    assert client.get('/api/health').status_code == 200
+
+
+def test_network_binding_refuses_missing_hashed_keys(monkeypatch):
+    import pytest
+    from fasttrade import web
+    monkeypatch.setenv('FASTTRADE_HOST', '0.0.0.0')
+    monkeypatch.delenv('FASTTRADE_BATCH_KEY_HASHES', raising=False)
+    with pytest.raises(SystemExit, match='valid hashed API keys'):
+        web.serve()

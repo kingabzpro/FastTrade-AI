@@ -270,3 +270,13 @@ def test_recovery_does_not_run_jobs_for_revoked_keys(batch_client, monkeypatch):
     with closing(batch_api._db()) as db:
         row = db.execute('SELECT owner, reserved_micro FROM jobs WHERE id = ?', (job['id'],)).fetchone()
     assert row['owner'] == 'previous-process' and row['reserved_micro'] == 10000
+
+
+def test_batch_api_passes_decision_provider(batch_client, monkeypatch):
+    from fasttrade import web
+    client, _ = batch_client
+    seen = []
+    monkeypatch.setattr(web, 'run_analysis', lambda args: seen.append(args.decision_provider) or {'decision': {'usage': None}, 'actionable_signal': None})
+    response = client.post('/v1/analyze:batch', json={'symbols': ['A'], 'decision_provider': 'baseten'}, headers={'X-API-Key': 'test-key', 'Idempotency-Key': 'provider'})
+    assert response.status_code == 200
+    assert seen == ['baseten']

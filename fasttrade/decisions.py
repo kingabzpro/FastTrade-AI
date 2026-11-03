@@ -1,6 +1,23 @@
 import math
+import os
 import time
 import httpx
+
+
+PROVIDERS = {
+    'liquid': ('LIQUID_API_KEY', 'https://api.liquid.ai/decisions/v1/systemone', 'd1-ultra'),
+    'vllm': ('VLLM_SR_API_KEY', 'https://decision.vllm-sr.ai/v1/systemone', 'vllm-sr/d3-ultra'),
+    'subq': ('SUBQ_API_KEY', 'https://api.subq.ai/v1/systemone', 'subq-snap-1.1'),
+    'baseten': ('BASETEN_API_KEY', 'https://inference.baseten.co/v1/systemone', 'decision-models/baseten-mammoth-27b-latest'),
+}
+
+
+def provider_config(provider):
+    name, url, model = PROVIDERS[provider]
+    key = os.getenv(name)
+    if not key:
+        raise ValueError(f'{name} is missing')
+    return url, model, key
 
 
 def normalize(data, latency_us):

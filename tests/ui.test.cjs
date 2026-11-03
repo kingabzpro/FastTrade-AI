@@ -498,3 +498,17 @@ test('loading indicator does not animate with reduced motion', async () => {
   const icon = page.locator('#notice .notice-icon');
   assert.equal(await icon.evaluate(el => getComputedStyle(el).animationName), 'none');
 });
+
+test('selected decision provider is submitted and displayed', async () => {
+  await page.selectOption('#decision-provider', 'baseten');
+  await page.route('**/api/analyze', async route => {
+    assert.equal(route.request().postDataJSON().decision_provider, 'baseten');
+    const data = result();
+    data.decision.provider = 'baseten';
+    data.decision.model = 'mammoth';
+    await route.fulfill({json: data});
+  });
+  await page.click('#analyze');
+  await page.waitForSelector('#decision-content:not([hidden])');
+  assert.match(await page.locator('#model-name').textContent(), /baseten.*mammoth/);
+});

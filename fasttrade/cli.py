@@ -12,7 +12,7 @@ import pandas as pd
 from dotenv import load_dotenv
 from .market import alpaca, yahoo, validate_candles, INTERVALS
 from .indicators import features, rule_signal
-from .decisions import predict
+from .decisions import predict, provider_config
 from .risk import evaluate
 
 
@@ -25,6 +25,7 @@ def parser():
     batch.add_argument('symbols', nargs='+', help='US stock ticker symbols (up to 50)')
     batch.add_argument('--timeframe', choices=INTERVALS, default='5m')
     batch.add_argument('--source', choices=('alpaca', 'yahoo'), default='alpaca', help='Market data provider (default: alpaca)')
+    batch.add_argument('--decision-provider', choices=('jev', 'liquid', 'vllm', 'subq', 'baseten'), default='jev')
     batch.add_argument('--concurrency', type=int, choices=range(1, 6), default=3, metavar='1-5')
     b = sub.add_parser('benchmark', help='Run a weekly historical model benchmark')
     b.add_argument('--start', required=True, help='First decision date (YYYY-MM-DD)')
@@ -62,6 +63,7 @@ def add_analysis_arguments(a):
     a.add_argument('--max-age-seconds', type=float, help='Maximum age since candle close; defaults to two intervals')
     a.add_argument('--spread', type=float)
     a.add_argument('--liquidity', type=float)
+    a.add_argument('--decision-provider', choices=('jev', 'liquid', 'vllm', 'subq', 'baseten'), default='jev')
     a.add_argument('--calibration', help='Calibration artifact JSON from ft calibrate; confidence is then reported and gated calibrated')
     a.add_argument('--require-certified-edge', action='store_true', help='Block actionable signals unless the artifact certifies aggregate net-of-cost edge on its test window')
     for name in ('position', 'equity', 'exposure', 'daily-loss', 'quantity', 'max-position', 'max-exposure', 'max-daily-loss', 'min-confidence'):
@@ -108,13 +110,21 @@ def run(args):
             raise ValueError(f'{name} must be nonnegative and finite')
         snapshot[name] = val
     state = {'symbol': args.symbol.upper(), 'timeframe': args.timeframe, 'candle_timestamp': frame.timestamp.iloc[-1].isoformat(), 'evaluation_time': as_of.isoformat(), 'features': snapshot, 'ticker_details': details, 'headlines': news}
+    provider = getattr(args, 'decision_provider', 'jev')
+    if provider != 'jev' and getattr(args, 'calibration', None):
+        raise ValueError('Calibration artifacts are only supported with Jev')
     key = os.getenv('TYPESAFE_API_KEY')
     url = getattr(args, 'systemone_url', None) or os.getenv('SYSTEMONE_URL', 'https://api.typesafe.ai/v1/systemone')
-    if not key and url.startswith('https://api.typesafe.ai/'):
+    if provider != 'jev':
+        url, model, key = provider_config(provider)
+    else:
+        model = getattr(args, 'systemone_model', None) or os.getenv('SYSTEMONE_MODEL', 'jev-latest')
+    if provider == 'jev' and not key and url.startswith('https://api.typesafe.ai/'):
         raise ValueError('TYPESAFE_API_KEY is missing')
     if getattr(args, 'require_certified_edge', False) and not getattr(args, 'calibration', None):
         raise ValueError('--require-certified-edge requires --calibration')
-    decision = predict(state, url, getattr(args, 'systemone_model', None) or os.getenv('SYSTEMONE_MODEL', 'jev-latest'), key)
+    decision = predict(state, url, model, key)
+    decision['provider'] = provider
     calibration = None
     if getattr(args, 'calibration', None):
         from .calibration import apply_isotonic, apply_temperature, conformal_interval, load_artifact
@@ -180,7 +190,7 @@ def run_batch(args):
     load_dotenv()
 
     def analyze(symbol):
-        analysis_args = parser().parse_args(['analyze', symbol, '--timeframe', args.timeframe, '--source', args.source])
+        analysis_args = parser().parse_args(['analyze', symbol, '--timeframe', args.timeframe, '--source', args.source, '--decision-provider', args.decision_provider])
         analysis_args.allow_stale_preview = True
         try:
             return {'symbol': symbol, 'result': run(analysis_args)}

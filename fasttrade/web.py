@@ -211,6 +211,20 @@ def health():
     return {'status': 'ok', 'mode': 'signal-only'}
 
 
+@app.get('/api/providers', tags=['System'])
+def configured_providers():
+    """List configured providers without exposing their credentials."""
+    from dotenv import load_dotenv
+    from .decisions import PROVIDERS
+
+    load_dotenv()
+    market = (['alpaca'] if os.getenv('ALPACA_API_KEY') and os.getenv('ALPACA_SECRET_KEY') else []) + ['yahoo']
+    url = os.getenv('SYSTEMONE_URL', 'https://api.typesafe.ai/v1/systemone')
+    decision = (['jev'] if os.getenv('TYPESAFE_API_KEY') or (url and not url.startswith('https://api.typesafe.ai/')) else [])
+    decision += [name for name, (key, _, _) in PROVIDERS.items() if os.getenv(key)]
+    return {'market': market, 'decision': decision}
+
+
 @app.get('/api/market-overview', tags=['Market'])
 def market_overview():
     """Return cached SPY context without making a model request."""

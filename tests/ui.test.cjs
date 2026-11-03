@@ -23,6 +23,7 @@ after(async () => { await browser?.close(); server?.close(); });
 beforeEach(async () => {
   await page?.close();
   page = await browser.newPage({ viewport: { width: 1440, height: 1000 }, reducedMotion: 'reduce' });
+  await page.route('**/api/providers', route => route.fulfill({json: {market: ['alpaca', 'yahoo'], decision: ['jev', 'liquid', 'vllm', 'subq', 'baseten']}}));
   await page.route('**/api/market-overview', route => route.fulfill({json: result().market_overview}));
   await page.route('**/api/spy-signals', route => route.fulfill({json: {deterministic: 'HOLD', model: 'BUY', stale: false, candle_timestamp: '2026-01-02T20:55:00Z'}}));
   await page.goto(url);
@@ -511,4 +512,41 @@ test('selected decision provider is submitted and displayed', async () => {
   await page.click('#analyze');
   await page.waitForSelector('#decision-content:not([hidden])');
   assert.match(await page.locator('#model-name').textContent(), /baseten.*mammoth/);
+});
+
+test('single configured providers are selected and hidden', async () => {
+  await page.route('**/api/providers', route => route.fulfill({json: {market: ['yahoo'], decision: ['subq']}}));
+  await page.reload();
+  await page.waitForFunction(() => document.querySelector('#decision-provider').value === 'subq');
+  assert.equal(await page.locator('#source').isVisible(), false);
+  assert.equal(await page.locator('#decision-provider').isVisible(), false);
+  let payload;
+  await page.route('**/api/analyze', route => { payload = route.request().postDataJSON(); return route.fulfill({json: result()}); });
+  await page.click('#analyze');
+  await page.waitForFunction(() => !document.getElementById('decision-content').hidden);
+  assert.equal(payload.source, 'yahoo');
+  assert.equal(payload.decision_provider, 'subq');
+});
+
+test('no configured decision model disables analysis', async () => {
+  await page.route('**/api/providers', route => route.fulfill({json: {market: ['yahoo'], decision: []}}));
+  await page.reload();
+  await page.waitForFunction(() => document.querySelector('#notice').textContent.includes('decision model'));
+  assert.equal(await page.locator('#analyze').isDisabled(), true);
+});
+
+test('multiple configured providers show only configured options', async () => {
+  await page.route('**/api/providers', route => route.fulfill({json: {market: ['alpaca', 'yahoo'], decision: ['liquid', 'baseten']}}));
+  await page.reload();
+  await page.waitForFunction(() => !document.getElementById('analyze').disabled);
+  assert.equal(await page.locator('#source').isVisible(), true);
+  assert.equal(await page.locator('#decision-provider').isVisible(), true);
+  assert.deepEqual(await page.locator('#decision-provider option').evaluateAll(options => options.map(option => option.value)), ['liquid', 'baseten']);
+});
+
+test('provider discovery failure prevents an unintended analysis', async () => {
+  await page.route('**/api/providers', route => route.fulfill({status: 503, body: 'unavailable'}));
+  await page.reload();
+  await page.waitForFunction(() => document.querySelector('#notice').textContent.includes('provider configuration'));
+  assert.equal(await page.locator('#analyze').isDisabled(), true);
 });

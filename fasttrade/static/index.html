@@ -59,9 +59,9 @@
           <div class="control-grid">
             <label>SYMBOL<input id="symbol" name="symbol" placeholder="e.g. SPY" value="SPY" maxlength="20" pattern="[A-Za-z0-9.\^=\-]+" title="Enter a ticker such as SPY, NVDA, or BRK-B" required autocomplete="off" spellcheck="false"></label>
             <label>TIMEFRAME<select id="timeframe" name="timeframe"><option>1m</option><option>2m</option><option selected>5m</option><option>15m</option><option>30m</option><option>60m</option></select></label>
-            <label>DATA SOURCE<select id="source" name="source"><option value="alpaca">Alpaca IEX</option><option value="yahoo">Yahoo Finance</option></select></label>
-            <label>DECISION MODEL<select id="decision-provider"><option value="jev">Jev</option><option value="liquid">Liquid d1-ultra</option><option value="vllm">vLLM-SR d3-ultra</option><option value="subq">SubQ Snap 1.1</option><option value="baseten">Baseten mammoth-1</option></select></label>
-            <button id="analyze" type="submit"><span>Run analysis</span><span class="button-arrow"><svg class="icon"><use href="#i-arrow"/></svg></span></button>
+            <label hidden>DATA SOURCE<select id="source" name="source"><option value="alpaca">Alpaca IEX</option><option value="yahoo">Yahoo Finance</option></select></label>
+            <label hidden>DECISION MODEL<select id="decision-provider"><option value="jev">Jev</option><option value="liquid">Liquid d1-ultra</option><option value="vllm">vLLM-SR d3-ultra</option><option value="subq">SubQ Snap 1.1</option><option value="baseten">Baseten mammoth-1</option></select></label>
+            <button id="analyze" type="submit" disabled><span>Run analysis</span><span class="button-arrow"><svg class="icon"><use href="#i-arrow"/></svg></span></button>
           </div>
           <details class="risk-settings"><summary><span>Portfolio &amp; risk settings</span><span class="summary-hint">Optional · required for an actionable signal</span></summary><div class="risk-grid" id="risk-fields"></div><p class="form-note">Complete every field for a risk-checked signal; otherwise the model preference is signal only. For example, a daily loss of 50 means 50 in the instrument’s currency; it is not a recommended limit. Confidence is not the chance of profit. FastTrade places no orders.</p></details>
         </form>

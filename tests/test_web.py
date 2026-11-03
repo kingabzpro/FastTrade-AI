@@ -388,3 +388,21 @@ def test_market_timeout_explains_yahoo_connectivity(monkeypatch):
     assert 'Yahoo Finance' in response.json()['error']
     assert 'timed out' in response.json()['error']
     assert response.json()['actionable_signal'] is None
+
+
+def test_provider_configuration_exposes_only_configured_choices(monkeypatch):
+    from fasttrade.web import app
+    for key in ('TYPESAFE_API_KEY', 'LIQUID_API_KEY', 'VLLM_SR_API_KEY', 'SUBQ_API_KEY', 'BASETEN_API_KEY', 'ALPACA_API_KEY', 'ALPACA_SECRET_KEY'):
+        monkeypatch.delenv(key, raising=False)
+    monkeypatch.setenv('SUBQ_API_KEY', 'private-value')
+    client = TestClient(app, base_url='http://127.0.0.1:8765')
+    response = client.get('/api/providers')
+    assert response.status_code == 200
+    assert response.json() == {'market': ['yahoo'], 'decision': ['subq']}
+    assert 'private-value' not in response.text
+    monkeypatch.setenv('ALPACA_API_KEY', 'a')
+    monkeypatch.setenv('ALPACA_SECRET_KEY', 'b')
+    monkeypatch.setenv('LIQUID_API_KEY', 'c')
+    response = client.get('/api/providers').json()
+    assert response['market'] == ['alpaca', 'yahoo']
+    assert response['decision'] == ['liquid', 'subq']

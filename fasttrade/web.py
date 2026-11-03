@@ -225,6 +225,19 @@ def configured_providers():
     return {'market': market, 'decision': decision}
 
 
+@app.get('/healthz', tags=['System'])
+def liveness():
+    return {'status': 'ok'}
+
+
+@app.get('/readyz', tags=['System'])
+def readiness():
+    model_configured = bool(configured_providers()['decision'])
+    return JSONResponse({'status': 'ready' if model_configured else 'not_ready',
+                         'model_configured': model_configured, 'upstream': 'not_checked'},
+                        status_code=200 if model_configured else 503)
+
+
 @app.get('/api/market-overview', tags=['Market'])
 def market_overview():
     """Return cached SPY context without making a model request."""

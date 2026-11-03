@@ -406,3 +406,25 @@ def test_provider_configuration_exposes_only_configured_choices(monkeypatch):
     response = client.get('/api/providers').json()
     assert response['market'] == ['alpaca', 'yahoo']
     assert response['decision'] == ['liquid', 'subq']
+
+
+def test_liveness_has_no_provider_dependency(monkeypatch):
+    from fasttrade import web
+    monkeypatch.setattr(web, 'configured_providers', lambda: (_ for _ in ()).throw(AssertionError('upstream/config access')))
+    client = TestClient(web.app, base_url='http://127.0.0.1:8765')
+    response = client.get('/healthz')
+    assert response.status_code == 200
+    assert response.json() == {'status': 'ok'}
+
+
+def test_readiness_reports_model_configuration_without_upstream(monkeypatch):
+    from fasttrade import web
+    client = TestClient(web.app, base_url='http://127.0.0.1:8765')
+    monkeypatch.setattr(web, 'configured_providers', lambda: {'market': ['yahoo'], 'decision': []})
+    response = client.get('/readyz')
+    assert response.status_code == 503
+    assert response.json() == {'status': 'not_ready', 'model_configured': False, 'upstream': 'not_checked'}
+    monkeypatch.setattr(web, 'configured_providers', lambda: {'market': ['yahoo'], 'decision': ['subq']})
+    response = client.get('/readyz')
+    assert response.status_code == 200
+    assert response.json() == {'status': 'ready', 'model_configured': True, 'upstream': 'not_checked'}

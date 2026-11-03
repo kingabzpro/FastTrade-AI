@@ -8,6 +8,8 @@ The startup banner shows local links, the selected model, and the default data s
 
 Pandas is temporarily capped below 3.1 because the current yfinance quote parser uses an operation deprecated in pandas 3.1. NumPy is capped below 2.5 to avoid a separate compatibility warning in pandas 2.x.
 
+The local service exposes `/healthz` for process liveness and `/readyz` for basic readiness. Readiness reports whether at least one decision provider is configured and returns 503 otherwise; it does not verify credentials or contact providers (`upstream` is `not_checked`). The existing `/api/health` remains available. These endpoints do not make the service safe for network exposure.
+
 ## Market data
 
 The dashboard shows a provider selector only when at least two choices are configured. Yahoo Finance requires no credentials and is always available; Alpaca appears when both Alpaca credentials are set. Decision models appear when their API key is configured (or Jev has a custom SystemOne endpoint). If no decision provider is configured, add a key and reload the dashboard. Provider availability reflects configuration, not a connectivity or account-access check.

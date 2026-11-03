@@ -390,6 +390,29 @@ function syncNavigation() {
 window.addEventListener('hashchange', syncNavigation);
 syncNavigation();
 
+async function loadProviders() {
+  try {
+    const response = await fetch('/api/providers');
+    if (!response.ok) throw new Error('Provider configuration unavailable');
+    const config = await response.json();
+    for (const [id, names] of [['source', config.market], ['decision-provider', config.decision]]) {
+      if (!Array.isArray(names)) throw new Error('Invalid provider configuration');
+      const select = $(id);
+      for (const option of [...select.options]) if (!names.includes(option.value)) option.remove();
+      if (select.options.length !== names.length) throw new Error('Invalid provider configuration');
+      select.closest('label').hidden = names.length < 2;
+    }
+    if (!$('source').value || !$('decision-provider').value) {
+      showNotice('No decision model is configured. Add a model API key and reload.', 'error');
+      return;
+    }
+    $('analyze').disabled = false;
+  } catch {
+    showNotice('Could not load provider configuration. Check the server and reload.', 'error');
+  }
+}
+loadProviders();
+
 $('analysis-form').addEventListener('invalid', event => {
   const settings = document.querySelector('.risk-settings');
   if (settings.contains(event.target)) settings.open = true;

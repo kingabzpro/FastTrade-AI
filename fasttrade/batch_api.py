@@ -26,6 +26,7 @@ class BatchRequest(BaseModel):
     symbols: list[str] = Field(min_length=1, max_length=50)
     timeframe: Literal['1m', '2m', '5m', '15m', '30m', '60m'] = '5m'
     source: Literal['alpaca', 'yahoo'] = 'alpaca'
+    decision_provider: Literal['jev', 'liquid', 'vllm', 'subq', 'baseten'] = 'jev'
 
     @field_validator('symbols')
     @classmethod
@@ -165,7 +166,7 @@ def _process(job_id, key_hash, body, analysis_request, analyze):
                     db.execute('UPDATE jobs SET results = ? WHERE id = ?', (json.dumps(results, allow_nan=False), job_id))
             started[index] = time.monotonic()
             try:
-                response = asyncio.run(analyze(analysis_request(symbol=symbol, timeframe=body.timeframe, source=body.source)))
+                response = asyncio.run(analyze(analysis_request(symbol=symbol, timeframe=body.timeframe, source=body.source, decision_provider=body.decision_provider)))
                 if isinstance(response, JSONResponse):
                     return {'symbol': symbol, 'error': json.loads(response.body)['error'], 'actionable_signal': None}
                 return {'symbol': symbol, 'result': response}

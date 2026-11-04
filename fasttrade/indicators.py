@@ -1,5 +1,28 @@
 import math
+from collections import OrderedDict
+from threading import Lock
+from time import monotonic
 import pandas as pd
+
+_feature_cache = OrderedDict()
+_feature_cache_lock = Lock()
+
+
+def cached_features(compute, frame, timezone, ttl):
+    key = (compute, timezone, ttl, len(frame), frame.timestamp.iloc[0], frame.timestamp.iloc[-1])
+    with _feature_cache_lock:
+        cached = _feature_cache.get(key)
+        if cached and monotonic() < cached[0] and frame.equals(cached[1]):
+            _feature_cache.move_to_end(key)
+            return cached[2].copy()
+        _feature_cache.pop(key, None)
+    result = compute(frame, timezone)
+    with _feature_cache_lock:
+        _feature_cache[key] = (monotonic() + min(ttl, 600), frame.copy(deep=True), result.copy())
+        _feature_cache.move_to_end(key)
+        while len(_feature_cache) > 128:
+            _feature_cache.popitem(last=False)
+    return result
 
 
 def features(frame, timezone):

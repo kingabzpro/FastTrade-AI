@@ -1,11 +1,19 @@
 import math
 import os
 import re
+import copy
+import hashlib
+import json
 import httpx
+from collections import OrderedDict
 from concurrent.futures import ThreadPoolExecutor
+from threading import Lock
+from time import monotonic
 import pandas as pd
 
 INTERVALS = {'1m': 60, '2m': 120, '5m': 300, '10m': 600, '15m': 900, '30m': 1800, '60m': 3600, '90m': 5400}
+_market_cache = OrderedDict()
+_market_cache_lock = Lock()
 
 
 def validate_candles(frame, timeframe, as_of, max_age):
@@ -43,6 +51,46 @@ def validate_candles(frame, timeframe, as_of, max_age):
     if len(frame) < 50:
         raise ValueError('At least 50 completed candles required')
     return frame
+
+
+def cached_market(provider, symbol, timeframe, as_of, *, max_age=float('inf')):
+    as_of = pd.Timestamp(as_of)
+    if timeframe not in INTERVALS or pd.isna(as_of) or as_of.tzinfo is None:
+        raise ValueError('Unsupported timeframe or evaluation time')
+    credentials = (os.getenv('ALPACA_API_KEY'), os.getenv('ALPACA_SECRET_KEY'))
+    credential_hash = hashlib.sha256(json.dumps(credentials).encode()).digest()
+    key = (provider, symbol.upper(), timeframe, as_of, credential_hash)
+    now = monotonic()
+    with _market_cache_lock:
+        cached = _market_cache.get(key)
+        if cached and now < cached[0]:
+            _market_cache.move_to_end(key)
+            snapshot = copy.deepcopy(cached[1])
+        else:
+            _market_cache.pop(key, None)
+            snapshot = None
+    if snapshot is not None:
+        try:
+            validate_candles(snapshot[0], timeframe, as_of, max_age)
+            return snapshot
+        except ValueError:
+            with _market_cache_lock:
+                if _market_cache.get(key) is cached:
+                    _market_cache.pop(key, None)
+    result = provider(symbol, timeframe, as_of, credentials=credentials) if provider is alpaca else provider(symbol, timeframe, as_of)
+    try:
+        validate_candles(result[0], timeframe, as_of, max_age)
+    except ValueError as exc:
+        if str(exc) == 'Latest completed candle is stale':
+            return result
+        raise
+    interval = INTERVALS[timeframe]
+    with _market_cache_lock:
+        _market_cache[key] = (monotonic() + min(interval, 600), copy.deepcopy(result))
+        _market_cache.move_to_end(key)
+        while len(_market_cache) > 128:
+            _market_cache.popitem(last=False)
+    return result
 
 
 def headlines(items, as_of):
@@ -125,8 +173,8 @@ def yahoo(symbol, timeframe, as_of):
     return frame, details, news
 
 
-def alpaca(symbol, timeframe, as_of):
-    key, secret = os.getenv('ALPACA_API_KEY'), os.getenv('ALPACA_SECRET_KEY')
+def alpaca(symbol, timeframe, as_of, *, credentials=None):
+    key, secret = credentials if credentials is not None else (os.getenv('ALPACA_API_KEY'), os.getenv('ALPACA_SECRET_KEY'))
     if not key or not secret:
         raise ValueError('Alpaca credentials are missing')
     symbol = symbol.upper()

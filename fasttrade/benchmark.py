@@ -104,13 +104,11 @@ def run(args):
     ending = sum(cash[s] + shares[s] * float(frames[s].loc[final, 'close']) for s in symbols)
     spy_open = float(frames['SPY'].loc[first_open, 'open'])
     spy_close = float(frames['SPY'].loc[final, 'close'])
-    portfolio_values.append(ending)
-    spy_values.append(spy_close)
     excess = np.diff(portfolio_values) / portfolio_values[:-1] - np.diff(spy_values) / spy_values[:-1]
     significance = {'method': 'stationary bootstrap', 'observations': len(excess),
-                    'mean_weekly_excess_return': float(excess.mean()), 'confidence_interval': None,
-                    'block_length': max(2, math.ceil(len(excess) ** (1 / 3))), 'draws': 2000,
-                    'seed': 0, 'confidence_level': 0.95}
+                    'mean_weekly_excess_return': float(excess.mean()) if len(excess) else None, 'confidence_interval': None,
+                    'block_length': max(2, math.ceil(len(excess) ** (1 / 3))) if len(excess) >= 2 else None, 'draws': 2000,
+                    'seed': 0, 'confidence_level': 0.95, 'final_partial_period_excluded': True}
     if len(excess) >= 2:
         significance['confidence_interval'] = np.percentile(stationary_bootstrap_means(excess), [2.5, 97.5]).tolist()
     directional = []

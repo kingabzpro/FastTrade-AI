@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 
 from fasttrade.significance import reality_check
+from fasttrade.overfitting import cscv, evaluate_folds, purged_splits
 
 
 def run(folder):
@@ -28,7 +29,7 @@ def run(folder):
            or report['comparison_mode'] != name or report['model_requested'] != manifest['model']
            for report, name in zip(reports, ('baseline', 'new'))):
         raise ValueError('Reports do not match the frozen snapshot')
-    matrices, shared_times, spy_values = [], None, None
+    matrices, shared_times, shared_decisions, spy_values = [], None, None, None
     for report in reports:
         grouped = {}
         for row in report['decisions']:
@@ -45,7 +46,19 @@ def run(folder):
             raise ValueError('Execution weeks must be consecutive')
         if shared_times is not None and times != shared_times:
             raise ValueError('Variants must share execution times')
+        decision_times = []
+        for when in times:
+            cohort = {pd.Timestamp(row['decision_time']) for row in grouped[when].values()}
+            if len(cohort) != 1:
+                raise ValueError('Each review must share one decision time')
+            decision = next(iter(cohort))
+            if decision.tzinfo is None or decision >= when:
+                raise ValueError('Decision must precede execution')
+            decision_times.append(decision)
+        if shared_decisions is not None and decision_times != shared_decisions:
+            raise ValueError('Variants must share decision times')
         shared_times = times
+        shared_decisions = decision_times
         cash = {symbol: report['initial_balance'] / len(symbols) for symbol in symbols}
         shares = {symbol: 0.0 for symbol in symbols}
         values = []
@@ -75,9 +88,16 @@ def run(folder):
                 or abs(report['initial_balance'] * float(frames['SPY'].loc[valuation, 'close']) / spy_values[0] - report['spy_ending_balance']) > .01):
             raise ValueError('SPY does not match the report')
         matrices.append(np.diff(values) / values[:-1] - np.diff(spy_values) / spy_values[:-1])
-    result = reality_check(np.column_stack(matrices))
+    matrix = np.column_stack(matrices)
+    result = reality_check(matrix)
     result['variants'] = ['baseline', 'new']
     result['final_partial_period_excluded'] = True
+    starts = shared_decisions[:-1]
+    ends = [time + pd.Timedelta(hours=1) for time in shared_times[1:]]
+    splits = purged_splits(starts, ends, groups=6, test_groups=2)
+    result['overfitting'] = {'cscv': cscv(matrix), 'purged_folds': {'groups': 6, 'test_groups': 2, 'embargo_days': 7,
+                              'label_intervals': [{'start': a.isoformat(), 'end': b.isoformat()} for a, b in zip(starts, ends)],
+                              'folds': evaluate_folds(matrix, splits)}}
     return result
 
 

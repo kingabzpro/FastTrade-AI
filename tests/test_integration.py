@@ -113,6 +113,58 @@ def test_repeated_historical_analysis_reuses_market_snapshot(monkeypatch):
     assert len(calls) == 1
 
 
+def test_opt_in_regime_evidence_reaches_model_only_after_availability(monkeypatch, tmp_path):
+    path = tmp_path / 'candles.csv'
+    candles().to_csv(path, index=False)
+    corpus = {'created_at': '2026-01-01T00:00:00Z', 'timeframe': '5m', 'records': [
+        {'source_id': 'past', 'symbol': 'TEST', 'decision_time': '2025-12-01T00:00:00Z',
+         'available_at': '2025-12-01T00:00:00Z', 'outcome_available_at': '2025-12-08T00:00:00Z', 'outcome_return': .1,
+         'features': {'return_1': 0, 'return_3': 0, 'return_5': 0, 'rsi_14': 50, 'vwap_delta': 0, 'volume_ratio': 1}},
+        {'source_id': 'future', 'symbol': 'TEST', 'decision_time': '2025-12-29T00:00:00Z',
+         'available_at': '2025-12-29T00:00:00Z', 'outcome_available_at': '2026-01-05T00:00:00Z', 'outcome_return': .9, 'features': {}}]}
+    artifact = tmp_path / 'regimes.json'
+    artifact.write_text(json.dumps(corpus), encoding='utf-8')
+    seen = []
+    monkeypatch.setattr(cli, 'predict', lambda state, *args: seen.append(state) or decisions.normalize(answer(), 1))
+    args = cli.parser().parse_args(['analyze', 'TEST', '--csv', str(path), '--as-of', '2026-01-02T19:30Z', '--regime-data', str(artifact)])
+    result = cli.run(args)
+    assert [item['source_id'] for item in seen[0]['regime_evidence']] == ['past']
+    assert result['market']['regime_evidence'] == seen[0]['regime_evidence']
+
+
+def test_regime_timeframe_mismatch_fails_before_model_request(monkeypatch, tmp_path):
+    path = tmp_path / 'candles.csv'
+    candles().to_csv(path, index=False)
+    artifact = tmp_path / 'regimes.json'
+    artifact.write_text(json.dumps({'created_at': '2026-01-01T00:00:00Z', 'timeframe': '60m', 'records': []}), encoding='utf-8')
+    monkeypatch.setattr(cli, 'predict', lambda *args: pytest.fail('Model must not be called'))
+    args = cli.parser().parse_args(['analyze', 'TEST', '--csv', str(path), '--as-of', '2026-01-02T19:30Z', '--regime-data', str(artifact)])
+    with pytest.raises(ValueError, match='timeframe'):
+        cli.run(args)
+
+
+def test_future_regime_corpus_does_not_change_historical_model_state(monkeypatch, tmp_path):
+    path = tmp_path / 'candles.csv'
+    candles().to_csv(path, index=False)
+    artifact = tmp_path / 'regimes.json'
+    artifact.write_text(json.dumps({'created_at': '2026-01-03T00:00:00Z', 'timeframe': '5m', 'records': []}), encoding='utf-8')
+    states = []
+    monkeypatch.setattr(cli, 'predict', lambda state, *args: states.append(state) or decisions.normalize(answer(), 1))
+    common = ['analyze', 'TEST', '--csv', str(path), '--as-of', '2026-01-02T19:30Z']
+    cli.run(cli.parser().parse_args(common))
+    cli.run(cli.parser().parse_args([*common, '--regime-data', str(artifact)]))
+    assert states[0] == states[1]
+
+
+def test_regime_context_cannot_use_unmatched_calibration(monkeypatch, tmp_path):
+    path = tmp_path / 'candles.csv'
+    candles().to_csv(path, index=False)
+    monkeypatch.setattr(cli, 'predict', lambda *args: pytest.fail('Model must not be called'))
+    args = cli.parser().parse_args(['analyze', 'TEST', '--csv', str(path), '--as-of', '2026-01-02T19:30Z', '--regime-data', 'regimes.json', '--calibration', 'artifact.json'])
+    with pytest.raises(ValueError, match='calibration'):
+        cli.run(args)
+
+
 def test_live_analyses_reuse_snapshot_with_distinct_evaluation_times(monkeypatch):
     times = iter([pd.Timestamp('2026-01-02T19:31:00Z'), pd.Timestamp('2026-01-02T19:31:10Z')])
     class Clock:

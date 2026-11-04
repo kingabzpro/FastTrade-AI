@@ -49,6 +49,10 @@ def parser():
     c.add_argument('--fee-bps', type=float, default=5, help='Commission in basis points per side, for the return gate (default 5)')
     c.add_argument('--slippage-bps', type=float, default=10, help='Slippage in basis points per side, for the return gate (default 10)')
     c.add_argument('--output', help='New calibration artifact JSON path for analyze --calibration')
+    r = sub.add_parser('build-regimes', help='Build an offline historical regime corpus')
+    r.add_argument('--report', required=True, help='Backtest report JSON')
+    r.add_argument('--data-dir', required=True, help='Matching frozen dataset directory')
+    r.add_argument('--output', required=True, help='New corpus JSON path')
     return p
 
 
@@ -67,6 +71,7 @@ def add_analysis_arguments(a):
     a.add_argument('--calibration', help='Calibration artifact JSON from ft calibrate; confidence is then reported and gated calibrated')
     a.add_argument('--require-certified-edge', action='store_true', help='Block actionable signals unless the artifact certifies aggregate net-of-cost edge on its test window')
     a.add_argument('--edge-horizon', choices=('weekly-next-execution',), help='Declare the holding horizon used by the edge gate')
+    a.add_argument('--regime-data', help='Opt in to a matching historical regime corpus JSON')
     for name in ('position', 'equity', 'exposure', 'daily-loss', 'quantity', 'max-position', 'max-exposure', 'max-daily-loss', 'min-confidence'):
         a.add_argument('--' + name, type=float)
     for name in ('trade-count', 'max-trades'):
@@ -76,6 +81,8 @@ def add_analysis_arguments(a):
 def run(args):
     started = time.perf_counter_ns()
     load_dotenv()
+    if getattr(args, 'regime_data', None) and getattr(args, 'calibration', None):
+        raise ValueError('Regime evidence cannot be combined with calibration')
     as_of = pd.Timestamp(args.as_of) if args.as_of else pd.Timestamp(datetime.now(timezone.utc))
     if pd.isna(as_of) or as_of.tzinfo is None:
         raise ValueError('Evaluation time must include a timezone')
@@ -114,6 +121,13 @@ def run(args):
     state = {'symbol': args.symbol.upper(), 'timeframe': args.timeframe, 'candle_timestamp': frame.timestamp.iloc[-1].isoformat(), 'evaluation_time': as_of.isoformat(), 'features': snapshot, 'ticker_details': details, 'headlines': news}
     if not args.csv and args.as_of is None and not stale_preview:
         state['market_snapshot_cutoff'] = snapshot_cutoff.isoformat()
+    if getattr(args, 'regime_data', None):
+        from .regimes import retrieve
+        with open(args.regime_data, encoding='utf-8') as handle:
+            corpus = json.load(handle)
+        evidence = retrieve(corpus, snapshot, as_of, timeframe=args.timeframe)
+        if evidence is not None:
+            state['regime_evidence'] = evidence
     provider = getattr(args, 'decision_provider', 'jev')
     if provider != 'jev' and getattr(args, 'calibration', None):
         raise ValueError('Calibration artifacts are only supported with Jev')
@@ -241,6 +255,13 @@ def main():
         if args.command == 'benchmark':
             from .benchmark import run as run_benchmark
             result = run_benchmark(args)
+        elif args.command == 'build-regimes':
+            from .regimes import build_corpus
+            corpus = build_corpus(args.report, args.data_dir)
+            with open(args.output, 'x', encoding='utf-8') as output:
+                json.dump(corpus, output, indent=2, allow_nan=False)
+                output.write('\n')
+            result = {'corpus': args.output, 'created_at': corpus['created_at'], 'records': len(corpus['records'])}
         elif args.command == 'calibrate':
             from .calibration import run_calibration
             result = run_calibration(args)

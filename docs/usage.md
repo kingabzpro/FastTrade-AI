@@ -158,6 +158,19 @@ $hashes = @{}; 'sessions.csv','AAPL.csv','SPY.csv' | ForEach-Object { $hashes[$_
 
 Hashes make later changes detectable; they do not prove that the vendor's historical prices, calendar, or corporate-action attestation were correct or available at the time. Do not use Yahoo's retrospectively adjusted prices as raw prices. The engine does not check whether tickers were chosen with hindsight or whether the model's training included future events. These limitations mean the result cannot be certified free of all leakage. For stronger evidence, predefine the universe and rules, use point-in-time data and a model known to predate the test, and evaluate later out-of-sample periods. See the [CFA Institute's backtesting overview](https://www.cfainstitute.org/insights/professional-learning/refresher-readings/2026/backtesting-and-simulation) and [research on temporal leakage in language-model backtests](https://arxiv.org/abs/2608.02985).
 
+## Historical regime retrieval (research)
+
+Build a corpus from a validated-data backtest and its matching frozen dataset:
+
+```powershell
+uv run ft build-regimes --report .\backtest-report.json --data-dir .\market-data --output .\regimes.json
+uv run ft analyze AAPL --timeframe 60m --regime-data .\regimes.json
+```
+
+Building the corpus verifies the report's dataset-manifest hash and each dataset checksum, then recomputes a fixed numerical embedding of past returns, RSI, VWAP distance and volume ratio. Each record includes a source ID, symbol, decision time, availability times and the raw return between recorded execution opens. Returns exclude fees and dividends. The analyzer selects up to three nearest eligible records and includes them as research context in the model input and response; it does not establish a trading edge. The current builder supports hourly backtests only, and the analysis timeframe must match. This feature is opt-in and cannot be combined with existing calibration artifacts, which were fitted to a different model input.
+
+The corpus is available no earlier than its creation time; it is omitted entirely from earlier historical model inputs. Records must also have been available, with their outcomes complete, by that time and by the analysis cutoff. Timestamps and source hashes are attestations in a local file, not proof that the vendor's prices were point-in-time or that the file was not edited or backdated. Preserve the original corpus and its provenance; a later rebuild cannot be used as evidence available before that rebuild. This lookup has not been validated for trading, and the headline-scoring and controlled ablations in issue #12 remain unfinished.
+
 ## Decision calibration (research)
 
 `ft calibrate` fits a post-hoc mapping from the decision model's P(BUY) to realized weekly outcomes, using a frozen backtest report and its dataset:

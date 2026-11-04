@@ -14,6 +14,8 @@ Open `http://127.0.0.1:8765/`. Set `FASTTRADE_PROXY_PORT` to change the host por
 
 The app runs as UID 10001. Named volumes hold the batch SQLite database and Redis rate-limit data across restarts; `docker compose down` stops the stack without deleting them. Back up the database consistently, for example with SQLite's backup API. `docker compose down --volumes` deletes this state. The Dockerfile copies `pyproject.toml` and `uv.lock` before application source, so source-only rebuilds reuse the dependency layer. The standalone image's default server binds only to its own loopback; Compose deliberately binds the app to its container network and publishes only the proxy on host loopback.
 
+Compose gives the app 110 seconds to stop; uvicorn allows up to 100 seconds for requests to drain. A standalone `docker stop` needs an explicit timeout above 100 seconds (for example, `docker stop -t 110 CONTAINER`) to provide the same window. Requests or background work that exceed these limits can still be interrupted.
+
 The local Caddy configuration tells the app that proxied requests are local. Its published port **must remain bound to 127.0.0.1**; never widen that binding or put another externally reachable proxy in front of it. Only the dedicated Caddy container is trusted for forwarded headers. The private API configuration below uses a different Caddyfile that preserves the real client address.
 
 ## HTTPS for the versioned API over a VPN

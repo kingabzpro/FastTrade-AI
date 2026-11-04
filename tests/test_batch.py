@@ -35,6 +35,15 @@ def test_batch_usage_is_complete_only_when_every_result_reports_both_counts(monk
     assert cli.run_batch(args)['usage'] == {'input_tokens_reported': 6, 'output_tokens_reported': 0, 'complete': True, 'status': 'Token information available'}
 
 
+def test_batch_includes_final_attempt_tokens_when_prior_attempts_are_unknown(monkeypatch):
+    monkeypatch.setattr(cli, 'run', lambda args: {'decision': {'usage': {'input_tokens': 10, 'output_tokens': None, 'output_tokens_last_attempt': 3}}})
+    args = cli.parser().parse_args(['analyze-batch', 'A', 'B'])
+    usage = cli.run_batch(args)['usage']
+    assert usage['input_tokens_reported'] == 20
+    assert usage['output_tokens_reported'] == 6
+    assert usage['complete'] is False
+
+
 def test_missing_token_info_does_not_fail_successful_batch(monkeypatch):
     monkeypatch.setattr(cli, 'run', lambda args: {'decision': {'action': 'BUY', 'usage': None}})
     args = cli.parser().parse_args(['analyze-batch', 'A'])

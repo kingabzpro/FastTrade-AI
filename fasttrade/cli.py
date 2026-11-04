@@ -203,7 +203,7 @@ def run_batch(args):
         results = list(pool.map(analyze, symbols))
     usage = [item.get('result', {}).get('decision', {}).get('usage') for item in results]
     summary = {'input_tokens_reported': sum(item['input_tokens'] for item in usage if item is not None),
-               'output_tokens_reported': sum(item['output_tokens'] for item in usage if item is not None and item['output_tokens'] is not None),
+               'output_tokens_reported': sum(item['output_tokens'] if item['output_tokens'] is not None else item.get('output_tokens_last_attempt', 0) or 0 for item in usage if item is not None),
                'complete': all(item is not None and item['output_tokens'] is not None for item in usage)}
     summary['status'] = ('Token information available' if summary['complete'] else
                          'Token information unavailable for some analyses' if any(item is not None for item in usage) else

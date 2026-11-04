@@ -2,6 +2,7 @@ import math
 import os
 import time
 import httpx
+from .resilience import CircuitOpen, request
 
 
 PROVIDERS = {
@@ -49,11 +50,15 @@ def predict(state, url, model, key):
     headers = {'Authorization': f'Bearer {key}'} if key else {}
     start = time.perf_counter_ns()
     try:
-        response = httpx.post(url, json=payload, headers=headers, timeout=30)
+        response = request(httpx.post, url, service='decision:' + url, credentials=key, retry_transport=False, json=payload, headers=headers, timeout=30)
         response.raise_for_status()
         data = response.json()
     except httpx.TimeoutException as exc:
         raise ValueError('SystemOne request failed: timeout') from exc
-    except (httpx.HTTPError, ValueError) as exc:
+    except (httpx.HTTPError, CircuitOpen, ValueError) as exc:
         raise ValueError('SystemOne request failed') from exc
-    return normalize(data, (time.perf_counter_ns() - start) // 1000)
+    decision = normalize(data, (time.perf_counter_ns() - start) // 1000)
+    if response.extensions.get('fasttrade_attempts', 1) > 1 and decision['usage'] is not None:
+        decision['usage']['output_tokens_last_attempt'] = decision['usage']['output_tokens']
+        decision['usage']['output_tokens'] = None
+    return decision

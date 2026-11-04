@@ -37,6 +37,39 @@ def test_decision_request_and_timeout(monkeypatch):
         decisions.predict({}, 'https://example.com', 'jev', 'key')
 
 
+def test_model_retries_explicit_rate_limit_but_not_timeout(monkeypatch):
+    from fasttrade import resilience
+    resilience._circuits.clear()
+    delays, calls, now = [], [], [0.0]
+    monkeypatch.setattr(resilience, 'monotonic', lambda: now[0])
+    def sleep(seconds):
+        delays.append(seconds)
+        now[0] += seconds
+    monkeypatch.setattr(resilience, 'sleep', sleep)
+    monkeypatch.setattr(resilience.random, 'uniform', lambda *args: 0)
+    def post(url, **kwargs):
+        calls.append(1)
+        if len(calls) == 1:
+            return httpx.Response(429, headers={'Retry-After': '2'}, request=httpx.Request('POST', url))
+        data = answer()
+        data['usage'] = {'input_tokens': 10, 'output_tokens': 3}
+        return httpx.Response(200, json=data, request=httpx.Request('POST', url))
+    monkeypatch.setattr(decisions.httpx, 'post', post)
+    decision = decisions.predict({}, 'https://example.com', 'jev', 'key')
+    assert decision['action'] == 'BUY'
+    assert decision['usage']['input_tokens'] == 10
+    assert decision['usage']['output_tokens'] is None
+    assert decision['usage']['output_tokens_last_attempt'] == 3
+    assert len(calls) == 2 and delays == [2]
+    def timeout(url, **kwargs):
+        calls.append(1)
+        raise httpx.ReadTimeout('unknown outcome')
+    monkeypatch.setattr(decisions.httpx, 'post', timeout)
+    with pytest.raises(ValueError, match='timeout'):
+        decisions.predict({}, 'https://example.com', 'jev', 'key')
+    assert len(calls) == 3
+
+
 def test_csv_cli_missing_risk_is_signal_only(monkeypatch, tmp_path):
     path = tmp_path / 'candles.csv'
     candles().to_csv(path, index=False)

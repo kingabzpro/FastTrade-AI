@@ -38,9 +38,46 @@ def test_weekly_benchmark_uses_prior_candles_and_next_open(monkeypatch):
     assert report['directional_decisions'] == 2
     assert report['directional_accuracy_pct'] == 50.0
     significance = report['significance']
+    assert significance['observations'] == 1
+    assert significance['mean_weekly_excess_return'] == pytest.approx(0)
+    assert significance['confidence_interval'] is None
+    assert significance['final_partial_period_excluded'] is True
+
+
+def test_benchmark_bootstraps_only_complete_decision_intervals(monkeypatch):
+    from fasttrade import benchmark
+
+    times = pd.date_range('2026-01-01 14:30', periods=600, freq='h', tz='UTC')
+    frame = pd.DataFrame({'timestamp': times, 'open': 101.0, 'high': 101.0,
+                          'low': 97.0, 'close': 101.0, 'volume': 100})
+    frame.loc[200:, ['open', 'close']] = 99.0
+    frame.loc[350:, ['open', 'close']] = 98.0
+    frame.loc[450:, 'close'] = 97.0
+    monkeypatch.setattr(benchmark, 'download', lambda *args: frame.copy())
+    actions = iter(['BUY', 'SELL', 'HOLD'])
+    def predict(state, url, model, key):
+        return {'action': next(actions), 'confidence': .8, 'probabilities': {'BUY': .8, 'HOLD': .1, 'SELL': .1}, 'model': model, 'latency_us': 1000}
+    monkeypatch.setattr(cli, 'predict', predict)
+    args = cli.parser().parse_args(['benchmark', '--start', '2026-01-01', '--end', '2026-01-21', '--symbols', 'AAPL', '--model', 'test'])
+    significance = benchmark.run(args)['significance']
     assert significance['observations'] == 2
     assert significance['mean_weekly_excess_return'] == pytest.approx(1 / 198)
     assert significance['confidence_interval'] == pytest.approx([0, 1 / 99])
+
+
+def test_benchmark_reports_unavailable_interval_with_one_decision(monkeypatch):
+    from fasttrade import benchmark
+
+    times = pd.date_range('2026-01-01 14:30', periods=400, freq='h', tz='UTC')
+    frame = pd.DataFrame({'timestamp': times, 'open': 100.0, 'high': 101.0,
+                          'low': 99.0, 'close': 100.0, 'volume': 100})
+    monkeypatch.setattr(benchmark, 'download', lambda *args: frame.copy())
+    monkeypatch.setattr(cli, 'predict', lambda state, url, model, key: {'action': 'HOLD', 'confidence': .8, 'probabilities': {'BUY': .1, 'HOLD': .8, 'SELL': .1}, 'model': model, 'latency_us': 1000})
+    args = cli.parser().parse_args(['benchmark', '--start', '2026-01-01', '--end', '2026-01-07', '--symbols', 'AAPL', '--model', 'test'])
+    significance = benchmark.run(args)['significance']
+    assert significance['observations'] == 0
+    assert significance['mean_weekly_excess_return'] is None
+    assert significance['confidence_interval'] is None
 
 
 def test_benchmark_rejects_invalid_period():

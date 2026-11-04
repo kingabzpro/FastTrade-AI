@@ -160,6 +160,7 @@ def test_batch_parallelism_is_bounded_and_source_is_forwarded(batch_client, monk
     from fasttrade import web
     client, _ = batch_client
     lock = threading.Lock()
+    overlapping = threading.Event()
     active = peak = 0
     sources = []
     def analyze(args):
@@ -168,8 +169,10 @@ def test_batch_parallelism_is_bounded_and_source_is_forwarded(batch_client, monk
             active += 1
             peak = max(active, peak)
             sources.append(args.source)
+            if active >= 2:
+                overlapping.set()
         try:
-            time.sleep(.03)
+            overlapping.wait(3)
             return {'decision': {'usage': None}}
         finally:
             with lock:

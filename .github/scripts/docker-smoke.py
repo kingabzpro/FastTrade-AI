@@ -37,6 +37,9 @@ try:
         assert response.status == 200
     uid = subprocess.check_output(base + ['exec', '-T', 'app', 'id', '-u'], env=env, text=True).strip()
     assert uid == '10001'
+    container = subprocess.check_output(base + ['ps', '-q', 'app'], env=env, text=True).strip()
+    grace = subprocess.check_output(['docker', 'inspect', '--format', '{{.Config.StopTimeout}}', container], env=env, text=True).strip()
+    assert int(grace) > 100
 
     env['FASTTRADE_BATCH_KEY_HASHES'] = json.dumps({hashlib.sha256(b'smoke-key').hexdigest(): {
         'estimate_per_call': '0.01', 'request_cap': '0.10', 'daily_budget': '0.20'}})

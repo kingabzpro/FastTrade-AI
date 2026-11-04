@@ -64,8 +64,17 @@ def test_sigterm_drains_an_inflight_analysis(tmp_path):
             future = pool.submit(httpx.post, url + '/api/analyze', json={'symbol': 'TEST', 'sample': True}, timeout=15, trust_env=False)
             assert started.wait(10), 'Analysis did not reach the model'
             server.send_signal(signal.SIGTERM)
-            time.sleep(.3)
-            assert server.poll() is None, 'Server exited before the model completed'
+            deadline = time.monotonic() + 5
+            while True:
+                assert server.poll() is None, 'Server exited before the model completed'
+                try:
+                    with socket.create_connection(('127.0.0.1', port), timeout=.2):
+                        pass
+                except OSError:
+                    break
+                if time.monotonic() >= deadline:
+                    pytest.fail('Server did not stop accepting connections after SIGTERM')
+                time.sleep(.05)
             release.set()
             response = future.result(timeout=10)
             assert response.status_code == 200

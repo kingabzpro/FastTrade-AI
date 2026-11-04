@@ -461,6 +461,7 @@ async def analyze(body: AnalysisRequest):
         'Invalid Alpaca stock symbol': 'Enter a valid US stock ticker for Alpaca.',
         'Market data provider failed': 'Market data is unavailable. Check the symbol, timeframe, and connection.',
         'Market data provider timed out': 'Yahoo Finance timed out. Check your connection or try again later.',
+        'Market data provider rate limited': 'Yahoo Finance rate limit reached. Try again later.',
         'Market data provider returned no candles': 'No candles returned. Check the symbol and timeframe.',
         'At least 50 completed candles required': 'Not enough candles. Try another timeframe.',
         'No completed candles': 'No completed candles are available.',

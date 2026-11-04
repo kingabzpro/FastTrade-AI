@@ -219,6 +219,7 @@ def run(args):
                 for symbol in symbols:
                     analysis = cli.parser().parse_args(['analyze', symbol, '--timeframe', '60m', '--csv', str(paths[symbol]), '--as-of', decision_time.isoformat()])
                     analysis.systemone_model = model
+                    analysis.forecast = getattr(args, 'forecast', False)
                     for attempt in range(3):
                         try:
                             result = cli.run(analysis)
@@ -235,6 +236,8 @@ def run(args):
                     pending[symbol] = decision['action']
                     state_bytes = json.dumps(result['market'], sort_keys=True, separators=(',', ':'), allow_nan=False).encode('utf-8')
                     decisions.append({'symbol': symbol, 'decision_time': decision_time.isoformat(), 'execution_time': sessions.open.iloc[i+1].isoformat(), 'candle_timestamp': result['market']['candle_timestamp'], 'state_sha256': hashlib.sha256(state_bytes).hexdigest(), 'action': decision['action'], 'probabilities': decision['probabilities'], 'confidence': decision['confidence'], 'model': decision['model'], 'latency_ms': decision['latency_us'] / 1000, 'usage': decision.get('usage')})
+                    if analysis.forecast:
+                        decisions[-1]['forecast'] = result['market']['forecast']
     if not curve or first_execution is None:
         raise ValueError('No executable decisions in the requested period')
     ending = curve[-1]['equity']

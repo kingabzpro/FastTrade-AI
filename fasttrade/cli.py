@@ -40,6 +40,7 @@ def parser():
     t.add_argument('--model', default=None, help='SystemOne model; defaults to SYSTEMONE_MODEL')
     t.add_argument('--fee-bps', type=float, default=5, help='Commission in basis points per side (default 5)')
     t.add_argument('--slippage-bps', type=float, default=10, help='Slippage in basis points per side (default 10)')
+    t.add_argument('--forecast', action='store_true', help='Include an unvalidated local next-bar forecast')
     t.add_argument('--output', required=True, help='New JSON report path')
     c = sub.add_parser('calibrate', help='Fit decision-probability calibration from a frozen backtest report (research only)')
     c.add_argument('--report', required=True, help='Backtest report JSON with per-decision probabilities')
@@ -72,6 +73,7 @@ def add_analysis_arguments(a):
     a.add_argument('--require-certified-edge', action='store_true', help='Block actionable signals unless the artifact certifies aggregate net-of-cost edge on its test window')
     a.add_argument('--edge-horizon', choices=('weekly-next-execution',), help='Declare the holding horizon used by the edge gate')
     a.add_argument('--regime-data', help='Opt in to a matching historical regime corpus JSON')
+    a.add_argument('--forecast', action='store_true', help='Include an unvalidated local next-bar forecast')
     for name in ('position', 'equity', 'exposure', 'daily-loss', 'quantity', 'max-position', 'max-exposure', 'max-daily-loss', 'min-confidence'):
         a.add_argument('--' + name, type=float)
     for name in ('trade-count', 'max-trades'):
@@ -83,6 +85,8 @@ def run(args):
     load_dotenv()
     if getattr(args, 'regime_data', None) and getattr(args, 'calibration', None):
         raise ValueError('Regime evidence cannot be combined with calibration')
+    if getattr(args, 'forecast', False) and getattr(args, 'calibration', None):
+        raise ValueError('Forecast evidence cannot be combined with calibration')
     as_of = pd.Timestamp(args.as_of) if args.as_of else pd.Timestamp(datetime.now(timezone.utc))
     if pd.isna(as_of) or as_of.tzinfo is None:
         raise ValueError('Evaluation time must include a timezone')
@@ -120,6 +124,9 @@ def run(args):
             raise ValueError(f'{name} must be nonnegative and finite')
         snapshot[name] = val
     state = {'symbol': args.symbol.upper(), 'timeframe': args.timeframe, 'candle_timestamp': frame.timestamp.iloc[-1].isoformat(), 'evaluation_time': as_of.isoformat(), 'features': snapshot, 'ticker_details': details, 'headlines': news}
+    if getattr(args, 'forecast', False):
+        from .forecast import next_bar
+        state['forecast'] = next_bar(frame.close)
     if not args.csv and args.as_of is None and not stale_preview:
         state['market_snapshot_cutoff'] = snapshot_cutoff.isoformat()
     if getattr(args, 'regime_data', None):

@@ -1,0 +1,3679 @@
+{
+  "start": "2026-09-28",
+  "end": "2026-10-27",
+  "symbols": [
+    "AAPL",
+    "AMD",
+    "AMZN",
+    "BAC",
+    "COST",
+    "CVX",
+    "DIS",
+    "GOOGL",
+    "HD",
+    "IBM",
+    "INTC",
+    "JNJ",
+    "JPM",
+    "KO",
+    "MCD",
+    "META",
+    "MSFT",
+    "NVDA",
+    "PEP",
+    "PG",
+    "TSLA",
+    "UNH",
+    "V",
+    "WMT",
+    "XOM"
+  ],
+  "model_requested": "jev-1.14.0",
+  "model_resolved": "jev-1.14.0",
+  "model_retries": 0,
+  "mean_model_latency_ms": 566.78,
+  "input_tokens_successful": 98266,
+  "usage_complete": true,
+  "dataset_manifest_sha256": "cf9392006fcd098cff829c6b697ac51131d74ef161e7b908305dd9491622053e",
+  "fee_bps": 5,
+  "slippage_bps": 10,
+  "initial_balance": 10000.0,
+  "first_execution_time": "2026-10-05T13:30:00+00:00",
+  "ending_balance": 10209.75,
+  "return_pct": 2.1,
+  "spy_ending_balance": 9983.2,
+  "spy_return_pct": -0.17,
+  "max_drawdown_pct": -1.02,
+  "total_fees": 5.96,
+  "dividend_receivables": 2.87,
+  "spy_dividend_receivables": 0.0,
+  "dividends": [
+    {
+      "symbol": "PG",
+      "ex_date": "2026-10-23",
+      "pay_date": "2026-11-16",
+      "shares": 2.6384852138779475,
+      "amount_per_share": 1.0885,
+      "receivable": 2.871991155306146
+    }
+  ],
+  "decisions": [
+    {
+      "symbol": "AAPL",
+      "decision_time": "2026-10-02T20:30:00+00:00",
+      "execution_time": "2026-10-05T13:30:00+00:00",
+      "candle_timestamp": "2026-10-02T19:30:00+00:00",
+      "state_sha256": "01ece61b8d467442cdb11e137359835cbba533ad4c3670c5ea11f9e3db1977e5",
+      "action": "HOLD",
+      "probabilities": {
+        "BUY": 0.29,
+        "HOLD": 0.68,
+        "SELL": 0.03
+      },
+      "confidence": 0.52,
+      "model": "jev-1.14.0",
+      "latency_ms": 682.818,
+      "usage": {
+        "input_tokens": 982,
+        "output_tokens": 40
+      },
+      "forecast": {
+        "status": "unvalidated",
+        "model": "amazon/chronos-bolt-tiny",
+        "revision": "a0e552de83495b5c28c14c71c374f3e33280b340",
+        "context_length": 50,
+        "horizon_bars": 1,
+        "quantiles": {
+          "p10": 331.4320068359375,
+          "p50": 333.7595520019531,
+          "p90": 335.62347412109375
+        }
+      }
+    },
+    {
+      "symbol": "AMD",
+      "decision_time": "2026-10-02T20:30:00+00:00",
+      "execution_time": "2026-10-05T13:30:00+00:00",
+      "candle_timestamp": "2026-10-02T19:30:00+00:00",
+      "state_sha256": "ed07146e2c6b785ef8981f5af20339f93bc932b7919c81a2baca5baba25e4150",
+      "action": "BUY",
+      "probabilities": {
+        "BUY": 0.66,
+        "HOLD": 0.31,
+        "SELL": 0.03
+      },
+      "confidence": 0.49,
+      "model": "jev-1.14.0",
+      "latency_ms": 553.442,
+      "usage": {
+        "input_tokens": 978,
+        "output_tokens": 39
+      },
+      "forecast": {
+        "status": "unvalidated",
+        "model": "amazon/chronos-bolt-tiny",
+        "revision": "a0e552de83495b5c28c14c71c374f3e33280b340",
+        "context_length": 50,
+        "horizon_bars": 1,
+        "quantiles": {
+          "p10": 623.7891845703125,
+          "p50": 632.6412963867188,
+          "p90": 638.8605346679688
+        }
+      }
+    },
+    {
+      "symbol": "AMZN",
+      "decision_time": "2026-10-02T20:30:00+00:00",
+      "execution_time": "2026-10-05T13:30:00+00:00",
+      "candle_timestamp": "2026-10-02T19:30:00+00:00",
+      "state_sha256": "f9c157074678ed3191bf26bf317a0562008cdac9c85a9249c419dc927c754c1c",
+      "action": "BUY",
+      "probabilities": {
+        "BUY": 0.82,
+        "HOLD": 0.17,
+        "SELL": 0.01
+      },
+      "confidence": 0.73,
+      "model": "jev-1.14.0",
+      "latency_ms": 544.334,
+      "usage": {
+        "input_tokens": 979,
+        "output_tokens": 39
+      },
+      "forecast": {
+        "status": "unvalidated",
+        "model": "amazon/chronos-bolt-tiny",
+        "revision": "a0e552de83495b5c28c14c71c374f3e33280b340",
+        "context_length": 50,
+        "horizon_bars": 1,
+        "quantiles": {
+          "p10": 249.29962158203125,
+          "p50": 251.2272186279297,
+          "p90": 252.91455078125
+        }
+      }
+    },
+    {
+      "symbol": "BAC",
+      "decision_time": "2026-10-02T20:30:00+00:00",
+      "execution_time": "2026-10-05T13:30:00+00:00",
+      "candle_timestamp": "2026-10-02T19:30:00+00:00",
+      "state_sha256": "8764bc976a278beb88e84ea7a411a3bbec28dba38012822ddcc869b81ced9081",
+      "action": "HOLD",
+      "probabilities": {
+        "BUY": 0.19,
+        "HOLD": 0.59,
+        "SELL": 0.22
+      },
+      "confidence": 0.38,
+      "model": "jev-1.14.0",
+      "latency_ms": 561.913,
+      "usage": {
+        "input_tokens": 983,
+        "output_tokens": 40
+      },
+      "forecast": {
+        "status": "unvalidated",
+        "model": "amazon/chronos-bolt-tiny",
+        "revision": "a0e552de83495b5c28c14c71c374f3e33280b340",
+        "context_length": 50,
+        "horizon_bars": 1,
+        "quantiles": {
+          "p10": 53.33131408691406,
+          "p50": 53.69009017944336,
+          "p90": 53.96922302246094
+        }
+      }
+    },
+    {
+      "symbol": "COST",
+      "decision_time": "2026-10-02T20:30:00+00:00",
+      "execution_time": "2026-10-05T13:30:00+00:00",
+      "candle_timestamp": "2026-10-02T19:30:00+00:00",
+      "state_sha256": "0e00c07d142e700a18da2698c5b4a6ebf472c282e6dc358f3748db79a11bed8d",
+      "action": "BUY",
+      "probabilities": {
+        "BUY": 0.87,
+        "HOLD": 0.12,
+        "SELL": 0.01
+      },
+      "confidence": 0.8,
+      "model": "jev-1.14.0",
+      "latency_ms": 547.781,
+      "usage": {
+        "input_tokens": 977,
+        "output_tokens": 39
+      },
+      "forecast": {
+        "status": "unvalidated",
+        "model": "amazon/chronos-bolt-tiny",
+        "revision": "a0e552de83495b5c28c14c71c374f3e33280b340",
+        "context_length": 50,
+        "horizon_bars": 1,
+        "quantiles": {
+          "p10": 913.8854370117188,
+          "p50": 920.46337890625,
+          "p90": 924.1439208984375
+        }
+      }
+    },
+    {
+      "symbol": "CVX",
+      "decision_time": "2026-10-02T20:30:00+00:00",
+      "execution_time": "2026-10-05T13:30:00+00:00",
+      "candle_timestamp": "2026-10-02T19:30:00+00:00",
+      "state_sha256": "51f0fee63e949e3cb366a4b8244d9080967d0a0ee6358c9cbfaea076d75a4943",
+      "action": "BUY",
+      "probabilities": {
+        "BUY": 0.61,
+        "HOLD": 0.38,
+        "SELL": 0.01
+      },
+      "confidence": 0.42,
+      "model": "jev-1.14.0",
+      "latency_ms": 602.995,
+      "usage": {
+        "input_tokens": 990,
+        "output_tokens": 39
+      },
+      "forecast": {
+        "status": "unvalidated",
+        "model": "amazon/chronos-bolt-tiny",
+        "revision": "a0e552de83495b5c28c14c71c374f3e33280b340",
+        "context_length": 50,
+        "horizon_bars": 1,
+        "quantiles": {
+          "p10": 205.41456604003906,
+          "p50": 206.50128173828125,
+          "p90": 207.50543212890625
+        }
+      }
+    },
+    {
+      "symbol": "DIS",
+      "decision_time": "2026-10-02T20:30:00+00:00",
+      "execution_time": "2026-10-05T13:30:00+00:00",
+      "candle_timestamp": "2026-10-02T19:30:00+00:00",
+      "state_sha256": "bbff0bbe193b826564fc5d5fc9279ac054bac0e7eb5fd7c095938abe293f80cc",
+      "action": "HOLD",
+      "probabilities": {
+        "BUY": 0.08,
+        "HOLD": 0.5,
+        "SELL": 0.42
+      },
+      "confidence": 0.25,
+      "model": "jev-1.14.0",
+      "latency_ms": 621.728,
+      "usage": {
+        "input_tokens": 991,
+        "output_tokens": 40
+      },
+      "forecast": {
+        "status": "unvalidated",
+        "model": "amazon/chronos-bolt-tiny",
+        "revision": "a0e552de83495b5c28c14c71c374f3e33280b340",
+        "context_length": 50,
+        "horizon_bars": 1,
+        "quantiles": {
+          "p10": 101.42084503173828,
+          "p50": 101.8700942993164,
+          "p90": 102.44428253173828
+        }
+      }
+    },
+    {
+      "symbol": "GOOGL",
+      "decision_time": "2026-10-02T20:30:00+00:00",
+      "execution_time": "2026-10-05T13:30:00+00:00",
+      "candle_timestamp": "2026-10-02T19:30:00+00:00",
+      "state_sha256": "098b42d0e23e17b0094fe9e869d4663fa21af3941b1060f598da77a6de83770c",
+      "action": "HOLD",
+      "probabilities": {
+        "BUY": 0.22,
+        "HOLD": 0.75,
+        "SELL": 0.03
+      },
+      "confidence": 0.62,
+      "model": "jev-1.14.0",
+      "latency_ms": 590.092,
+      "usage": {
+        "input_tokens": 989,
+        "output_tokens": 40
+      },
+      "forecast": {
+        "status": "unvalidated",
+        "model": "amazon/chronos-bolt-tiny",
+        "revision": "a0e552de83495b5c28c14c71c374f3e33280b340",
+        "context_length": 50,
+        "horizon_bars": 1,
+        "quantiles": {
+          "p10": 341.2179870605469,
+          "p50": 343.7815856933594,
+          "p90": 346.70074462890625
+        }
+      }
+    },
+    {
+      "symbol": "HD",
+      "decision_time": "2026-10-02T20:30:00+00:00",
+      "execution_time": "2026-10-05T13:30:00+00:00",
+      "candle_timestamp": "2026-10-02T19:30:00+00:00",
+      "state_sha256": "972ac5eaeb45448d4bf1a3f7ca50fc69ef84dc1e364b2580efe635629858b311",
+      "action": "HOLD",
+      "probabilities": {
+        "BUY": 0.06,
+        "HOLD": 0.51,
+        "SELL": 0.43
+      },
+      "confidence": 0.26,
+      "model": "jev-1.14.0",
+      "latency_ms": 538.513,
+      "usage": {
+        "input_tokens": 987,
+        "output_tokens": 40
+      },
+      "forecast": {
+        "status": "unvalidated",
+        "model": "amazon/chronos-bolt-tiny",
+        "revision": "a0e552de83495b5c28c14c71c374f3e33280b340",
+        "context_length": 50,
+        "horizon_bars": 1,
+        "quantiles": {
+          "p10": 280.4054870605469,
+          "p50": 282.6453857421875,
+          "p90": 284.48504638671875
+        }
+      }
+    },
+    {
+      "symbol": "IBM",
+      "decision_time": "2026-10-02T20:30:00+00:00",
+      "execution_time": "2026-10-05T13:30:00+00:00",
+      "candle_timestamp": "2026-10-02T19:30:00+00:00",
+      "state_sha256": "168186d2c503c9cf029edf2bacda13993ad4c887a01a426a01bb1095025f6a1f",
+      "action": "HOLD",
+      "probabilities": {
+        "BUY": 0.08,
+        "HOLD": 0.7,
+        "SELL": 0.22
+      },
+      "confidence": 0.55,
+      "model": "jev-1.14.0",
+      "latency_ms": 545.34,
+      "usage": {
+        "input_tokens": 988,
+        "output_tokens": 40
+      },
+      "forecast": {
+        "status": "unvalidated",
+        "model": "amazon/chronos-bolt-tiny",
+        "revision": "a0e552de83495b5c28c14c71c374f3e33280b340",
+        "context_length": 50,
+        "horizon_bars": 1,
+        "quantiles": {
+          "p10": 220.7804412841797,
+          "p50": 222.6619873046875,
+          "p90": 225.04042053222656
+        }
+      }
+    },
+    {
+      "symbol": "INTC",
+      "decision_time": "2026-10-02T20:30:00+00:00",
+      "execution_time": "2026-10-05T13:30:00+00:00",
+      "candle_timestamp": "2026-10-02T19:30:00+00:00",
+      "state_sha256": "befd2065850174f0704c56aa06001931f307203631e9d881e69d6d8006c152bd",
+      "action": "HOLD",
+      "probabilities": {
+        "BUY": 0.05,
+        "HOLD": 0.58,
+        "SELL": 0.37
+      },
+      "confidence": 0.37,
+      "model": "jev-1.14.0",
+      "latency_ms": 559.979,
+      "usage": {
+        "input_tokens": 990,
+        "output_tokens": 40
+      },
+      "forecast": {
+        "status": "unvalidated",
+        "model": "amazon/chronos-bolt-tiny",
+        "revision": "a0e552de83495b5c28c14c71c374f3e33280b340",
+        "context_length": 50,
+        "horizon_bars": 1,
+        "quantiles": {
+          "p10": 117.13933563232422,
+          "p50": 118.99432373046875,
+          "p90": 120.90861511230469
+        }
+      }
+    },
+    {
+      "symbol": "JNJ",
+      "decision_time": "2026-10-02T20:30:00+00:00",
+      "execution_time": "2026-10-05T13:30:00+00:00",
+      "candle_timestamp": "2026-10-02T19:30:00+00:00",
+      "state_sha256": "a8cfff8074520e861ce577a31dc9178485a44aaaea3ff9e4c703825eb4b48985",
+      "action": "SELL",
+      "probabilities": {
+        "BUY": 0.25,
+        "HOLD": 0.33,
+        "SELL": 0.42
+      },
+      "confidence": 0.13,
+      "model": "jev-1.14.0",
+      "latency_ms": 601.58,
+      "usage": {
+        "input_tokens": 984,
+        "output_tokens": 39
+      },
+      "forecast": {
+        "status": "unvalidated",
+        "model": "amazon/chronos-bolt-tiny",
+        "revision": "a0e552de83495b5c28c14c71c374f3e33280b340",
+        "context_length": 50,
+        "horizon_bars": 1,
+        "quantiles": {
+          "p10": 254.50254821777344,
+          "p50": 255.8093719482422,
+          "p90": 257.34661865234375
+        }
+      }
+    },
+    {
+      "symbol": "JPM",
+      "decision_time": "2026-10-02T20:30:00+00:00",
+      "execution_time": "2026-10-05T13:30:00+00:00",
+      "candle_timestamp": "2026-10-02T19:30:00+00:00",
+      "state_sha256": "5873fc9a10fd5715cfccbe522b3fc575211c714b0b138dfe495c981ba3cc527d",
+      "action": "HOLD",
+      "probabilities": {
+        "BUY": 0.23,
+        "HOLD": 0.69,
+        "SELL": 0.08
+      },
+      "confidence": 0.53,
+      "model": "jev-1.14.0",
+      "latency_ms": 551.273,
+      "usage": {
+        "input_tokens": 980,
+        "output_tokens": 40
+      },
+      "forecast": {
+        "status": "unvalidated",
+        "model": "amazon/chronos-bolt-tiny",
+        "revision": "a0e552de83495b5c28c14c71c374f3e33280b340",
+        "context_length": 50,
+        "horizon_bars": 1,
+        "quantiles": {
+          "p10": 330.5614929199219,
+          "p50": 332.2841796875,
+          "p90": 333.56671142578125
+        }
+      }
+    },
+    {
+      "symbol": "KO",
+      "decision_time": "2026-10-02T20:30:00+00:00",
+      "execution_time": "2026-10-05T13:30:00+00:00",
+      "candle_timestamp": "2026-10-02T19:30:00+00:00",
+      "state_sha256": "b1910a2f67c53aa0926b930f5da0cba220a14183a8d8f8d1417303d90c49c42b",
+      "action": "HOLD",
+      "probabilities": {
+        "BUY": 0.13,
+        "HOLD": 0.48,
+        "SELL": 0.39
+      },
+      "confidence": 0.22,
+      "model": "jev-1.14.0",
+      "latency_ms": 554.556,
+      "usage": {
+        "input_tokens": 983,
+        "output_tokens": 40
+      },
+      "forecast": {
+        "status": "unvalidated",
+        "model": "amazon/chronos-bolt-tiny",
+        "revision": "a0e552de83495b5c28c14c71c374f3e33280b340",
+        "context_length": 50,
+        "horizon_bars": 1,
+        "quantiles": {
+          "p10": 85.25739288330078,
+          "p50": 85.60800170898438,
+          "p90": 85.91167449951172
+        }
+      }
+    },
+    {
+      "symbol": "MCD",
+      "decision_time": "2026-10-02T20:30:00+00:00",
+      "execution_time": "2026-10-05T13:30:00+00:00",
+      "candle_timestamp": "2026-10-02T19:30:00+00:00",
+      "state_sha256": "6e31f42d189e4b3631e09877b5271f49f1a54657ab3c67febf9a768635bea271",
+      "action": "HOLD",
+      "probabilities": {
+        "BUY": 0.17,
+        "HOLD": 0.6,
+        "SELL": 0.23
+      },
+      "confidence": 0.4,
+      "model": "jev-1.14.0",
+      "latency_ms": 559.991,
+      "usage": {
+        "input_tokens": 987,
+        "output_tokens": 40
+      },
+      "forecast": {
+        "status": "unvalidated",
+        "model": "amazon/chronos-bolt-tiny",
+        "revision": "a0e552de83495b5c28c14c71c374f3e33280b340",
+        "context_length": 50,
+        "horizon_bars": 1,
+        "quantiles": {
+          "p10": 230.79974365234375,
+          "p50": 231.90611267089844,
+          "p90": 232.92991638183594
+        }
+      }
+    },
+    {
+      "symbol": "META",
+      "decision_time": "2026-10-02T20:30:00+00:00",
+      "execution_time": "2026-10-05T13:30:00+00:00",
+      "candle_timestamp": "2026-10-02T19:30:00+00:00",
+      "state_sha256": "09e4c1c9fcb7870e04bfae28821893d7bda71e0397bf8377a025483fe69b289c",
+      "action": "HOLD",
+      "probabilities": {
+        "BUY": 0.08,
+        "HOLD": 0.64,
+        "SELL": 0.28
+      },
+      "confidence": 0.46,
+      "model": "jev-1.14.0",
+      "latency_ms": 543.171,
+      "usage": {
+        "input_tokens": 978,
+        "output_tokens": 40
+      },
+      "forecast": {
+        "status": "unvalidated",
+        "model": "amazon/chronos-bolt-tiny",
+        "revision": "a0e552de83495b5c28c14c71c374f3e33280b340",
+        "context_length": 50,
+        "horizon_bars": 1,
+        "quantiles": {
+          "p10": 720.0562133789062,
+          "p50": 727.8508911132812,
+          "p90": 738.896484375
+        }
+      }
+    },
+    {
+      "symbol": "MSFT",
+      "decision_time": "2026-10-02T20:30:00+00:00",
+      "execution_time": "2026-10-05T13:30:00+00:00",
+      "candle_timestamp": "2026-10-02T19:30:00+00:00",
+      "state_sha256": "fee9afb97db5a4356ce5bc6d4969f3dc9073da3554d094dba1ba7ef5bed58f1e",
+      "action": "BUY",
+      "probabilities": {
+        "BUY": 0.58,
+        "HOLD": 0.39,
+        "SELL": 0.03
+      },
+      "confidence": 0.37,
+      "model": "jev-1.14.0",
+      "latency_ms": 553.893,
+      "usage": {
+        "input_tokens": 977,
+        "output_tokens": 39
+      },
+      "forecast": {
+        "status": "unvalidated",
+        "model": "amazon/chronos-bolt-tiny",
+        "revision": "a0e552de83495b5c28c14c71c374f3e33280b340",
+        "context_length": 50,
+        "horizon_bars": 1,
+        "quantiles": {
+          "p10": 512.2323608398438,
+          "p50": 517.1614379882812,
+          "p90": 520.1065063476562
+        }
+      }
+    },
+    {
+      "symbol": "NVDA",
+      "decision_time": "2026-10-02T20:30:00+00:00",
+      "execution_time": "2026-10-05T13:30:00+00:00",
+      "candle_timestamp": "2026-10-02T19:30:00+00:00",
+      "state_sha256": "1bb40aa2887cbe6c67088f730149672cdcfeff1df572fe136ba851c0d5b40a7e",
+      "action": "BUY",
+      "probabilities": {
+        "BUY": 0.49,
+        "HOLD": 0.47,
+        "SELL": 0.04
+      },
+      "confidence": 0.24,
+      "model": "jev-1.14.0",
+      "latency_ms": 537.814,
+      "usage": {
+        "input_tokens": 987,
+        "output_tokens": 39
+      },
+      "forecast": {
+        "status": "unvalidated",
+        "model": "amazon/chronos-bolt-tiny",
+        "revision": "a0e552de83495b5c28c14c71c374f3e33280b340",
+        "context_length": 50,
+        "horizon_bars": 1,
+        "quantiles": {
+          "p10": 231.47671508789062,
+          "p50": 233.8565216064453,
+          "p90": 235.8841094970703
+        }
+      }
+    },
+    {
+      "symbol": "PEP",
+      "decision_time": "2026-10-02T20:30:00+00:00",
+      "execution_time": "2026-10-05T13:30:00+00:00",
+      "candle_timestamp": "2026-10-02T19:30:00+00:00",
+      "state_sha256": "154c4b7c9d30eedf88ae002f6937727afc54370a22ee2e61c4a6fb0cbc895943",
+      "action": "HOLD",
+      "probabilities": {
+        "BUY": 0.18,
+        "HOLD": 0.54,
+        "SELL": 0.28
+      },
+      "confidence": 0.31,
+      "model": "jev-1.14.0",
+      "latency_ms": 531.693,
+      "usage": {
+        "input_tokens": 987,
+        "output_tokens": 40
+      },
+      "forecast": {
+        "status": "unvalidated",
+        "model": "amazon/chronos-bolt-tiny",
+        "revision": "a0e552de83495b5c28c14c71c374f3e33280b340",
+        "context_length": 50,
+        "horizon_bars": 1,
+        "quantiles": {
+          "p10": 125.23661804199219,
+          "p50": 125.73307037353516,
+          "p90": 126.2348403930664
+        }
+      }
+    },
+    {
+      "symbol": "PG",
+      "decision_time": "2026-10-02T20:30:00+00:00",
+      "execution_time": "2026-10-05T13:30:00+00:00",
+      "candle_timestamp": "2026-10-02T19:30:00+00:00",
+      "state_sha256": "0656216a21ae48a86760b4259a18cc27a7113c0c1707a9b875ae879ec024b91e",
+      "action": "HOLD",
+      "probabilities": {
+        "BUY": 0.2,
+        "HOLD": 0.61,
+        "SELL": 0.19
+      },
+      "confidence": 0.42,
+      "model": "jev-1.14.0",
+      "latency_ms": 620.235,
+      "usage": {
+        "input_tokens": 982,
+        "output_tokens": 40
+      },
+      "forecast": {
+        "status": "unvalidated",
+        "model": "amazon/chronos-bolt-tiny",
+        "revision": "a0e552de83495b5c28c14c71c374f3e33280b340",
+        "context_length": 50,
+        "horizon_bars": 1,
+        "quantiles": {
+          "p10": 144.1378936767578,
+          "p50": 144.72506713867188,
+          "p90": 145.22840881347656
+        }
+      }
+    },
+    {
+      "symbol": "TSLA",
+      "decision_time": "2026-10-02T20:30:00+00:00",
+      "execution_time": "2026-10-05T13:30:00+00:00",
+      "candle_timestamp": "2026-10-02T19:30:00+00:00",
+      "state_sha256": "fdc4efdfba85769eb59d04260cc4331598f3b9046908b9eba33119a91868f2de",
+      "action": "BUY",
+      "probabilities": {
+        "BUY": 0.64,
+        "HOLD": 0.31,
+        "SELL": 0.05
+      },
+      "confidence": 0.46,
+      "model": "jev-1.14.0",
+      "latency_ms": 563.508,
+      "usage": {
+        "input_tokens": 985,
+        "output_tokens": 39
+      },
+      "forecast": {
+        "status": "unvalidated",
+        "model": "amazon/chronos-bolt-tiny",
+        "revision": "a0e552de83495b5c28c14c71c374f3e33280b340",
+        "context_length": 50,
+        "horizon_bars": 1,
+        "quantiles": {
+          "p10": 367.2943420410156,
+          "p50": 372.57916259765625,
+          "p90": 376.9497985839844
+        }
+      }
+    },
+    {
+      "symbol": "UNH",
+      "decision_time": "2026-10-02T20:30:00+00:00",
+      "execution_time": "2026-10-05T13:30:00+00:00",
+      "candle_timestamp": "2026-10-02T19:30:00+00:00",
+      "state_sha256": "3d007ad1919ee7dab3db7d6b2218c36bac9abe61df45b6eb4a35a1e07f8578fc",
+      "action": "BUY",
+      "probabilities": {
+        "BUY": 0.67,
+        "HOLD": 0.31,
+        "SELL": 0.02
+      },
+      "confidence": 0.5,
+      "model": "jev-1.14.0",
+      "latency_ms": 549.386,
+      "usage": {
+        "input_tokens": 982,
+        "output_tokens": 39
+      },
+      "forecast": {
+        "status": "unvalidated",
+        "model": "amazon/chronos-bolt-tiny",
+        "revision": "a0e552de83495b5c28c14c71c374f3e33280b340",
+        "context_length": 50,
+        "horizon_bars": 1,
+        "quantiles": {
+          "p10": 368.767822265625,
+          "p50": 371.29058837890625,
+          "p90": 373.3570556640625
+        }
+      }
+    },
+    {
+      "symbol": "V",
+      "decision_time": "2026-10-02T20:30:00+00:00",
+      "execution_time": "2026-10-05T13:30:00+00:00",
+      "candle_timestamp": "2026-10-02T19:30:00+00:00",
+      "state_sha256": "27a3280701deeb2c58a7842aeae6830fcd2d92f854eed1ed2cfa9d880783ef08",
+      "action": "HOLD",
+      "probabilities": {
+        "BUY": 0.16,
+        "HOLD": 0.69,
+        "SELL": 0.15
+      },
+      "confidence": 0.53,
+      "model": "jev-1.14.0",
+      "latency_ms": 568.272,
+      "usage": {
+        "input_tokens": 986,
+        "output_tokens": 40
+      },
+      "forecast": {
+        "status": "unvalidated",
+        "model": "amazon/chronos-bolt-tiny",
+        "revision": "a0e552de83495b5c28c14c71c374f3e33280b340",
+        "context_length": 50,
+        "horizon_bars": 1,
+        "quantiles": {
+          "p10": 359.0287170410156,
+          "p50": 360.8866882324219,
+          "p90": 362.4825134277344
+        }
+      }
+    },
+    {
+      "symbol": "WMT",
+      "decision_time": "2026-10-02T20:30:00+00:00",
+      "execution_time": "2026-10-05T13:30:00+00:00",
+      "candle_timestamp": "2026-10-02T19:30:00+00:00",
+      "state_sha256": "b495ae46269b6f72717cc9199a21a6a142faf67987e8f2208e926bffafe88c17",
+      "action": "HOLD",
+      "probabilities": {
+        "BUY": 0.17,
+        "HOLD": 0.56,
+        "SELL": 0.27
+      },
+      "confidence": 0.34,
+      "model": "jev-1.14.0",
+      "latency_ms": 548.724,
+      "usage": {
+        "input_tokens": 992,
+        "output_tokens": 40
+      },
+      "forecast": {
+        "status": "unvalidated",
+        "model": "amazon/chronos-bolt-tiny",
+        "revision": "a0e552de83495b5c28c14c71c374f3e33280b340",
+        "context_length": 50,
+        "horizon_bars": 1,
+        "quantiles": {
+          "p10": 104.07547760009766,
+          "p50": 104.32881164550781,
+          "p90": 104.98418426513672
+        }
+      }
+    },
+    {
+      "symbol": "XOM",
+      "decision_time": "2026-10-02T20:30:00+00:00",
+      "execution_time": "2026-10-05T13:30:00+00:00",
+      "candle_timestamp": "2026-10-02T19:30:00+00:00",
+      "state_sha256": "d47ba95767d8d908ba251b0745209ea9ae181dbeb814b0d9a7624ed634f1eadd",
+      "action": "BUY",
+      "probabilities": {
+        "BUY": 0.75,
+        "HOLD": 0.24,
+        "SELL": 0.01
+      },
+      "confidence": 0.62,
+      "model": "jev-1.14.0",
+      "latency_ms": 549.278,
+      "usage": {
+        "input_tokens": 990,
+        "output_tokens": 39
+      },
+      "forecast": {
+        "status": "unvalidated",
+        "model": "amazon/chronos-bolt-tiny",
+        "revision": "a0e552de83495b5c28c14c71c374f3e33280b340",
+        "context_length": 50,
+        "horizon_bars": 1,
+        "quantiles": {
+          "p10": 162.99603271484375,
+          "p50": 164.0108184814453,
+          "p90": 164.79808044433594
+        }
+      }
+    },
+    {
+      "symbol": "AAPL",
+      "decision_time": "2026-10-09T20:30:00+00:00",
+      "execution_time": "2026-10-12T13:30:00+00:00",
+      "candle_timestamp": "2026-10-09T19:30:00+00:00",
+      "state_sha256": "9b139c4d9b165da4e2198729e9dea6367488ffa102f39eb93a7fda38e130676b",
+      "action": "HOLD",
+      "probabilities": {
+        "BUY": 0.46,
+        "HOLD": 0.51,
+        "SELL": 0.03
+      },
+      "confidence": 0.26,
+      "model": "jev-1.14.0",
+      "latency_ms": 559.73,
+      "usage": {
+        "input_tokens": 978,
+        "output_tokens": 40
+      },
+      "forecast": {
+        "status": "unvalidated",
+        "model": "amazon/chronos-bolt-tiny",
+        "revision": "a0e552de83495b5c28c14c71c374f3e33280b340",
+        "context_length": 50,
+        "horizon_bars": 1,
+        "quantiles": {
+          "p10": 334.93572998046875,
+          "p50": 336.9102478027344,
+          "p90": 338.8907165527344
+        }
+      }
+    },
+    {
+      "symbol": "AMD",
+      "decision_time": "2026-10-09T20:30:00+00:00",
+      "execution_time": "2026-10-12T13:30:00+00:00",
+      "candle_timestamp": "2026-10-09T19:30:00+00:00",
+      "state_sha256": "3e9326eddd6143d5a507d4939d0697fa6ca870b474bfffce9abd8f4e5ebf95d3",
+      "action": "SELL",
+      "probabilities": {
+        "BUY": 0.11,
+        "HOLD": 0.36,
+        "SELL": 0.53
+      },
+      "confidence": 0.3,
+      "model": "jev-1.14.0",
+      "latency_ms": 549.657,
+      "usage": {
+        "input_tokens": 978,
+        "output_tokens": 39
+      },
+      "forecast": {
+        "status": "unvalidated",
+        "model": "amazon/chronos-bolt-tiny",
+        "revision": "a0e552de83495b5c28c14c71c374f3e33280b340",
+        "context_length": 50,
+        "horizon_bars": 1,
+        "quantiles": {
+          "p10": 603.108154296875,
+          "p50": 607.4129028320312,
+          "p90": 612.7998657226562
+        }
+      }
+    },
+    {
+      "symbol": "AMZN",
+      "decision_time": "2026-10-09T20:30:00+00:00",
+      "execution_time": "2026-10-12T13:30:00+00:00",
+      "candle_timestamp": "2026-10-09T19:30:00+00:00",
+      "state_sha256": "e8b9ce542f649560d9693b9b49f62066d96240be744cf0c6d4a628d5a753095f",
+      "action": "BUY",
+      "probabilities": {
+        "BUY": 0.9,
+        "HOLD": 0.09,
+        "SELL": 0.01
+      },
+      "confidence": 0.85,
+      "model": "jev-1.14.0",
+      "latency_ms": 595.403,
+      "usage": {
+        "input_tokens": 978,
+        "output_tokens": 39
+      },
+      "forecast": {
+        "status": "unvalidated",
+        "model": "amazon/chronos-bolt-tiny",
+        "revision": "a0e552de83495b5c28c14c71c374f3e33280b340",
+        "context_length": 50,
+        "horizon_bars": 1,
+        "quantiles": {
+          "p10": 260.4993896484375,
+          "p50": 262.7652587890625,
+          "p90": 264.7525329589844
+        }
+      }
+    },
+    {
+      "symbol": "BAC",
+      "decision_time": "2026-10-09T20:30:00+00:00",
+      "execution_time": "2026-10-12T13:30:00+00:00",
+      "candle_timestamp": "2026-10-09T19:30:00+00:00",
+      "state_sha256": "f8d2fa7e1fca4fd95b6a223b01751954bca8787e632b6c04e09149a19cc1b50c",
+      "action": "BUY",
+      "probabilities": {
+        "BUY": 0.8,
+        "HOLD": 0.19,
+        "SELL": 0.01
+      },
+      "confidence": 0.7,
+      "model": "jev-1.14.0",
+      "latency_ms": 557.652,
+      "usage": {
+        "input_tokens": 981,
+        "output_tokens": 39
+      },
+      "forecast": {
+        "status": "unvalidated",
+        "model": "amazon/chronos-bolt-tiny",
+        "revision": "a0e552de83495b5c28c14c71c374f3e33280b340",
+        "context_length": 50,
+        "horizon_bars": 1,
+        "quantiles": {
+          "p10": 53.78804397583008,
+          "p50": 54.240379333496094,
+          "p90": 54.38151550292969
+        }
+      }
+    },
+    {
+      "symbol": "COST",
+      "decision_time": "2026-10-09T20:30:00+00:00",
+      "execution_time": "2026-10-12T13:30:00+00:00",
+      "candle_timestamp": "2026-10-09T19:30:00+00:00",
+      "state_sha256": "ab9ac8907463caca1497712bfeb33e10cdfe48b51a8598df453421b32b677df2",
+      "action": "BUY",
+      "probabilities": {
+        "BUY": 0.71,
+        "HOLD": 0.27,
+        "SELL": 0.02
+      },
+      "confidence": 0.56,
+      "model": "jev-1.14.0",
+      "latency_ms": 556.484,
+      "usage": {
+        "input_tokens": 973,
+        "output_tokens": 39
+      },
+      "forecast": {
+        "status": "unvalidated",
+        "model": "amazon/chronos-bolt-tiny",
+        "revision": "a0e552de83495b5c28c14c71c374f3e33280b340",
+        "context_length": 50,
+        "horizon_bars": 1,
+        "quantiles": {
+          "p10": 943.3676147460938,
+          "p50": 947.3611450195312,
+          "p90": 951.20703125
+        }
+      }
+    },
+    {
+      "symbol": "CVX",
+      "decision_time": "2026-10-09T20:30:00+00:00",
+      "execution_time": "2026-10-12T13:30:00+00:00",
+      "candle_timestamp": "2026-10-09T19:30:00+00:00",
+      "state_sha256": "c91ffc260acd556ea830837d709548349e9c30ef723d925e5758f8582df237ad",
+      "action": "BUY",
+      "probabilities": {
+        "BUY": 0.58,
+        "HOLD": 0.38,
+        "SELL": 0.04
+      },
+      "confidence": 0.37,
+      "model": "jev-1.14.0",
+      "latency_ms": 523.249,
+      "usage": {
+        "input_tokens": 985,
+        "output_tokens": 39
+      },
+      "forecast": {
+        "status": "unvalidated",
+        "model": "amazon/chronos-bolt-tiny",
+        "revision": "a0e552de83495b5c28c14c71c374f3e33280b340",
+        "context_length": 50,
+        "horizon_bars": 1,
+        "quantiles": {
+          "p10": 209.63287353515625,
+          "p50": 211.55604553222656,
+          "p90": 213.06301879882812
+        }
+      }
+    },
+    {
+      "symbol": "DIS",
+      "decision_time": "2026-10-09T20:30:00+00:00",
+      "execution_time": "2026-10-12T13:30:00+00:00",
+      "candle_timestamp": "2026-10-09T19:30:00+00:00",
+      "state_sha256": "134fcf549fbbe22cb08d95eebb9a6deb4400066a50c7ae28dc64abf4a0a23fe7",
+      "action": "BUY",
+      "probabilities": {
+        "BUY": 0.52,
+        "HOLD": 0.3,
+        "SELL": 0.18
+      },
+      "confidence": 0.28,
+      "model": "jev-1.14.0",
+      "latency_ms": 554.561,
+      "usage": {
+        "input_tokens": 983,
+        "output_tokens": 39
+      },
+      "forecast": {
+        "status": "unvalidated",
+        "model": "amazon/chronos-bolt-tiny",
+        "revision": "a0e552de83495b5c28c14c71c374f3e33280b340",
+        "context_length": 50,
+        "horizon_bars": 1,
+        "quantiles": {
+          "p10": 107.11360168457031,
+          "p50": 107.95462036132812,
+          "p90": 108.63381958007812
+        }
+      }
+    },
+    {
+      "symbol": "GOOGL",
+      "decision_time": "2026-10-09T20:30:00+00:00",
+      "execution_time": "2026-10-12T13:30:00+00:00",
+      "candle_timestamp": "2026-10-09T19:30:00+00:00",
+      "state_sha256": "56c880eabd33b7b8e35bbe9764d19058b4f9ee1fc38cd2ac1117a9da01837bb2",
+      "action": "BUY",
+      "probabilities": {
+        "BUY": 0.68,
+        "HOLD": 0.31,
+        "SELL": 0.01
+      },
+      "confidence": 0.52,
+      "model": "jev-1.14.0",
+      "latency_ms": 578.668,
+      "usage": {
+        "input_tokens": 986,
+        "output_tokens": 39
+      },
+      "forecast": {
+        "status": "unvalidated",
+        "model": "amazon/chronos-bolt-tiny",
+        "revision": "a0e552de83495b5c28c14c71c374f3e33280b340",
+        "context_length": 50,
+        "horizon_bars": 1,
+        "quantiles": {
+          "p10": 349.60736083984375,
+          "p50": 351.9474182128906,
+          "p90": 353.8638916015625
+        }
+      }
+    },
+    {
+      "symbol": "HD",
+      "decision_time": "2026-10-09T20:30:00+00:00",
+      "execution_time": "2026-10-12T13:30:00+00:00",
+      "candle_timestamp": "2026-10-09T19:30:00+00:00",
+      "state_sha256": "a6e3d52629c501f3f63d3fb000fea9abc17638787c34c48978a4202ef15ab3d4",
+      "action": "HOLD",
+      "probabilities": {
+        "BUY": 0.19,
+        "HOLD": 0.68,
+        "SELL": 0.13
+      },
+      "confidence": 0.52,
+      "model": "jev-1.14.0",
+      "latency_ms": 547.045,
+      "usage": {
+        "input_tokens": 982,
+        "output_tokens": 40
+      },
+      "forecast": {
+        "status": "unvalidated",
+        "model": "amazon/chronos-bolt-tiny",
+        "revision": "a0e552de83495b5c28c14c71c374f3e33280b340",
+        "context_length": 50,
+        "horizon_bars": 1,
+        "quantiles": {
+          "p10": 288.1273498535156,
+          "p50": 290.61669921875,
+          "p90": 292.97515869140625
+        }
+      }
+    },
+    {
+      "symbol": "IBM",
+      "decision_time": "2026-10-09T20:30:00+00:00",
+      "execution_time": "2026-10-12T13:30:00+00:00",
+      "candle_timestamp": "2026-10-09T19:30:00+00:00",
+      "state_sha256": "4d5a8468a51e05e915b83b85580672a1b2ca0b34562a179f77543c31e5e9fb5f",
+      "action": "BUY",
+      "probabilities": {
+        "BUY": 0.83,
+        "HOLD": 0.16,
+        "SELL": 0.01
+      },
+      "confidence": 0.74,
+      "model": "jev-1.14.0",
+      "latency_ms": 535.633,
+      "usage": {
+        "input_tokens": 986,
+        "output_tokens": 39
+      },
+      "forecast": {
+        "status": "unvalidated",
+        "model": "amazon/chronos-bolt-tiny",
+        "revision": "a0e552de83495b5c28c14c71c374f3e33280b340",
+        "context_length": 50,
+        "horizon_bars": 1,
+        "quantiles": {
+          "p10": 224.55528259277344,
+          "p50": 226.96914672851562,
+          "p90": 228.9660186767578
+        }
+      }
+    },
+    {
+      "symbol": "INTC",
+      "decision_time": "2026-10-09T20:30:00+00:00",
+      "execution_time": "2026-10-12T13:30:00+00:00",
+      "candle_timestamp": "2026-10-09T19:30:00+00:00",
+      "state_sha256": "1ed52c9cf17ad61186843e9a2f93bc1d53b71df22f05ac1f8a77436e5addf668",
+      "action": "SELL",
+      "probabilities": {
+        "BUY": 0.17,
+        "HOLD": 0.34,
+        "SELL": 0.49
+      },
+      "confidence": 0.24,
+      "model": "jev-1.14.0",
+      "latency_ms": 575.632,
+      "usage": {
+        "input_tokens": 988,
+        "output_tokens": 39
+      },
+      "forecast": {
+        "status": "unvalidated",
+        "model": "amazon/chronos-bolt-tiny",
+        "revision": "a0e552de83495b5c28c14c71c374f3e33280b340",
+        "context_length": 50,
+        "horizon_bars": 1,
+        "quantiles": {
+          "p10": 103.1329116821289,
+          "p50": 104.42210388183594,
+          "p90": 106.10932159423828
+        }
+      }
+    },
+    {
+      "symbol": "JNJ",
+      "decision_time": "2026-10-09T20:30:00+00:00",
+      "execution_time": "2026-10-12T13:30:00+00:00",
+      "candle_timestamp": "2026-10-09T19:30:00+00:00",
+      "state_sha256": "a2cd90c89801570abca65db2caf179e6e85de4d2cab0191aa2262b122b03f094",
+      "action": "BUY",
+      "probabilities": {
+        "BUY": 0.93,
+        "HOLD": 0.06,
+        "SELL": 0.01
+      },
+      "confidence": 0.89,
+      "model": "jev-1.14.0",
+      "latency_ms": 551.902,
+      "usage": {
+        "input_tokens": 976,
+        "output_tokens": 39
+      },
+      "forecast": {
+        "status": "unvalidated",
+        "model": "amazon/chronos-bolt-tiny",
+        "revision": "a0e552de83495b5c28c14c71c374f3e33280b340",
+        "context_length": 50,
+        "horizon_bars": 1,
+        "quantiles": {
+          "p10": 259.7958068847656,
+          "p50": 262.14361572265625,
+          "p90": 264.226806640625
+        }
+      }
+    },
+    {
+      "symbol": "JPM",
+      "decision_time": "2026-10-09T20:30:00+00:00",
+      "execution_time": "2026-10-12T13:30:00+00:00",
+      "candle_timestamp": "2026-10-09T19:30:00+00:00",
+      "state_sha256": "cd7a82a48257fb931f8d2eb1787b880d3c26e02fb1cec907cfee1ca5a4133784",
+      "action": "BUY",
+      "probabilities": {
+        "BUY": 0.76,
+        "HOLD": 0.23,
+        "SELL": 0.01
+      },
+      "confidence": 0.64,
+      "model": "jev-1.14.0",
+      "latency_ms": 570.764,
+      "usage": {
+        "input_tokens": 986,
+        "output_tokens": 39
+      },
+      "forecast": {
+        "status": "unvalidated",
+        "model": "amazon/chronos-bolt-tiny",
+        "revision": "a0e552de83495b5c28c14c71c374f3e33280b340",
+        "context_length": 50,
+        "horizon_bars": 1,
+        "quantiles": {
+          "p10": 330.9322204589844,
+          "p50": 332.6416931152344,
+          "p90": 333.0565185546875
+        }
+      }
+    },
+    {
+      "symbol": "KO",
+      "decision_time": "2026-10-09T20:30:00+00:00",
+      "execution_time": "2026-10-12T13:30:00+00:00",
+      "candle_timestamp": "2026-10-09T19:30:00+00:00",
+      "state_sha256": "bee9cf3b31962c1d674ea3ef677c7ed6173776f51376ac072a2fa05ad257147e",
+      "action": "BUY",
+      "probabilities": {
+        "BUY": 0.62,
+        "HOLD": 0.34,
+        "SELL": 0.04
+      },
+      "confidence": 0.43,
+      "model": "jev-1.14.0",
+      "latency_ms": 568.703,
+      "usage": {
+        "input_tokens": 979,
+        "output_tokens": 39
+      },
+      "forecast": {
+        "status": "unvalidated",
+        "model": "amazon/chronos-bolt-tiny",
+        "revision": "a0e552de83495b5c28c14c71c374f3e33280b340",
+        "context_length": 50,
+        "horizon_bars": 1,
+        "quantiles": {
+          "p10": 87.3685302734375,
+          "p50": 87.87748718261719,
+          "p90": 88.3115005493164
+        }
+      }
+    },
+    {
+      "symbol": "MCD",
+      "decision_time": "2026-10-09T20:30:00+00:00",
+      "execution_time": "2026-10-12T13:30:00+00:00",
+      "candle_timestamp": "2026-10-09T19:30:00+00:00",
+      "state_sha256": "b411390e2a955a02e0de65c5d264b61befa8939647204179f03bdec59083302c",
+      "action": "HOLD",
+      "probabilities": {
+        "BUY": 0.35,
+        "HOLD": 0.6,
+        "SELL": 0.05
+      },
+      "confidence": 0.4,
+      "model": "jev-1.14.0",
+      "latency_ms": 563.114,
+      "usage": {
+        "input_tokens": 988,
+        "output_tokens": 40
+      },
+      "forecast": {
+        "status": "unvalidated",
+        "model": "amazon/chronos-bolt-tiny",
+        "revision": "a0e552de83495b5c28c14c71c374f3e33280b340",
+        "context_length": 50,
+        "horizon_bars": 1,
+        "quantiles": {
+          "p10": 233.69448852539062,
+          "p50": 235.23660278320312,
+          "p90": 236.9146270751953
+        }
+      }
+    },
+    {
+      "symbol": "META",
+      "decision_time": "2026-10-09T20:30:00+00:00",
+      "execution_time": "2026-10-12T13:30:00+00:00",
+      "candle_timestamp": "2026-10-09T19:30:00+00:00",
+      "state_sha256": "2eb298fb29d754501712d1d6f9b87a55692621ba621b2a28ca6b0f73a69e355e",
+      "action": "HOLD",
+      "probabilities": {
+        "BUY": 0.08,
+        "HOLD": 0.47,
+        "SELL": 0.45
+      },
+      "confidence": 0.2,
+      "model": "jev-1.14.0",
+      "latency_ms": 553.302,
+      "usage": {
+        "input_tokens": 975,
+        "output_tokens": 40
+      },
+      "forecast": {
+        "status": "unvalidated",
+        "model": "amazon/chronos-bolt-tiny",
+        "revision": "a0e552de83495b5c28c14c71c374f3e33280b340",
+        "context_length": 50,
+        "horizon_bars": 1,
+        "quantiles": {
+          "p10": 714.379150390625,
+          "p50": 718.5559692382812,
+          "p90": 723.65234375
+        }
+      }
+    },
+    {
+      "symbol": "MSFT",
+      "decision_time": "2026-10-09T20:30:00+00:00",
+      "execution_time": "2026-10-12T13:30:00+00:00",
+      "candle_timestamp": "2026-10-09T19:30:00+00:00",
+      "state_sha256": "3b0b4c5cfcacc5111eb3fb0502e9cc99759b4efa3dde761629516bd6672b073a",
+      "action": "BUY",
+      "probabilities": {
+        "BUY": 0.81,
+        "HOLD": 0.18,
+        "SELL": 0.01
+      },
+      "confidence": 0.72,
+      "model": "jev-1.14.0",
+      "latency_ms": 585.644,
+      "usage": {
+        "input_tokens": 975,
+        "output_tokens": 39
+      },
+      "forecast": {
+        "status": "unvalidated",
+        "model": "amazon/chronos-bolt-tiny",
+        "revision": "a0e552de83495b5c28c14c71c374f3e33280b340",
+        "context_length": 50,
+        "horizon_bars": 1,
+        "quantiles": {
+          "p10": 530.03076171875,
+          "p50": 534.4476318359375,
+          "p90": 536.5634765625
+        }
+      }
+    },
+    {
+      "symbol": "NVDA",
+      "decision_time": "2026-10-09T20:30:00+00:00",
+      "execution_time": "2026-10-12T13:30:00+00:00",
+      "candle_timestamp": "2026-10-09T19:30:00+00:00",
+      "state_sha256": "04bbdf1d72a9543318ef5bd823596b5e5bbb35f8216abdc38bc3df5a47465cc2",
+      "action": "SELL",
+      "probabilities": {
+        "BUY": 0.12,
+        "HOLD": 0.4,
+        "SELL": 0.48
+      },
+      "confidence": 0.22,
+      "model": "jev-1.14.0",
+      "latency_ms": 546.312,
+      "usage": {
+        "input_tokens": 986,
+        "output_tokens": 39
+      },
+      "forecast": {
+        "status": "unvalidated",
+        "model": "amazon/chronos-bolt-tiny",
+        "revision": "a0e552de83495b5c28c14c71c374f3e33280b340",
+        "context_length": 50,
+        "horizon_bars": 1,
+        "quantiles": {
+          "p10": 228.44384765625,
+          "p50": 229.37783813476562,
+          "p90": 230.57669067382812
+        }
+      }
+    },
+    {
+      "symbol": "PEP",
+      "decision_time": "2026-10-09T20:30:00+00:00",
+      "execution_time": "2026-10-12T13:30:00+00:00",
+      "candle_timestamp": "2026-10-09T19:30:00+00:00",
+      "state_sha256": "2bdf176482c0e9c8bfb75a2c324fcb6f1b49290efd433533824c484da7726a1b",
+      "action": "HOLD",
+      "probabilities": {
+        "BUY": 0.17,
+        "HOLD": 0.8,
+        "SELL": 0.03
+      },
+      "confidence": 0.7,
+      "model": "jev-1.14.0",
+      "latency_ms": 574.165,
+      "usage": {
+        "input_tokens": 990,
+        "output_tokens": 40
+      },
+      "forecast": {
+        "status": "unvalidated",
+        "model": "amazon/chronos-bolt-tiny",
+        "revision": "a0e552de83495b5c28c14c71c374f3e33280b340",
+        "context_length": 50,
+        "horizon_bars": 1,
+        "quantiles": {
+          "p10": 125.31993103027344,
+          "p50": 125.98405456542969,
+          "p90": 126.5778579711914
+        }
+      }
+    },
+    {
+      "symbol": "PG",
+      "decision_time": "2026-10-09T20:30:00+00:00",
+      "execution_time": "2026-10-12T13:30:00+00:00",
+      "candle_timestamp": "2026-10-09T19:30:00+00:00",
+      "state_sha256": "00342c2736a63d5cae94f4019f52a14e929d38d8782d7f6cfdd987213449f183",
+      "action": "BUY",
+      "probabilities": {
+        "BUY": 0.78,
+        "HOLD": 0.19,
+        "SELL": 0.03
+      },
+      "confidence": 0.67,
+      "model": "jev-1.14.0",
+      "latency_ms": 561.555,
+      "usage": {
+        "input_tokens": 984,
+        "output_tokens": 39
+      },
+      "forecast": {
+        "status": "unvalidated",
+        "model": "amazon/chronos-bolt-tiny",
+        "revision": "a0e552de83495b5c28c14c71c374f3e33280b340",
+        "context_length": 50,
+        "horizon_bars": 1,
+        "quantiles": {
+          "p10": 150.21726989746094,
+          "p50": 151.10064697265625,
+          "p90": 151.79981994628906
+        }
+      }
+    },
+    {
+      "symbol": "TSLA",
+      "decision_time": "2026-10-09T20:30:00+00:00",
+      "execution_time": "2026-10-12T13:30:00+00:00",
+      "candle_timestamp": "2026-10-09T19:30:00+00:00",
+      "state_sha256": "98b0d1d9c16184c09a7f991970758a6e5bb7a2d0ed559e68c5cc7c17f261a340",
+      "action": "BUY",
+      "probabilities": {
+        "BUY": 0.53,
+        "HOLD": 0.44,
+        "SELL": 0.03
+      },
+      "confidence": 0.3,
+      "model": "jev-1.14.0",
+      "latency_ms": 556.322,
+      "usage": {
+        "input_tokens": 979,
+        "output_tokens": 39
+      },
+      "forecast": {
+        "status": "unvalidated",
+        "model": "amazon/chronos-bolt-tiny",
+        "revision": "a0e552de83495b5c28c14c71c374f3e33280b340",
+        "context_length": 50,
+        "horizon_bars": 1,
+        "quantiles": {
+          "p10": 377.1485595703125,
+          "p50": 382.470947265625,
+          "p90": 384.663330078125
+        }
+      }
+    },
+    {
+      "symbol": "UNH",
+      "decision_time": "2026-10-09T20:30:00+00:00",
+      "execution_time": "2026-10-12T13:30:00+00:00",
+      "candle_timestamp": "2026-10-09T19:30:00+00:00",
+      "state_sha256": "8d701ed535b768fa104214f8bec19de540a3c1a953bbcbca7dd28b0528914ef0",
+      "action": "BUY",
+      "probabilities": {
+        "BUY": 0.83,
+        "HOLD": 0.16,
+        "SELL": 0.01
+      },
+      "confidence": 0.74,
+      "model": "jev-1.14.0",
+      "latency_ms": 546.575,
+      "usage": {
+        "input_tokens": 977,
+        "output_tokens": 39
+      },
+      "forecast": {
+        "status": "unvalidated",
+        "model": "amazon/chronos-bolt-tiny",
+        "revision": "a0e552de83495b5c28c14c71c374f3e33280b340",
+        "context_length": 50,
+        "horizon_bars": 1,
+        "quantiles": {
+          "p10": 375.6736145019531,
+          "p50": 379.3585510253906,
+          "p90": 382.2671813964844
+        }
+      }
+    },
+    {
+      "symbol": "V",
+      "decision_time": "2026-10-09T20:30:00+00:00",
+      "execution_time": "2026-10-12T13:30:00+00:00",
+      "candle_timestamp": "2026-10-09T19:30:00+00:00",
+      "state_sha256": "0b4f85e0fd60441d96a61ce8360dc1208cd01dd26714bb3c4e7163858d9e28a0",
+      "action": "BUY",
+      "probabilities": {
+        "BUY": 0.73,
+        "HOLD": 0.16,
+        "SELL": 0.11
+      },
+      "confidence": 0.6,
+      "model": "jev-1.14.0",
+      "latency_ms": 550.45,
+      "usage": {
+        "input_tokens": 984,
+        "output_tokens": 39
+      },
+      "forecast": {
+        "status": "unvalidated",
+        "model": "amazon/chronos-bolt-tiny",
+        "revision": "a0e552de83495b5c28c14c71c374f3e33280b340",
+        "context_length": 50,
+        "horizon_bars": 1,
+        "quantiles": {
+          "p10": 382.91448974609375,
+          "p50": 385.9736633300781,
+          "p90": 388.71392822265625
+        }
+      }
+    },
+    {
+      "symbol": "WMT",
+      "decision_time": "2026-10-09T20:30:00+00:00",
+      "execution_time": "2026-10-12T13:30:00+00:00",
+      "candle_timestamp": "2026-10-09T19:30:00+00:00",
+      "state_sha256": "fecd5a536a5d36ed1be93ea48ee72d0cb9c06b68de73769d488524e3b2b63818",
+      "action": "HOLD",
+      "probabilities": {
+        "BUY": 0.35,
+        "HOLD": 0.4,
+        "SELL": 0.25
+      },
+      "confidence": 0.1,
+      "model": "jev-1.14.0",
+      "latency_ms": 549.477,
+      "usage": {
+        "input_tokens": 986,
+        "output_tokens": 40
+      },
+      "forecast": {
+        "status": "unvalidated",
+        "model": "amazon/chronos-bolt-tiny",
+        "revision": "a0e552de83495b5c28c14c71c374f3e33280b340",
+        "context_length": 50,
+        "horizon_bars": 1,
+        "quantiles": {
+          "p10": 110.71357727050781,
+          "p50": 111.35588073730469,
+          "p90": 112.03428649902344
+        }
+      }
+    },
+    {
+      "symbol": "XOM",
+      "decision_time": "2026-10-09T20:30:00+00:00",
+      "execution_time": "2026-10-12T13:30:00+00:00",
+      "candle_timestamp": "2026-10-09T19:30:00+00:00",
+      "state_sha256": "9c62043d02fb58887f370c6f5551ebe6986ac9f54f7bb66211829a38046c21fb",
+      "action": "BUY",
+      "probabilities": {
+        "BUY": 0.49,
+        "HOLD": 0.46,
+        "SELL": 0.05
+      },
+      "confidence": 0.24,
+      "model": "jev-1.14.0",
+      "latency_ms": 574.7,
+      "usage": {
+        "input_tokens": 989,
+        "output_tokens": 39
+      },
+      "forecast": {
+        "status": "unvalidated",
+        "model": "amazon/chronos-bolt-tiny",
+        "revision": "a0e552de83495b5c28c14c71c374f3e33280b340",
+        "context_length": 50,
+        "horizon_bars": 1,
+        "quantiles": {
+          "p10": 167.2781219482422,
+          "p50": 168.83250427246094,
+          "p90": 170.2171173095703
+        }
+      }
+    },
+    {
+      "symbol": "AAPL",
+      "decision_time": "2026-10-16T20:30:00+00:00",
+      "execution_time": "2026-10-19T13:30:00+00:00",
+      "candle_timestamp": "2026-10-16T19:30:00+00:00",
+      "state_sha256": "28ebd89da09753afb93265c8ac6b9ed4b03ef99a9019bf59b2a379e921b70a72",
+      "action": "HOLD",
+      "probabilities": {
+        "BUY": 0.17,
+        "HOLD": 0.77,
+        "SELL": 0.06
+      },
+      "confidence": 0.66,
+      "model": "jev-1.14.0",
+      "latency_ms": 560.385,
+      "usage": {
+        "input_tokens": 982,
+        "output_tokens": 40
+      },
+      "forecast": {
+        "status": "unvalidated",
+        "model": "amazon/chronos-bolt-tiny",
+        "revision": "a0e552de83495b5c28c14c71c374f3e33280b340",
+        "context_length": 50,
+        "horizon_bars": 1,
+        "quantiles": {
+          "p10": 341.1917419433594,
+          "p50": 343.5350341796875,
+          "p90": 345.5068359375
+        }
+      }
+    },
+    {
+      "symbol": "AMD",
+      "decision_time": "2026-10-16T20:30:00+00:00",
+      "execution_time": "2026-10-19T13:30:00+00:00",
+      "candle_timestamp": "2026-10-16T19:30:00+00:00",
+      "state_sha256": "b73e5f58b3e61dba6a7f4f553c82113c0541c6a0ad634190b2e0d63026eca6cb",
+      "action": "SELL",
+      "probabilities": {
+        "BUY": 0.14,
+        "HOLD": 0.26,
+        "SELL": 0.6
+      },
+      "confidence": 0.4,
+      "model": "jev-1.14.0",
+      "latency_ms": 563.667,
+      "usage": {
+        "input_tokens": 976,
+        "output_tokens": 39
+      },
+      "forecast": {
+        "status": "unvalidated",
+        "model": "amazon/chronos-bolt-tiny",
+        "revision": "a0e552de83495b5c28c14c71c374f3e33280b340",
+        "context_length": 50,
+        "horizon_bars": 1,
+        "quantiles": {
+          "p10": 512.755615234375,
+          "p50": 526.3522338867188,
+          "p90": 539.6920776367188
+        }
+      }
+    },
+    {
+      "symbol": "AMZN",
+      "decision_time": "2026-10-16T20:30:00+00:00",
+      "execution_time": "2026-10-19T13:30:00+00:00",
+      "candle_timestamp": "2026-10-16T19:30:00+00:00",
+      "state_sha256": "ae0e18cc4fe7b4fb52ef0aebf09b7550fcedb8a693068a385d2347ccc0fa23ef",
+      "action": "SELL",
+      "probabilities": {
+        "BUY": 0.07,
+        "HOLD": 0.41,
+        "SELL": 0.52
+      },
+      "confidence": 0.28,
+      "model": "jev-1.14.0",
+      "latency_ms": 588.727,
+      "usage": {
+        "input_tokens": 986,
+        "output_tokens": 39
+      },
+      "forecast": {
+        "status": "unvalidated",
+        "model": "amazon/chronos-bolt-tiny",
+        "revision": "a0e552de83495b5c28c14c71c374f3e33280b340",
+        "context_length": 50,
+        "horizon_bars": 1,
+        "quantiles": {
+          "p10": 247.31082153320312,
+          "p50": 249.8743133544922,
+          "p90": 251.95468139648438
+        }
+      }
+    },
+    {
+      "symbol": "BAC",
+      "decision_time": "2026-10-16T20:30:00+00:00",
+      "execution_time": "2026-10-19T13:30:00+00:00",
+      "candle_timestamp": "2026-10-16T19:30:00+00:00",
+      "state_sha256": "d2cb0c9b6fae56d899c49ecce451a67c85387d34fc762f718272efc598441c13",
+      "action": "SELL",
+      "probabilities": {
+        "BUY": 0.06,
+        "HOLD": 0.4,
+        "SELL": 0.54
+      },
+      "confidence": 0.31,
+      "model": "jev-1.14.0",
+      "latency_ms": 559.112,
+      "usage": {
+        "input_tokens": 983,
+        "output_tokens": 39
+      },
+      "forecast": {
+        "status": "unvalidated",
+        "model": "amazon/chronos-bolt-tiny",
+        "revision": "a0e552de83495b5c28c14c71c374f3e33280b340",
+        "context_length": 50,
+        "horizon_bars": 1,
+        "quantiles": {
+          "p10": 50.4374885559082,
+          "p50": 51.08522033691406,
+          "p90": 51.652286529541016
+        }
+      }
+    },
+    {
+      "symbol": "COST",
+      "decision_time": "2026-10-16T20:30:00+00:00",
+      "execution_time": "2026-10-19T13:30:00+00:00",
+      "candle_timestamp": "2026-10-16T19:30:00+00:00",
+      "state_sha256": "5f262cc42157ace301e5131dc210b2624ae9feac1aa2ea5c38e2db29d09a5224",
+      "action": "BUY",
+      "probabilities": {
+        "BUY": 0.51,
+        "HOLD": 0.45,
+        "SELL": 0.04
+      },
+      "confidence": 0.26,
+      "model": "jev-1.14.0",
+      "latency_ms": 789.263,
+      "usage": {
+        "input_tokens": 982,
+        "output_tokens": 39
+      },
+      "forecast": {
+        "status": "unvalidated",
+        "model": "amazon/chronos-bolt-tiny",
+        "revision": "a0e552de83495b5c28c14c71c374f3e33280b340",
+        "context_length": 50,
+        "horizon_bars": 1,
+        "quantiles": {
+          "p10": 982.8765258789062,
+          "p50": 990.208251953125,
+          "p90": 995.792724609375
+        }
+      }
+    },
+    {
+      "symbol": "CVX",
+      "decision_time": "2026-10-16T20:30:00+00:00",
+      "execution_time": "2026-10-19T13:30:00+00:00",
+      "candle_timestamp": "2026-10-16T19:30:00+00:00",
+      "state_sha256": "cd3692507457d08a388886c36bfb1da8a84690dffea7a5d1c3cebb0ff9071b77",
+      "action": "BUY",
+      "probabilities": {
+        "BUY": 0.74,
+        "HOLD": 0.15,
+        "SELL": 0.11
+      },
+      "confidence": 0.61,
+      "model": "jev-1.14.0",
+      "latency_ms": 579.229,
+      "usage": {
+        "input_tokens": 980,
+        "output_tokens": 39
+      },
+      "forecast": {
+        "status": "unvalidated",
+        "model": "amazon/chronos-bolt-tiny",
+        "revision": "a0e552de83495b5c28c14c71c374f3e33280b340",
+        "context_length": 50,
+        "horizon_bars": 1,
+        "quantiles": {
+          "p10": 223.4358367919922,
+          "p50": 225.45346069335938,
+          "p90": 227.3069610595703
+        }
+      }
+    },
+    {
+      "symbol": "DIS",
+      "decision_time": "2026-10-16T20:30:00+00:00",
+      "execution_time": "2026-10-19T13:30:00+00:00",
+      "candle_timestamp": "2026-10-16T19:30:00+00:00",
+      "state_sha256": "a810a18a0b238bddc877547164a30b8aa8db0f31b375eded3b07ed17da746f5b",
+      "action": "HOLD",
+      "probabilities": {
+        "BUY": 0.25,
+        "HOLD": 0.67,
+        "SELL": 0.08
+      },
+      "confidence": 0.5,
+      "model": "jev-1.14.0",
+      "latency_ms": 547.949,
+      "usage": {
+        "input_tokens": 984,
+        "output_tokens": 40
+      },
+      "forecast": {
+        "status": "unvalidated",
+        "model": "amazon/chronos-bolt-tiny",
+        "revision": "a0e552de83495b5c28c14c71c374f3e33280b340",
+        "context_length": 50,
+        "horizon_bars": 1,
+        "quantiles": {
+          "p10": 109.72627258300781,
+          "p50": 110.81978607177734,
+          "p90": 111.71835327148438
+        }
+      }
+    },
+    {
+      "symbol": "GOOGL",
+      "decision_time": "2026-10-16T20:30:00+00:00",
+      "execution_time": "2026-10-19T13:30:00+00:00",
+      "candle_timestamp": "2026-10-16T19:30:00+00:00",
+      "state_sha256": "59c41405506aaed9ea4777fd8714eab6a3b0e97f6681656d76042d75b13c4101",
+      "action": "HOLD",
+      "probabilities": {
+        "BUY": 0.17,
+        "HOLD": 0.42,
+        "SELL": 0.41
+      },
+      "confidence": 0.13,
+      "model": "jev-1.14.0",
+      "latency_ms": 554.203,
+      "usage": {
+        "input_tokens": 984,
+        "output_tokens": 40
+      },
+      "forecast": {
+        "status": "unvalidated",
+        "model": "amazon/chronos-bolt-tiny",
+        "revision": "a0e552de83495b5c28c14c71c374f3e33280b340",
+        "context_length": 50,
+        "horizon_bars": 1,
+        "quantiles": {
+          "p10": 336.92901611328125,
+          "p50": 339.7940673828125,
+          "p90": 342.3432312011719
+        }
+      }
+    },
+    {
+      "symbol": "HD",
+      "decision_time": "2026-10-16T20:30:00+00:00",
+      "execution_time": "2026-10-19T13:30:00+00:00",
+      "candle_timestamp": "2026-10-16T19:30:00+00:00",
+      "state_sha256": "d06b1efc5d20dd5d259b74fb2c8ed43d082e7e7fd3037cc0fb6c30696cf92c98",
+      "action": "BUY",
+      "probabilities": {
+        "BUY": 0.52,
+        "HOLD": 0.42,
+        "SELL": 0.06
+      },
+      "confidence": 0.28,
+      "model": "jev-1.14.0",
+      "latency_ms": 581.914,
+      "usage": {
+        "input_tokens": 979,
+        "output_tokens": 39
+      },
+      "forecast": {
+        "status": "unvalidated",
+        "model": "amazon/chronos-bolt-tiny",
+        "revision": "a0e552de83495b5c28c14c71c374f3e33280b340",
+        "context_length": 50,
+        "horizon_bars": 1,
+        "quantiles": {
+          "p10": 305.2073669433594,
+          "p50": 309.43951416015625,
+          "p90": 313.1687316894531
+        }
+      }
+    },
+    {
+      "symbol": "IBM",
+      "decision_time": "2026-10-16T20:30:00+00:00",
+      "execution_time": "2026-10-19T13:30:00+00:00",
+      "candle_timestamp": "2026-10-16T19:30:00+00:00",
+      "state_sha256": "e1ef6fac16457dce3457de0779d30fe7b793541d8ef60939547406062ca4ba9e",
+      "action": "HOLD",
+      "probabilities": {
+        "BUY": 0.48,
+        "HOLD": 0.49,
+        "SELL": 0.03
+      },
+      "confidence": 0.24,
+      "model": "jev-1.14.0",
+      "latency_ms": 588.894,
+      "usage": {
+        "input_tokens": 981,
+        "output_tokens": 40
+      },
+      "forecast": {
+        "status": "unvalidated",
+        "model": "amazon/chronos-bolt-tiny",
+        "revision": "a0e552de83495b5c28c14c71c374f3e33280b340",
+        "context_length": 50,
+        "horizon_bars": 1,
+        "quantiles": {
+          "p10": 229.898681640625,
+          "p50": 232.0136260986328,
+          "p90": 233.5214080810547
+        }
+      }
+    },
+    {
+      "symbol": "INTC",
+      "decision_time": "2026-10-16T20:30:00+00:00",
+      "execution_time": "2026-10-19T13:30:00+00:00",
+      "candle_timestamp": "2026-10-16T19:30:00+00:00",
+      "state_sha256": "2bb84b25ea22ffb6a60b8ca49d53fc1c6530d1b4a344a99244c6b9b90eb1b717",
+      "action": "SELL",
+      "probabilities": {
+        "BUY": 0.16,
+        "HOLD": 0.36,
+        "SELL": 0.48
+      },
+      "confidence": 0.22,
+      "model": "jev-1.14.0",
+      "latency_ms": 563.367,
+      "usage": {
+        "input_tokens": 979,
+        "output_tokens": 39
+      },
+      "forecast": {
+        "status": "unvalidated",
+        "model": "amazon/chronos-bolt-tiny",
+        "revision": "a0e552de83495b5c28c14c71c374f3e33280b340",
+        "context_length": 50,
+        "horizon_bars": 1,
+        "quantiles": {
+          "p10": 87.18943786621094,
+          "p50": 89.43501281738281,
+          "p90": 91.68814086914062
+        }
+      }
+    },
+    {
+      "symbol": "JNJ",
+      "decision_time": "2026-10-16T20:30:00+00:00",
+      "execution_time": "2026-10-19T13:30:00+00:00",
+      "candle_timestamp": "2026-10-16T19:30:00+00:00",
+      "state_sha256": "5f7564207a05bc0f974af6baa669ef42646006e36f48240279fb2364cbc9fd2c",
+      "action": "HOLD",
+      "probabilities": {
+        "BUY": 0.37,
+        "HOLD": 0.61,
+        "SELL": 0.02
+      },
+      "confidence": 0.42,
+      "model": "jev-1.14.0",
+      "latency_ms": 560.8,
+      "usage": {
+        "input_tokens": 992,
+        "output_tokens": 40
+      },
+      "forecast": {
+        "status": "unvalidated",
+        "model": "amazon/chronos-bolt-tiny",
+        "revision": "a0e552de83495b5c28c14c71c374f3e33280b340",
+        "context_length": 50,
+        "horizon_bars": 1,
+        "quantiles": {
+          "p10": 252.48028564453125,
+          "p50": 255.46243286132812,
+          "p90": 257.49127197265625
+        }
+      }
+    },
+    {
+      "symbol": "JPM",
+      "decision_time": "2026-10-16T20:30:00+00:00",
+      "execution_time": "2026-10-19T13:30:00+00:00",
+      "candle_timestamp": "2026-10-16T19:30:00+00:00",
+      "state_sha256": "2638636586d2cacdd03526d0099c677b69b5cee0dd00d82cbab2fb54492e7556",
+      "action": "BUY",
+      "probabilities": {
+        "BUY": 0.68,
+        "HOLD": 0.29,
+        "SELL": 0.03
+      },
+      "confidence": 0.52,
+      "model": "jev-1.14.0",
+      "latency_ms": 551.538,
+      "usage": {
+        "input_tokens": 982,
+        "output_tokens": 39
+      },
+      "forecast": {
+        "status": "unvalidated",
+        "model": "amazon/chronos-bolt-tiny",
+        "revision": "a0e552de83495b5c28c14c71c374f3e33280b340",
+        "context_length": 50,
+        "horizon_bars": 1,
+        "quantiles": {
+          "p10": 336.8024597167969,
+          "p50": 339.7878112792969,
+          "p90": 342.74591064453125
+        }
+      }
+    },
+    {
+      "symbol": "KO",
+      "decision_time": "2026-10-16T20:30:00+00:00",
+      "execution_time": "2026-10-19T13:30:00+00:00",
+      "candle_timestamp": "2026-10-16T19:30:00+00:00",
+      "state_sha256": "1ca16c859e401d04c23832a05644ad4f4d01cd5fb254cb2f11f810e32c7980fa",
+      "action": "BUY",
+      "probabilities": {
+        "BUY": 0.6,
+        "HOLD": 0.27,
+        "SELL": 0.13
+      },
+      "confidence": 0.4,
+      "model": "jev-1.14.0",
+      "latency_ms": 564.146,
+      "usage": {
+        "input_tokens": 974,
+        "output_tokens": 39
+      },
+      "forecast": {
+        "status": "unvalidated",
+        "model": "amazon/chronos-bolt-tiny",
+        "revision": "a0e552de83495b5c28c14c71c374f3e33280b340",
+        "context_length": 50,
+        "horizon_bars": 1,
+        "quantiles": {
+          "p10": 93.15544891357422,
+          "p50": 94.00406646728516,
+          "p90": 94.8869400024414
+        }
+      }
+    },
+    {
+      "symbol": "MCD",
+      "decision_time": "2026-10-16T20:30:00+00:00",
+      "execution_time": "2026-10-19T13:30:00+00:00",
+      "candle_timestamp": "2026-10-16T19:30:00+00:00",
+      "state_sha256": "bf33140c8f327eb523b4da5a92775cb7ad54d35e10eee2c6c88c6707dd00b620",
+      "action": "BUY",
+      "probabilities": {
+        "BUY": 0.49,
+        "HOLD": 0.45,
+        "SELL": 0.06
+      },
+      "confidence": 0.24,
+      "model": "jev-1.14.0",
+      "latency_ms": 578.553,
+      "usage": {
+        "input_tokens": 982,
+        "output_tokens": 39
+      },
+      "forecast": {
+        "status": "unvalidated",
+        "model": "amazon/chronos-bolt-tiny",
+        "revision": "a0e552de83495b5c28c14c71c374f3e33280b340",
+        "context_length": 50,
+        "horizon_bars": 1,
+        "quantiles": {
+          "p10": 240.9788360595703,
+          "p50": 242.75650024414062,
+          "p90": 244.1968994140625
+        }
+      }
+    },
+    {
+      "symbol": "META",
+      "decision_time": "2026-10-16T20:30:00+00:00",
+      "execution_time": "2026-10-19T13:30:00+00:00",
+      "candle_timestamp": "2026-10-16T19:30:00+00:00",
+      "state_sha256": "4c8e1ea269f7780a029d1325b8f7213c4bb601021a2530502bbeb1bc585007ae",
+      "action": "HOLD",
+      "probabilities": {
+        "BUY": 0.15,
+        "HOLD": 0.45,
+        "SELL": 0.4
+      },
+      "confidence": 0.18,
+      "model": "jev-1.14.0",
+      "latency_ms": 545.767,
+      "usage": {
+        "input_tokens": 977,
+        "output_tokens": 40
+      },
+      "forecast": {
+        "status": "unvalidated",
+        "model": "amazon/chronos-bolt-tiny",
+        "revision": "a0e552de83495b5c28c14c71c374f3e33280b340",
+        "context_length": 50,
+        "horizon_bars": 1,
+        "quantiles": {
+          "p10": 704.7010498046875,
+          "p50": 709.8534545898438,
+          "p90": 715.0917358398438
+        }
+      }
+    },
+    {
+      "symbol": "MSFT",
+      "decision_time": "2026-10-16T20:30:00+00:00",
+      "execution_time": "2026-10-19T13:30:00+00:00",
+      "candle_timestamp": "2026-10-16T19:30:00+00:00",
+      "state_sha256": "c84ee0591182f782577d37e59a3ec672624a8c74fd362d4503dedec2bb79477a",
+      "action": "HOLD",
+      "probabilities": {
+        "BUY": 0.07,
+        "HOLD": 0.51,
+        "SELL": 0.42
+      },
+      "confidence": 0.26,
+      "model": "jev-1.14.0",
+      "latency_ms": 545.401,
+      "usage": {
+        "input_tokens": 978,
+        "output_tokens": 40
+      },
+      "forecast": {
+        "status": "unvalidated",
+        "model": "amazon/chronos-bolt-tiny",
+        "revision": "a0e552de83495b5c28c14c71c374f3e33280b340",
+        "context_length": 50,
+        "horizon_bars": 1,
+        "quantiles": {
+          "p10": 523.15673828125,
+          "p50": 528.8605346679688,
+          "p90": 533.6281127929688
+        }
+      }
+    },
+    {
+      "symbol": "NVDA",
+      "decision_time": "2026-10-16T20:30:00+00:00",
+      "execution_time": "2026-10-19T13:30:00+00:00",
+      "candle_timestamp": "2026-10-16T19:30:00+00:00",
+      "state_sha256": "138792513076a4f5e28dfb7e93f12cc7ea34b364556f8f6808b3890fa1c5aa1d",
+      "action": "HOLD",
+      "probabilities": {
+        "BUY": 0.16,
+        "HOLD": 0.42,
+        "SELL": 0.42
+      },
+      "confidence": 0.13,
+      "model": "jev-1.14.0",
+      "latency_ms": 555.197,
+      "usage": {
+        "input_tokens": 988,
+        "output_tokens": 40
+      },
+      "forecast": {
+        "status": "unvalidated",
+        "model": "amazon/chronos-bolt-tiny",
+        "revision": "a0e552de83495b5c28c14c71c374f3e33280b340",
+        "context_length": 50,
+        "horizon_bars": 1,
+        "quantiles": {
+          "p10": 211.14280700683594,
+          "p50": 213.5539093017578,
+          "p90": 215.79989624023438
+        }
+      }
+    },
+    {
+      "symbol": "PEP",
+      "decision_time": "2026-10-16T20:30:00+00:00",
+      "execution_time": "2026-10-19T13:30:00+00:00",
+      "candle_timestamp": "2026-10-16T19:30:00+00:00",
+      "state_sha256": "bb7db2c641778f422a0c03b2dd253dead450f1e287cfbdbee49fa9cb543b11c8",
+      "action": "BUY",
+      "probabilities": {
+        "BUY": 0.89,
+        "HOLD": 0.1,
+        "SELL": 0.01
+      },
+      "confidence": 0.83,
+      "model": "jev-1.14.0",
+      "latency_ms": 596.398,
+      "usage": {
+        "input_tokens": 979,
+        "output_tokens": 39
+      },
+      "forecast": {
+        "status": "unvalidated",
+        "model": "amazon/chronos-bolt-tiny",
+        "revision": "a0e552de83495b5c28c14c71c374f3e33280b340",
+        "context_length": 50,
+        "horizon_bars": 1,
+        "quantiles": {
+          "p10": 130.4169158935547,
+          "p50": 131.63973999023438,
+          "p90": 132.67701721191406
+        }
+      }
+    },
+    {
+      "symbol": "PG",
+      "decision_time": "2026-10-16T20:30:00+00:00",
+      "execution_time": "2026-10-19T13:30:00+00:00",
+      "candle_timestamp": "2026-10-16T19:30:00+00:00",
+      "state_sha256": "60971386ac5fceeda2bcb4e9bfa13bee8a67609eee7c83c8f50027973a8074c8",
+      "action": "BUY",
+      "probabilities": {
+        "BUY": 0.65,
+        "HOLD": 0.29,
+        "SELL": 0.06
+      },
+      "confidence": 0.48,
+      "model": "jev-1.14.0",
+      "latency_ms": 532.073,
+      "usage": {
+        "input_tokens": 979,
+        "output_tokens": 39
+      },
+      "forecast": {
+        "status": "unvalidated",
+        "model": "amazon/chronos-bolt-tiny",
+        "revision": "a0e552de83495b5c28c14c71c374f3e33280b340",
+        "context_length": 50,
+        "horizon_bars": 1,
+        "quantiles": {
+          "p10": 158.50906372070312,
+          "p50": 159.95928955078125,
+          "p90": 161.2501678466797
+        }
+      }
+    },
+    {
+      "symbol": "TSLA",
+      "decision_time": "2026-10-16T20:30:00+00:00",
+      "execution_time": "2026-10-19T13:30:00+00:00",
+      "candle_timestamp": "2026-10-16T19:30:00+00:00",
+      "state_sha256": "c2ef47d9abfd64413e9613a2ef9da81f4c50eb4c4b1d5aaea63a926528013263",
+      "action": "SELL",
+      "probabilities": {
+        "BUY": 0.09,
+        "HOLD": 0.4,
+        "SELL": 0.51
+      },
+      "confidence": 0.26,
+      "model": "jev-1.14.0",
+      "latency_ms": 550.457,
+      "usage": {
+        "input_tokens": 976,
+        "output_tokens": 39
+      },
+      "forecast": {
+        "status": "unvalidated",
+        "model": "amazon/chronos-bolt-tiny",
+        "revision": "a0e552de83495b5c28c14c71c374f3e33280b340",
+        "context_length": 50,
+        "horizon_bars": 1,
+        "quantiles": {
+          "p10": 347.60382080078125,
+          "p50": 353.2027282714844,
+          "p90": 358.2646179199219
+        }
+      }
+    },
+    {
+      "symbol": "UNH",
+      "decision_time": "2026-10-16T20:30:00+00:00",
+      "execution_time": "2026-10-19T13:30:00+00:00",
+      "candle_timestamp": "2026-10-16T19:30:00+00:00",
+      "state_sha256": "bea6ba809ec0944da13d35b6796a33d9b369b6746e0594805984da68010befd0",
+      "action": "HOLD",
+      "probabilities": {
+        "BUY": 0.31,
+        "HOLD": 0.63,
+        "SELL": 0.06
+      },
+      "confidence": 0.44,
+      "model": "jev-1.14.0",
+      "latency_ms": 556.361,
+      "usage": {
+        "input_tokens": 982,
+        "output_tokens": 40
+      },
+      "forecast": {
+        "status": "unvalidated",
+        "model": "amazon/chronos-bolt-tiny",
+        "revision": "a0e552de83495b5c28c14c71c374f3e33280b340",
+        "context_length": 50,
+        "horizon_bars": 1,
+        "quantiles": {
+          "p10": 395.0223083496094,
+          "p50": 401.4648742675781,
+          "p90": 407.3157653808594
+        }
+      }
+    },
+    {
+      "symbol": "V",
+      "decision_time": "2026-10-16T20:30:00+00:00",
+      "execution_time": "2026-10-19T13:30:00+00:00",
+      "candle_timestamp": "2026-10-16T19:30:00+00:00",
+      "state_sha256": "15a47e6f88648ba5f6a944279affa784fd024c4ba81239a4b361a9bf197570fd",
+      "action": "BUY",
+      "probabilities": {
+        "BUY": 0.65,
+        "HOLD": 0.32,
+        "SELL": 0.03
+      },
+      "confidence": 0.48,
+      "model": "jev-1.14.0",
+      "latency_ms": 561.343,
+      "usage": {
+        "input_tokens": 976,
+        "output_tokens": 39
+      },
+      "forecast": {
+        "status": "unvalidated",
+        "model": "amazon/chronos-bolt-tiny",
+        "revision": "a0e552de83495b5c28c14c71c374f3e33280b340",
+        "context_length": 50,
+        "horizon_bars": 1,
+        "quantiles": {
+          "p10": 399.3517150878906,
+          "p50": 403.0831604003906,
+          "p90": 406.32861328125
+        }
+      }
+    },
+    {
+      "symbol": "WMT",
+      "decision_time": "2026-10-16T20:30:00+00:00",
+      "execution_time": "2026-10-19T13:30:00+00:00",
+      "candle_timestamp": "2026-10-16T19:30:00+00:00",
+      "state_sha256": "cb62e23d4b428c88ae7b09550cc13cb2bec3adaca23d1bbf013849ba863ceb5c",
+      "action": "BUY",
+      "probabilities": {
+        "BUY": 0.65,
+        "HOLD": 0.31,
+        "SELL": 0.04
+      },
+      "confidence": 0.48,
+      "model": "jev-1.14.0",
+      "latency_ms": 577.252,
+      "usage": {
+        "input_tokens": 985,
+        "output_tokens": 39
+      },
+      "forecast": {
+        "status": "unvalidated",
+        "model": "amazon/chronos-bolt-tiny",
+        "revision": "a0e552de83495b5c28c14c71c374f3e33280b340",
+        "context_length": 50,
+        "horizon_bars": 1,
+        "quantiles": {
+          "p10": 117.71456909179688,
+          "p50": 118.97663879394531,
+          "p90": 120.11418151855469
+        }
+      }
+    },
+    {
+      "symbol": "XOM",
+      "decision_time": "2026-10-16T20:30:00+00:00",
+      "execution_time": "2026-10-19T13:30:00+00:00",
+      "candle_timestamp": "2026-10-16T19:30:00+00:00",
+      "state_sha256": "e9222ef590fdd2851a65aec6c9d6f093c44d9b1b0f9f02ac636d145a63aeca0e",
+      "action": "BUY",
+      "probabilities": {
+        "BUY": 0.71,
+        "HOLD": 0.18,
+        "SELL": 0.11
+      },
+      "confidence": 0.56,
+      "model": "jev-1.14.0",
+      "latency_ms": 542.689,
+      "usage": {
+        "input_tokens": 979,
+        "output_tokens": 39
+      },
+      "forecast": {
+        "status": "unvalidated",
+        "model": "amazon/chronos-bolt-tiny",
+        "revision": "a0e552de83495b5c28c14c71c374f3e33280b340",
+        "context_length": 50,
+        "horizon_bars": 1,
+        "quantiles": {
+          "p10": 177.931396484375,
+          "p50": 179.45687866210938,
+          "p90": 180.84585571289062
+        }
+      }
+    },
+    {
+      "symbol": "AAPL",
+      "decision_time": "2026-10-23T20:30:00+00:00",
+      "execution_time": "2026-10-26T13:30:00+00:00",
+      "candle_timestamp": "2026-10-23T19:30:00+00:00",
+      "state_sha256": "47ea5c815d6fa5cd22fb8a061dc7d5c1e7cfe7f5fa415aeef42e6d59033e932e",
+      "action": "BUY",
+      "probabilities": {
+        "BUY": 0.66,
+        "HOLD": 0.33,
+        "SELL": 0.01
+      },
+      "confidence": 0.49,
+      "model": "jev-1.14.0",
+      "latency_ms": 825.343,
+      "usage": {
+        "input_tokens": 980,
+        "output_tokens": 39
+      },
+      "forecast": {
+        "status": "unvalidated",
+        "model": "amazon/chronos-bolt-tiny",
+        "revision": "a0e552de83495b5c28c14c71c374f3e33280b340",
+        "context_length": 50,
+        "horizon_bars": 1,
+        "quantiles": {
+          "p10": 345.5657958984375,
+          "p50": 347.5064392089844,
+          "p90": 348.9310302734375
+        }
+      }
+    },
+    {
+      "symbol": "AMD",
+      "decision_time": "2026-10-23T20:30:00+00:00",
+      "execution_time": "2026-10-26T13:30:00+00:00",
+      "candle_timestamp": "2026-10-23T19:30:00+00:00",
+      "state_sha256": "a3e63e7401436db7dc998a422fd080aa7823bf3720662bce457156d6cc2c18be",
+      "action": "HOLD",
+      "probabilities": {
+        "BUY": 0.08,
+        "HOLD": 0.48,
+        "SELL": 0.44
+      },
+      "confidence": 0.22,
+      "model": "jev-1.14.0",
+      "latency_ms": 542.785,
+      "usage": {
+        "input_tokens": 980,
+        "output_tokens": 40
+      },
+      "forecast": {
+        "status": "unvalidated",
+        "model": "amazon/chronos-bolt-tiny",
+        "revision": "a0e552de83495b5c28c14c71c374f3e33280b340",
+        "context_length": 50,
+        "horizon_bars": 1,
+        "quantiles": {
+          "p10": 509.1811218261719,
+          "p50": 515.2271118164062,
+          "p90": 523.0663452148438
+        }
+      }
+    },
+    {
+      "symbol": "AMZN",
+      "decision_time": "2026-10-23T20:30:00+00:00",
+      "execution_time": "2026-10-26T13:30:00+00:00",
+      "candle_timestamp": "2026-10-23T19:30:00+00:00",
+      "state_sha256": "88da63e855e02770d93d75748e4f991a410333bedff3d7c31272669f6f0af7bb",
+      "action": "HOLD",
+      "probabilities": {
+        "BUY": 0.16,
+        "HOLD": 0.45,
+        "SELL": 0.39
+      },
+      "confidence": 0.18,
+      "model": "jev-1.14.0",
+      "latency_ms": 558.223,
+      "usage": {
+        "input_tokens": 990,
+        "output_tokens": 40
+      },
+      "forecast": {
+        "status": "unvalidated",
+        "model": "amazon/chronos-bolt-tiny",
+        "revision": "a0e552de83495b5c28c14c71c374f3e33280b340",
+        "context_length": 50,
+        "horizon_bars": 1,
+        "quantiles": {
+          "p10": 247.77610778808594,
+          "p50": 248.3336944580078,
+          "p90": 250.07284545898438
+        }
+      }
+    },
+    {
+      "symbol": "BAC",
+      "decision_time": "2026-10-23T20:30:00+00:00",
+      "execution_time": "2026-10-26T13:30:00+00:00",
+      "candle_timestamp": "2026-10-23T19:30:00+00:00",
+      "state_sha256": "59ddf6b6633214d34a8d74b23bf539f51cfc8575017055c9c472b7631db3ae09",
+      "action": "HOLD",
+      "probabilities": {
+        "BUY": 0.04,
+        "HOLD": 0.5,
+        "SELL": 0.46
+      },
+      "confidence": 0.25,
+      "model": "jev-1.14.0",
+      "latency_ms": 580.785,
+      "usage": {
+        "input_tokens": 985,
+        "output_tokens": 40
+      },
+      "forecast": {
+        "status": "unvalidated",
+        "model": "amazon/chronos-bolt-tiny",
+        "revision": "a0e552de83495b5c28c14c71c374f3e33280b340",
+        "context_length": 50,
+        "horizon_bars": 1,
+        "quantiles": {
+          "p10": 50.325111389160156,
+          "p50": 50.60383987426758,
+          "p90": 50.94496536254883
+        }
+      }
+    },
+    {
+      "symbol": "COST",
+      "decision_time": "2026-10-23T20:30:00+00:00",
+      "execution_time": "2026-10-26T13:30:00+00:00",
+      "candle_timestamp": "2026-10-23T19:30:00+00:00",
+      "state_sha256": "4bb96b08ea510ca3f2ad72f281029af293bbb9ecb76c697bdc81623a47f9f32e",
+      "action": "HOLD",
+      "probabilities": {
+        "BUY": 0.13,
+        "HOLD": 0.73,
+        "SELL": 0.14
+      },
+      "confidence": 0.6,
+      "model": "jev-1.14.0",
+      "latency_ms": 557.178,
+      "usage": {
+        "input_tokens": 986,
+        "output_tokens": 40
+      },
+      "forecast": {
+        "status": "unvalidated",
+        "model": "amazon/chronos-bolt-tiny",
+        "revision": "a0e552de83495b5c28c14c71c374f3e33280b340",
+        "context_length": 50,
+        "horizon_bars": 1,
+        "quantiles": {
+          "p10": 997.74755859375,
+          "p50": 1003.7894287109375,
+          "p90": 1009.9037475585938
+        }
+      }
+    },
+    {
+      "symbol": "CVX",
+      "decision_time": "2026-10-23T20:30:00+00:00",
+      "execution_time": "2026-10-26T13:30:00+00:00",
+      "candle_timestamp": "2026-10-23T19:30:00+00:00",
+      "state_sha256": "1a54d325a2ca40985998d5293e2d32495c11f175f2422927c65e8494f42af6ad",
+      "action": "BUY",
+      "probabilities": {
+        "BUY": 0.7,
+        "HOLD": 0.18,
+        "SELL": 0.12
+      },
+      "confidence": 0.55,
+      "model": "jev-1.14.0",
+      "latency_ms": 584.38,
+      "usage": {
+        "input_tokens": 983,
+        "output_tokens": 39
+      },
+      "forecast": {
+        "status": "unvalidated",
+        "model": "amazon/chronos-bolt-tiny",
+        "revision": "a0e552de83495b5c28c14c71c374f3e33280b340",
+        "context_length": 50,
+        "horizon_bars": 1,
+        "quantiles": {
+          "p10": 231.33163452148438,
+          "p50": 233.760986328125,
+          "p90": 235.59657287597656
+        }
+      }
+    },
+    {
+      "symbol": "DIS",
+      "decision_time": "2026-10-23T20:30:00+00:00",
+      "execution_time": "2026-10-26T13:30:00+00:00",
+      "candle_timestamp": "2026-10-23T19:30:00+00:00",
+      "state_sha256": "6c13ecb27ca61efc5246845d6f38fd4b6c2dbddd4e660fb6f4095006e7a959bb",
+      "action": "BUY",
+      "probabilities": {
+        "BUY": 0.5,
+        "HOLD": 0.48,
+        "SELL": 0.02
+      },
+      "confidence": 0.25,
+      "model": "jev-1.14.0",
+      "latency_ms": 569.071,
+      "usage": {
+        "input_tokens": 985,
+        "output_tokens": 39
+      },
+      "forecast": {
+        "status": "unvalidated",
+        "model": "amazon/chronos-bolt-tiny",
+        "revision": "a0e552de83495b5c28c14c71c374f3e33280b340",
+        "context_length": 50,
+        "horizon_bars": 1,
+        "quantiles": {
+          "p10": 111.6239013671875,
+          "p50": 112.45833587646484,
+          "p90": 113.2190170288086
+        }
+      }
+    },
+    {
+      "symbol": "GOOGL",
+      "decision_time": "2026-10-23T20:30:00+00:00",
+      "execution_time": "2026-10-26T13:30:00+00:00",
+      "candle_timestamp": "2026-10-23T19:30:00+00:00",
+      "state_sha256": "cc535d79098603fda6e9ce283551e2e7ff9ae4da49efa81cdca987c212e38dcc",
+      "action": "SELL",
+      "probabilities": {
+        "BUY": 0.19,
+        "HOLD": 0.32,
+        "SELL": 0.49
+      },
+      "confidence": 0.24,
+      "model": "jev-1.14.0",
+      "latency_ms": 555.406,
+      "usage": {
+        "input_tokens": 981,
+        "output_tokens": 39
+      },
+      "forecast": {
+        "status": "unvalidated",
+        "model": "amazon/chronos-bolt-tiny",
+        "revision": "a0e552de83495b5c28c14c71c374f3e33280b340",
+        "context_length": 50,
+        "horizon_bars": 1,
+        "quantiles": {
+          "p10": 315.3189392089844,
+          "p50": 318.3994140625,
+          "p90": 321.22430419921875
+        }
+      }
+    },
+    {
+      "symbol": "HD",
+      "decision_time": "2026-10-23T20:30:00+00:00",
+      "execution_time": "2026-10-26T13:30:00+00:00",
+      "candle_timestamp": "2026-10-23T19:30:00+00:00",
+      "state_sha256": "5fb78ff774686db75462d9aa9ba36d588a58c61443122d82de57a19781049f87",
+      "action": "BUY",
+      "probabilities": {
+        "BUY": 0.49,
+        "HOLD": 0.48,
+        "SELL": 0.03
+      },
+      "confidence": 0.24,
+      "model": "jev-1.14.0",
+      "latency_ms": 559.724,
+      "usage": {
+        "input_tokens": 981,
+        "output_tokens": 39
+      },
+      "forecast": {
+        "status": "unvalidated",
+        "model": "amazon/chronos-bolt-tiny",
+        "revision": "a0e552de83495b5c28c14c71c374f3e33280b340",
+        "context_length": 50,
+        "horizon_bars": 1,
+        "quantiles": {
+          "p10": 316.96722412109375,
+          "p50": 320.59173583984375,
+          "p90": 323.7206115722656
+        }
+      }
+    },
+    {
+      "symbol": "IBM",
+      "decision_time": "2026-10-23T20:30:00+00:00",
+      "execution_time": "2026-10-26T13:30:00+00:00",
+      "candle_timestamp": "2026-10-23T19:30:00+00:00",
+      "state_sha256": "6f6058c8d61ccc319fbcfac6788532afd331af327a680a5e6d724feb6ccd28a2",
+      "action": "BUY",
+      "probabilities": {
+        "BUY": 0.82,
+        "HOLD": 0.15,
+        "SELL": 0.03
+      },
+      "confidence": 0.73,
+      "model": "jev-1.14.0",
+      "latency_ms": 554.77,
+      "usage": {
+        "input_tokens": 974,
+        "output_tokens": 39
+      },
+      "forecast": {
+        "status": "unvalidated",
+        "model": "amazon/chronos-bolt-tiny",
+        "revision": "a0e552de83495b5c28c14c71c374f3e33280b340",
+        "context_length": 50,
+        "horizon_bars": 1,
+        "quantiles": {
+          "p10": 252.22348022460938,
+          "p50": 254.6313018798828,
+          "p90": 257.2431640625
+        }
+      }
+    },
+    {
+      "symbol": "INTC",
+      "decision_time": "2026-10-23T20:30:00+00:00",
+      "execution_time": "2026-10-26T13:30:00+00:00",
+      "candle_timestamp": "2026-10-23T19:30:00+00:00",
+      "state_sha256": "d1fd4beee402226628c8b9e81400c59d68a158c8db616a79c32b4090dc192c6f",
+      "action": "HOLD",
+      "probabilities": {
+        "BUY": 0.15,
+        "HOLD": 0.55,
+        "SELL": 0.3
+      },
+      "confidence": 0.33,
+      "model": "jev-1.14.0",
+      "latency_ms": 555.497,
+      "usage": {
+        "input_tokens": 976,
+        "output_tokens": 40
+      },
+      "forecast": {
+        "status": "unvalidated",
+        "model": "amazon/chronos-bolt-tiny",
+        "revision": "a0e552de83495b5c28c14c71c374f3e33280b340",
+        "context_length": 50,
+        "horizon_bars": 1,
+        "quantiles": {
+          "p10": 86.07208251953125,
+          "p50": 86.76405334472656,
+          "p90": 88.00496673583984
+        }
+      }
+    },
+    {
+      "symbol": "JNJ",
+      "decision_time": "2026-10-23T20:30:00+00:00",
+      "execution_time": "2026-10-26T13:30:00+00:00",
+      "candle_timestamp": "2026-10-23T19:30:00+00:00",
+      "state_sha256": "23c6e19658e66443a3e21ff364bb26cfa8a31cdcca35881ba80168bb90c06888",
+      "action": "HOLD",
+      "probabilities": {
+        "BUY": 0.36,
+        "HOLD": 0.59,
+        "SELL": 0.05
+      },
+      "confidence": 0.38,
+      "model": "jev-1.14.0",
+      "latency_ms": 540.913,
+      "usage": {
+        "input_tokens": 984,
+        "output_tokens": 40
+      },
+      "forecast": {
+        "status": "unvalidated",
+        "model": "amazon/chronos-bolt-tiny",
+        "revision": "a0e552de83495b5c28c14c71c374f3e33280b340",
+        "context_length": 50,
+        "horizon_bars": 1,
+        "quantiles": {
+          "p10": 260.46099853515625,
+          "p50": 263.65582275390625,
+          "p90": 266.8045959472656
+        }
+      }
+    },
+    {
+      "symbol": "JPM",
+      "decision_time": "2026-10-23T20:30:00+00:00",
+      "execution_time": "2026-10-26T13:30:00+00:00",
+      "candle_timestamp": "2026-10-23T19:30:00+00:00",
+      "state_sha256": "41d87829f7970e978d4f1301b5eabe37185432395d08fead9771a7a8c3ac92bf",
+      "action": "HOLD",
+      "probabilities": {
+        "BUY": 0.05,
+        "HOLD": 0.49,
+        "SELL": 0.46
+      },
+      "confidence": 0.24,
+      "model": "jev-1.14.0",
+      "latency_ms": 568.724,
+      "usage": {
+        "input_tokens": 984,
+        "output_tokens": 40
+      },
+      "forecast": {
+        "status": "unvalidated",
+        "model": "amazon/chronos-bolt-tiny",
+        "revision": "a0e552de83495b5c28c14c71c374f3e33280b340",
+        "context_length": 50,
+        "horizon_bars": 1,
+        "quantiles": {
+          "p10": 330.5707702636719,
+          "p50": 331.6329345703125,
+          "p90": 333.061767578125
+        }
+      }
+    },
+    {
+      "symbol": "KO",
+      "decision_time": "2026-10-23T20:30:00+00:00",
+      "execution_time": "2026-10-26T13:30:00+00:00",
+      "candle_timestamp": "2026-10-23T19:30:00+00:00",
+      "state_sha256": "fcbc826765133a19814311b899c945c48caea2d9f0cfb9a87a2824349064795c",
+      "action": "SELL",
+      "probabilities": {
+        "BUY": 0.06,
+        "HOLD": 0.39,
+        "SELL": 0.55
+      },
+      "confidence": 0.33,
+      "model": "jev-1.14.0",
+      "latency_ms": 538.967,
+      "usage": {
+        "input_tokens": 983,
+        "output_tokens": 39
+      },
+      "forecast": {
+        "status": "unvalidated",
+        "model": "amazon/chronos-bolt-tiny",
+        "revision": "a0e552de83495b5c28c14c71c374f3e33280b340",
+        "context_length": 50,
+        "horizon_bars": 1,
+        "quantiles": {
+          "p10": 92.32402801513672,
+          "p50": 92.81610870361328,
+          "p90": 93.3582763671875
+        }
+      }
+    },
+    {
+      "symbol": "MCD",
+      "decision_time": "2026-10-23T20:30:00+00:00",
+      "execution_time": "2026-10-26T13:30:00+00:00",
+      "candle_timestamp": "2026-10-23T19:30:00+00:00",
+      "state_sha256": "907b6218a2c79a8feec3c0c2e80bbea648b5c7f4d430d97b4994eef2dd57f191",
+      "action": "BUY",
+      "probabilities": {
+        "BUY": 0.56,
+        "HOLD": 0.42,
+        "SELL": 0.02
+      },
+      "confidence": 0.34,
+      "model": "jev-1.14.0",
+      "latency_ms": 601.835,
+      "usage": {
+        "input_tokens": 984,
+        "output_tokens": 39
+      },
+      "forecast": {
+        "status": "unvalidated",
+        "model": "amazon/chronos-bolt-tiny",
+        "revision": "a0e552de83495b5c28c14c71c374f3e33280b340",
+        "context_length": 50,
+        "horizon_bars": 1,
+        "quantiles": {
+          "p10": 246.79156494140625,
+          "p50": 248.6157684326172,
+          "p90": 250.56192016601562
+        }
+      }
+    },
+    {
+      "symbol": "META",
+      "decision_time": "2026-10-23T20:30:00+00:00",
+      "execution_time": "2026-10-26T13:30:00+00:00",
+      "candle_timestamp": "2026-10-23T19:30:00+00:00",
+      "state_sha256": "13f722850fd79b65282f5a06c010156389c809162f70a9d656970645f536eea9",
+      "action": "SELL",
+      "probabilities": {
+        "BUY": 0.23,
+        "HOLD": 0.37,
+        "SELL": 0.4
+      },
+      "confidence": 0.1,
+      "model": "jev-1.14.0",
+      "latency_ms": 532.835,
+      "usage": {
+        "input_tokens": 978,
+        "output_tokens": 39
+      },
+      "forecast": {
+        "status": "unvalidated",
+        "model": "amazon/chronos-bolt-tiny",
+        "revision": "a0e552de83495b5c28c14c71c374f3e33280b340",
+        "context_length": 50,
+        "horizon_bars": 1,
+        "quantiles": {
+          "p10": 639.2160034179688,
+          "p50": 642.0112915039062,
+          "p90": 652.5068969726562
+        }
+      }
+    },
+    {
+      "symbol": "MSFT",
+      "decision_time": "2026-10-23T20:30:00+00:00",
+      "execution_time": "2026-10-26T13:30:00+00:00",
+      "candle_timestamp": "2026-10-23T19:30:00+00:00",
+      "state_sha256": "8f43b0be7afc171069534004ca71f8dee8f5333e42ac2b0177b39182a0daa6c9",
+      "action": "HOLD",
+      "probabilities": {
+        "BUY": 0.12,
+        "HOLD": 0.64,
+        "SELL": 0.24
+      },
+      "confidence": 0.46,
+      "model": "jev-1.14.0",
+      "latency_ms": 529.666,
+      "usage": {
+        "input_tokens": 983,
+        "output_tokens": 40
+      },
+      "forecast": {
+        "status": "unvalidated",
+        "model": "amazon/chronos-bolt-tiny",
+        "revision": "a0e552de83495b5c28c14c71c374f3e33280b340",
+        "context_length": 50,
+        "horizon_bars": 1,
+        "quantiles": {
+          "p10": 521.2832641601562,
+          "p50": 524.1150512695312,
+          "p90": 527.0277709960938
+        }
+      }
+    },
+    {
+      "symbol": "NVDA",
+      "decision_time": "2026-10-23T20:30:00+00:00",
+      "execution_time": "2026-10-26T13:30:00+00:00",
+      "candle_timestamp": "2026-10-23T19:30:00+00:00",
+      "state_sha256": "ddad0c2baa1ecda2e73ce8e0b41682ea1946d6592a696edc4dfe9bee64ec5611",
+      "action": "SELL",
+      "probabilities": {
+        "BUY": 0.04,
+        "HOLD": 0.38,
+        "SELL": 0.58
+      },
+      "confidence": 0.37,
+      "model": "jev-1.14.0",
+      "latency_ms": 522.543,
+      "usage": {
+        "input_tokens": 987,
+        "output_tokens": 39
+      },
+      "forecast": {
+        "status": "unvalidated",
+        "model": "amazon/chronos-bolt-tiny",
+        "revision": "a0e552de83495b5c28c14c71c374f3e33280b340",
+        "context_length": 50,
+        "horizon_bars": 1,
+        "quantiles": {
+          "p10": 210.65379333496094,
+          "p50": 211.2547149658203,
+          "p90": 212.1446075439453
+        }
+      }
+    },
+    {
+      "symbol": "PEP",
+      "decision_time": "2026-10-23T20:30:00+00:00",
+      "execution_time": "2026-10-26T13:30:00+00:00",
+      "candle_timestamp": "2026-10-23T19:30:00+00:00",
+      "state_sha256": "1a0c27ce2c551a2ff22ce110cebfab5f11199f22ce4b127cbdf1ef66c91a442b",
+      "action": "HOLD",
+      "probabilities": {
+        "BUY": 0.29,
+        "HOLD": 0.66,
+        "SELL": 0.05
+      },
+      "confidence": 0.49,
+      "model": "jev-1.14.0",
+      "latency_ms": 610.798,
+      "usage": {
+        "input_tokens": 983,
+        "output_tokens": 40
+      },
+      "forecast": {
+        "status": "unvalidated",
+        "model": "amazon/chronos-bolt-tiny",
+        "revision": "a0e552de83495b5c28c14c71c374f3e33280b340",
+        "context_length": 50,
+        "horizon_bars": 1,
+        "quantiles": {
+          "p10": 134.83787536621094,
+          "p50": 136.04931640625,
+          "p90": 137.1645965576172
+        }
+      }
+    },
+    {
+      "symbol": "PG",
+      "decision_time": "2026-10-23T20:30:00+00:00",
+      "execution_time": "2026-10-26T13:30:00+00:00",
+      "candle_timestamp": "2026-10-23T19:30:00+00:00",
+      "state_sha256": "00598aa51ff8cc1a262279f219a2cf12a3ddaa9edec7377698a653a1982e6ee9",
+      "action": "HOLD",
+      "probabilities": {
+        "BUY": 0.1,
+        "HOLD": 0.79,
+        "SELL": 0.11
+      },
+      "confidence": 0.68,
+      "model": "jev-1.14.0",
+      "latency_ms": 548.299,
+      "usage": {
+        "input_tokens": 985,
+        "output_tokens": 40
+      },
+      "forecast": {
+        "status": "unvalidated",
+        "model": "amazon/chronos-bolt-tiny",
+        "revision": "a0e552de83495b5c28c14c71c374f3e33280b340",
+        "context_length": 50,
+        "horizon_bars": 1,
+        "quantiles": {
+          "p10": 159.710205078125,
+          "p50": 161.25254821777344,
+          "p90": 163.36761474609375
+        }
+      }
+    },
+    {
+      "symbol": "TSLA",
+      "decision_time": "2026-10-23T20:30:00+00:00",
+      "execution_time": "2026-10-26T13:30:00+00:00",
+      "candle_timestamp": "2026-10-23T19:30:00+00:00",
+      "state_sha256": "4d956cb657647c445efac7b5d4a9b59ce8830fb6d967df49e665fd071924f9ef",
+      "action": "HOLD",
+      "probabilities": {
+        "BUY": 0.07,
+        "HOLD": 0.57,
+        "SELL": 0.36
+      },
+      "confidence": 0.35,
+      "model": "jev-1.14.0",
+      "latency_ms": 552.852,
+      "usage": {
+        "input_tokens": 985,
+        "output_tokens": 40
+      },
+      "forecast": {
+        "status": "unvalidated",
+        "model": "amazon/chronos-bolt-tiny",
+        "revision": "a0e552de83495b5c28c14c71c374f3e33280b340",
+        "context_length": 50,
+        "horizon_bars": 1,
+        "quantiles": {
+          "p10": 368.8645935058594,
+          "p50": 373.7430114746094,
+          "p90": 378.58636474609375
+        }
+      }
+    },
+    {
+      "symbol": "UNH",
+      "decision_time": "2026-10-23T20:30:00+00:00",
+      "execution_time": "2026-10-26T13:30:00+00:00",
+      "candle_timestamp": "2026-10-23T19:30:00+00:00",
+      "state_sha256": "660f8e04c1b668efa187f68a1c635460b72889ebbe5f5fe3a8a4e885e73401da",
+      "action": "HOLD",
+      "probabilities": {
+        "BUY": 0.11,
+        "HOLD": 0.7,
+        "SELL": 0.19
+      },
+      "confidence": 0.55,
+      "model": "jev-1.14.0",
+      "latency_ms": 558.757,
+      "usage": {
+        "input_tokens": 983,
+        "output_tokens": 40
+      },
+      "forecast": {
+        "status": "unvalidated",
+        "model": "amazon/chronos-bolt-tiny",
+        "revision": "a0e552de83495b5c28c14c71c374f3e33280b340",
+        "context_length": 50,
+        "horizon_bars": 1,
+        "quantiles": {
+          "p10": 412.9558410644531,
+          "p50": 417.907958984375,
+          "p90": 421.91497802734375
+        }
+      }
+    },
+    {
+      "symbol": "V",
+      "decision_time": "2026-10-23T20:30:00+00:00",
+      "execution_time": "2026-10-26T13:30:00+00:00",
+      "candle_timestamp": "2026-10-23T19:30:00+00:00",
+      "state_sha256": "293eca3ad57dab93415094c1e871fee99f3e342e4381f9ae83910060df853c9a",
+      "action": "HOLD",
+      "probabilities": {
+        "BUY": 0.09,
+        "HOLD": 0.75,
+        "SELL": 0.16
+      },
+      "confidence": 0.62,
+      "model": "jev-1.14.0",
+      "latency_ms": 546.402,
+      "usage": {
+        "input_tokens": 983,
+        "output_tokens": 40
+      },
+      "forecast": {
+        "status": "unvalidated",
+        "model": "amazon/chronos-bolt-tiny",
+        "revision": "a0e552de83495b5c28c14c71c374f3e33280b340",
+        "context_length": 50,
+        "horizon_bars": 1,
+        "quantiles": {
+          "p10": 405.8083801269531,
+          "p50": 408.26580810546875,
+          "p90": 410.61517333984375
+        }
+      }
+    },
+    {
+      "symbol": "WMT",
+      "decision_time": "2026-10-23T20:30:00+00:00",
+      "execution_time": "2026-10-26T13:30:00+00:00",
+      "candle_timestamp": "2026-10-23T19:30:00+00:00",
+      "state_sha256": "50afe85813637086d57571cf1a83ee3a5972af1cedd5265160bc611c18138896",
+      "action": "HOLD",
+      "probabilities": {
+        "BUY": 0.47,
+        "HOLD": 0.5,
+        "SELL": 0.03
+      },
+      "confidence": 0.25,
+      "model": "jev-1.14.0",
+      "latency_ms": 536.252,
+      "usage": {
+        "input_tokens": 986,
+        "output_tokens": 40
+      },
+      "forecast": {
+        "status": "unvalidated",
+        "model": "amazon/chronos-bolt-tiny",
+        "revision": "a0e552de83495b5c28c14c71c374f3e33280b340",
+        "context_length": 50,
+        "horizon_bars": 1,
+        "quantiles": {
+          "p10": 118.98870086669922,
+          "p50": 119.93021392822266,
+          "p90": 120.7895736694336
+        }
+      }
+    },
+    {
+      "symbol": "XOM",
+      "decision_time": "2026-10-23T20:30:00+00:00",
+      "execution_time": "2026-10-26T13:30:00+00:00",
+      "candle_timestamp": "2026-10-23T19:30:00+00:00",
+      "state_sha256": "f318d0fdea2a4410751323b2b293dc1cb236eb7a81348ea0b7a858008d3350ca",
+      "action": "BUY",
+      "probabilities": {
+        "BUY": 0.75,
+        "HOLD": 0.18,
+        "SELL": 0.07
+      },
+      "confidence": 0.62,
+      "model": "jev-1.14.0",
+      "latency_ms": 581.988,
+      "usage": {
+        "input_tokens": 986,
+        "output_tokens": 39
+      },
+      "forecast": {
+        "status": "unvalidated",
+        "model": "amazon/chronos-bolt-tiny",
+        "revision": "a0e552de83495b5c28c14c71c374f3e33280b340",
+        "context_length": 50,
+        "horizon_bars": 1,
+        "quantiles": {
+          "p10": 180.9739227294922,
+          "p50": 183.32815551757812,
+          "p90": 185.47894287109375
+        }
+      }
+    }
+  ],
+  "trades": [
+    {
+      "symbol": "AMD",
+      "time": "2026-10-05T13:30:00+00:00",
+      "action": "BUY",
+      "reference_open": 630.06,
+      "fill_price": 630.6900599999999,
+      "shares": 0.6339089916052031,
+      "fee": 0.19990004997501248
+    },
+    {
+      "symbol": "AMZN",
+      "time": "2026-10-05T13:30:00+00:00",
+      "action": "BUY",
+      "reference_open": 250.69,
+      "fill_price": 250.94068999999996,
+      "shares": 1.5932055496859638,
+      "fee": 0.1999000499750125
+    },
+    {
+      "symbol": "COST",
+      "time": "2026-10-05T13:30:00+00:00",
+      "action": "BUY",
+      "reference_open": 919.72,
+      "fill_price": 920.6397199999999,
+      "shares": 0.43426336194795623,
+      "fee": 0.1999000499750125
+    },
+    {
+      "symbol": "CVX",
+      "time": "2026-10-05T13:30:00+00:00",
+      "action": "BUY",
+      "reference_open": 207.04,
+      "fill_price": 207.24703999999997,
+      "shares": 1.9290992042637862,
+      "fee": 0.1999000499750125
+    },
+    {
+      "symbol": "MSFT",
+      "time": "2026-10-05T13:30:00+00:00",
+      "action": "BUY",
+      "reference_open": 521.96,
+      "fill_price": 522.48196,
+      "shares": 0.7651940747390111,
+      "fee": 0.1999000499750125
+    },
+    {
+      "symbol": "NVDA",
+      "time": "2026-10-05T13:30:00+00:00",
+      "action": "BUY",
+      "reference_open": 236.145,
+      "fill_price": 236.38114499999998,
+      "shares": 1.6913366755627868,
+      "fee": 0.1999000499750125
+    },
+    {
+      "symbol": "TSLA",
+      "time": "2026-10-05T13:30:00+00:00",
+      "action": "BUY",
+      "reference_open": 368.1,
+      "fill_price": 368.4681,
+      "shares": 1.085033141132231,
+      "fee": 0.19990004997501248
+    },
+    {
+      "symbol": "UNH",
+      "time": "2026-10-05T13:30:00+00:00",
+      "action": "BUY",
+      "reference_open": 373.49,
+      "fill_price": 373.86348999999996,
+      "shares": 1.0693745461746613,
+      "fee": 0.19990004997501248
+    },
+    {
+      "symbol": "XOM",
+      "time": "2026-10-05T13:30:00+00:00",
+      "action": "BUY",
+      "reference_open": 163.67,
+      "fill_price": 163.83366999999996,
+      "shares": 2.440280437775856,
+      "fee": 0.1999000499750125
+    },
+    {
+      "symbol": "AMD",
+      "time": "2026-10-12T13:30:00+00:00",
+      "action": "SELL",
+      "reference_open": 599.01,
+      "fill_price": 598.41099,
+      "shares": 0.6339089916052031,
+      "fee": 0.18966905361818562
+    },
+    {
+      "symbol": "BAC",
+      "time": "2026-10-12T13:30:00+00:00",
+      "action": "BUY",
+      "reference_open": 54.49,
+      "fill_price": 54.544489999999996,
+      "shares": 7.329798114347114,
+      "fee": 0.1999000499750125
+    },
+    {
+      "symbol": "DIS",
+      "time": "2026-10-12T13:30:00+00:00",
+      "action": "BUY",
+      "reference_open": 108.17,
+      "fill_price": 108.27816999999999,
+      "shares": 3.6923426019300574,
+      "fee": 0.1999000499750125
+    },
+    {
+      "symbol": "GOOGL",
+      "time": "2026-10-12T13:30:00+00:00",
+      "action": "BUY",
+      "reference_open": 352.045,
+      "fill_price": 352.397045,
+      "shares": 1.1345160398550589,
+      "fee": 0.19990004997501248
+    },
+    {
+      "symbol": "IBM",
+      "time": "2026-10-12T13:30:00+00:00",
+      "action": "BUY",
+      "reference_open": 227.975,
+      "fill_price": 228.20297499999998,
+      "shares": 1.7519495525859163,
+      "fee": 0.1999000499750125
+    },
+    {
+      "symbol": "JNJ",
+      "time": "2026-10-12T13:30:00+00:00",
+      "action": "BUY",
+      "reference_open": 261.6,
+      "fill_price": 261.8616,
+      "shares": 1.5267610827628983,
+      "fee": 0.1999000499750125
+    },
+    {
+      "symbol": "JPM",
+      "time": "2026-10-12T13:30:00+00:00",
+      "action": "BUY",
+      "reference_open": 334.36,
+      "fill_price": 334.69435999999996,
+      "shares": 1.19452296701392,
+      "fee": 0.1999000499750125
+    },
+    {
+      "symbol": "KO",
+      "time": "2026-10-12T13:30:00+00:00",
+      "action": "BUY",
+      "reference_open": 88.415,
+      "fill_price": 88.50341499999999,
+      "shares": 4.517340940460039,
+      "fee": 0.19990004997501254
+    },
+    {
+      "symbol": "NVDA",
+      "time": "2026-10-12T13:30:00+00:00",
+      "action": "SELL",
+      "reference_open": 228.69,
+      "fill_price": 228.46131,
+      "shares": 1.6913366755627868,
+      "fee": 0.19320249627505962
+    },
+    {
+      "symbol": "PG",
+      "time": "2026-10-12T13:30:00+00:00",
+      "action": "BUY",
+      "reference_open": 151.375,
+      "fill_price": 151.52637499999997,
+      "shares": 2.6384852138779475,
+      "fee": 0.1999000499750125
+    },
+    {
+      "symbol": "V",
+      "time": "2026-10-12T13:30:00+00:00",
+      "action": "BUY",
+      "reference_open": 385.74,
+      "fill_price": 386.12573999999995,
+      "shares": 1.0354142667360768,
+      "fee": 0.1999000499750125
+    },
+    {
+      "symbol": "AMZN",
+      "time": "2026-10-19T13:30:00+00:00",
+      "action": "SELL",
+      "reference_open": 255.605,
+      "fill_price": 255.349395,
+      "shares": 1.5932055496859638,
+      "fee": 0.20341203661147667
+    },
+    {
+      "symbol": "BAC",
+      "time": "2026-10-19T13:30:00+00:00",
+      "action": "SELL",
+      "reference_open": 51.275,
+      "fill_price": 51.223725,
+      "shares": 7.329798114347114,
+      "fee": 0.1877297814574176
+    },
+    {
+      "symbol": "HD",
+      "time": "2026-10-19T13:30:00+00:00",
+      "action": "BUY",
+      "reference_open": 306.29,
+      "fill_price": 306.59629,
+      "shares": 1.3039952308295217,
+      "fee": 0.1999000499750125
+    },
+    {
+      "symbol": "MCD",
+      "time": "2026-10-19T13:30:00+00:00",
+      "action": "BUY",
+      "reference_open": 241.25,
+      "fill_price": 241.49124999999998,
+      "shares": 1.6555469398995826,
+      "fee": 0.1999000499750125
+    },
+    {
+      "symbol": "PEP",
+      "time": "2026-10-19T13:30:00+00:00",
+      "action": "BUY",
+      "reference_open": 130.875,
+      "fill_price": 131.00587499999997,
+      "shares": 3.0517722960899665,
+      "fee": 0.19990004997501254
+    },
+    {
+      "symbol": "TSLA",
+      "time": "2026-10-19T13:30:00+00:00",
+      "action": "SELL",
+      "reference_open": 357.45,
+      "fill_price": 357.09254999999996,
+      "shares": 1.085033141132231,
+      "fee": 0.19372862560070908
+    },
+    {
+      "symbol": "WMT",
+      "time": "2026-10-19T13:30:00+00:00",
+      "action": "BUY",
+      "reference_open": 118.375,
+      "fill_price": 118.49337499999999,
+      "shares": 3.3740291383381145,
+      "fee": 0.1999000499750125
+    },
+    {
+      "symbol": "AAPL",
+      "time": "2026-10-26T13:30:00+00:00",
+      "action": "BUY",
+      "reference_open": 343.875,
+      "fill_price": 344.21887499999997,
+      "shares": 1.1614705903330405,
+      "fee": 0.1999000499750125
+    },
+    {
+      "symbol": "GOOGL",
+      "time": "2026-10-26T13:30:00+00:00",
+      "action": "SELL",
+      "reference_open": 320.99,
+      "fill_price": 320.66901,
+      "shares": 1.1345160398550589,
+      "fee": 0.18190206766472117
+    },
+    {
+      "symbol": "KO",
+      "time": "2026-10-26T13:30:00+00:00",
+      "action": "SELL",
+      "reference_open": 92.69,
+      "fill_price": 92.59731,
+      "shares": 4.517340940460039,
+      "fee": 0.20914680971973484
+    }
+  ],
+  "equity_curve": [
+    {
+      "date": "2026-09-28",
+      "equity": 10000.0
+    },
+    {
+      "date": "2026-09-29",
+      "equity": 10000.0
+    },
+    {
+      "date": "2026-09-30",
+      "equity": 10000.0
+    },
+    {
+      "date": "2026-10-01",
+      "equity": 10000.0
+    },
+    {
+      "date": "2026-10-02",
+      "equity": 10000.0
+    },
+    {
+      "date": "2026-10-05",
+      "equity": 10022.250022107033
+    },
+    {
+      "date": "2026-10-06",
+      "equity": 10053.23392533447
+    },
+    {
+      "date": "2026-10-07",
+      "equity": 10047.393541795107
+    },
+    {
+      "date": "2026-10-08",
+      "equity": 10022.724604431143
+    },
+    {
+      "date": "2026-10-09",
+      "equity": 10054.221862073548
+    },
+    {
+      "date": "2026-10-12",
+      "equity": 10073.55493829932
+    },
+    {
+      "date": "2026-10-13",
+      "equity": 10061.739908356018
+    },
+    {
+      "date": "2026-10-14",
+      "equity": 10082.276176982537
+    },
+    {
+      "date": "2026-10-15",
+      "equity": 10110.806280932906
+    },
+    {
+      "date": "2026-10-16",
+      "equity": 10117.039969605097
+    },
+    {
+      "date": "2026-10-19",
+      "equity": 10142.730776920978
+    },
+    {
+      "date": "2026-10-20",
+      "equity": 10200.000498853651
+    },
+    {
+      "date": "2026-10-21",
+      "equity": 10200.52100562912
+    },
+    {
+      "date": "2026-10-22",
+      "equity": 10315.061636641869
+    },
+    {
+      "date": "2026-10-23",
+      "equity": 10253.572679495503
+    },
+    {
+      "date": "2026-10-26",
+      "equity": 10248.37271212069
+    },
+    {
+      "date": "2026-10-27",
+      "equity": 10209.750440468473
+    }
+  ],
+  "significance": {
+    "method": "stationary bootstrap",
+    "observations": 3,
+    "mean_weekly_excess_return": 0.011995378764782738,
+    "confidence_interval": [
+      0.0037734611748741673,
+      0.02021729635469131
+    ],
+    "p_value": null,
+    "variants_tested": null,
+    "block_length": 2,
+    "draws": 2000,
+    "seed": 0,
+    "confidence_level": 0.95,
+    "final_partial_period_excluded": true,
+    "reason": null
+  },
+  "cost_sensitivity": {
+    "method": "fixed-decision flat-cost replay",
+    "scenarios": [
+      {
+        "multiplier": 0.5,
+        "fee_bps": 2.5,
+        "slippage_bps": 5.0,
+        "ending_balance": 10218.85,
+        "return_pct": 2.19,
+        "spy_ending_balance": 9990.69,
+        "spy_return_pct": -0.09
+      },
+      {
+        "multiplier": 1,
+        "fee_bps": 5.0,
+        "slippage_bps": 10.0,
+        "ending_balance": 10209.75,
+        "return_pct": 2.1,
+        "spy_ending_balance": 9983.2,
+        "spy_return_pct": -0.17
+      },
+      {
+        "multiplier": 2,
+        "fee_bps": 10.0,
+        "slippage_bps": 20.0,
+        "ending_balance": 10191.59,
+        "return_pct": 1.92,
+        "spy_ending_balance": 9968.26,
+        "spy_return_pct": -0.32
+      }
+    ]
+  },
+  "overfitting": {
+    "pbo": null,
+    "fold_distribution": null,
+    "reason": "requires aligned returns from multiple variants"
+  },
+  "limitations": "The input manifest is an unverified attestation; corporate actions, model training knowledge, survivorship and hindsight selection are not verified. Only cash dividends payable after the test are supported; no split accounting. Fees and slippage are assumptions; no liquidity or market impact model."
+}

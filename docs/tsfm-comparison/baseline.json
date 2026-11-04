@@ -1,0 +1,2497 @@
+{
+  "start": "2026-09-28",
+  "end": "2026-10-27",
+  "symbols": [
+    "AAPL",
+    "AMD",
+    "AMZN",
+    "BAC",
+    "COST",
+    "CVX",
+    "DIS",
+    "GOOGL",
+    "HD",
+    "IBM",
+    "INTC",
+    "JNJ",
+    "JPM",
+    "KO",
+    "MCD",
+    "META",
+    "MSFT",
+    "NVDA",
+    "PEP",
+    "PG",
+    "TSLA",
+    "UNH",
+    "V",
+    "WMT",
+    "XOM"
+  ],
+  "model_requested": "jev-1.14.0",
+  "model_resolved": "jev-1.14.0",
+  "model_retries": 0,
+  "mean_model_latency_ms": 503.99,
+  "input_tokens_successful": 80718,
+  "usage_complete": true,
+  "dataset_manifest_sha256": "cf9392006fcd098cff829c6b697ac51131d74ef161e7b908305dd9491622053e",
+  "fee_bps": 5,
+  "slippage_bps": 10,
+  "initial_balance": 10000.0,
+  "first_execution_time": "2026-10-05T13:30:00+00:00",
+  "ending_balance": 10229.94,
+  "return_pct": 2.3,
+  "spy_ending_balance": 9983.2,
+  "spy_return_pct": -0.17,
+  "max_drawdown_pct": -1.08,
+  "total_fees": 6.37,
+  "dividend_receivables": 2.87,
+  "spy_dividend_receivables": 0.0,
+  "dividends": [
+    {
+      "symbol": "PG",
+      "ex_date": "2026-10-23",
+      "pay_date": "2026-11-16",
+      "shares": 2.6384852138779475,
+      "amount_per_share": 1.0885,
+      "receivable": 2.871991155306146
+    }
+  ],
+  "decisions": [
+    {
+      "symbol": "AAPL",
+      "decision_time": "2026-10-02T20:30:00+00:00",
+      "execution_time": "2026-10-05T13:30:00+00:00",
+      "candle_timestamp": "2026-10-02T19:30:00+00:00",
+      "state_sha256": "2d65b06cd77567b256bd57360c0abdeb6ce7400f34ea26a727bf347cfc64beaf",
+      "action": "HOLD",
+      "probabilities": {
+        "BUY": 0.33,
+        "HOLD": 0.62,
+        "SELL": 0.05
+      },
+      "confidence": 0.43,
+      "model": "jev-1.14.0",
+      "latency_ms": 560.823,
+      "usage": {
+        "input_tokens": 806,
+        "output_tokens": 40
+      }
+    },
+    {
+      "symbol": "AMD",
+      "decision_time": "2026-10-02T20:30:00+00:00",
+      "execution_time": "2026-10-05T13:30:00+00:00",
+      "candle_timestamp": "2026-10-02T19:30:00+00:00",
+      "state_sha256": "e8b6038a2fd2eb49b465a1651f684d7985580305942945734e0ca7b7e459e10e",
+      "action": "BUY",
+      "probabilities": {
+        "BUY": 0.66,
+        "HOLD": 0.3,
+        "SELL": 0.04
+      },
+      "confidence": 0.49,
+      "model": "jev-1.14.0",
+      "latency_ms": 490.391,
+      "usage": {
+        "input_tokens": 803,
+        "output_tokens": 39
+      }
+    },
+    {
+      "symbol": "AMZN",
+      "decision_time": "2026-10-02T20:30:00+00:00",
+      "execution_time": "2026-10-05T13:30:00+00:00",
+      "candle_timestamp": "2026-10-02T19:30:00+00:00",
+      "state_sha256": "f78fe34b270e76c8e47adcf14d145bac3a16f917a7ac432659e465054d144937",
+      "action": "BUY",
+      "probabilities": {
+        "BUY": 0.86,
+        "HOLD": 0.13,
+        "SELL": 0.01
+      },
+      "confidence": 0.79,
+      "model": "jev-1.14.0",
+      "latency_ms": 1104.611,
+      "usage": {
+        "input_tokens": 805,
+        "output_tokens": 39
+      }
+    },
+    {
+      "symbol": "BAC",
+      "decision_time": "2026-10-02T20:30:00+00:00",
+      "execution_time": "2026-10-05T13:30:00+00:00",
+      "candle_timestamp": "2026-10-02T19:30:00+00:00",
+      "state_sha256": "09803b013b3b04a9e5876b732a5b3e5dd3872bf9727f214efbcd20cb4e83dbae",
+      "action": "HOLD",
+      "probabilities": {
+        "BUY": 0.19,
+        "HOLD": 0.54,
+        "SELL": 0.27
+      },
+      "confidence": 0.31,
+      "model": "jev-1.14.0",
+      "latency_ms": 478.315,
+      "usage": {
+        "input_tokens": 808,
+        "output_tokens": 40
+      }
+    },
+    {
+      "symbol": "COST",
+      "decision_time": "2026-10-02T20:30:00+00:00",
+      "execution_time": "2026-10-05T13:30:00+00:00",
+      "candle_timestamp": "2026-10-02T19:30:00+00:00",
+      "state_sha256": "2cb32cc39673456558d3ded1da33f1bc47e50e5726960d0616afd3db7fca7ac2",
+      "action": "BUY",
+      "probabilities": {
+        "BUY": 0.91,
+        "HOLD": 0.08,
+        "SELL": 0.01
+      },
+      "confidence": 0.86,
+      "model": "jev-1.14.0",
+      "latency_ms": 529.918,
+      "usage": {
+        "input_tokens": 804,
+        "output_tokens": 39
+      }
+    },
+    {
+      "symbol": "CVX",
+      "decision_time": "2026-10-02T20:30:00+00:00",
+      "execution_time": "2026-10-05T13:30:00+00:00",
+      "candle_timestamp": "2026-10-02T19:30:00+00:00",
+      "state_sha256": "208fbe32c46b4b8e27637a79cb4115ac5521def34ce0e7d7bb2edf8238f47cdf",
+      "action": "BUY",
+      "probabilities": {
+        "BUY": 0.71,
+        "HOLD": 0.28,
+        "SELL": 0.01
+      },
+      "confidence": 0.56,
+      "model": "jev-1.14.0",
+      "latency_ms": 482.641,
+      "usage": {
+        "input_tokens": 812,
+        "output_tokens": 39
+      }
+    },
+    {
+      "symbol": "DIS",
+      "decision_time": "2026-10-02T20:30:00+00:00",
+      "execution_time": "2026-10-05T13:30:00+00:00",
+      "candle_timestamp": "2026-10-02T19:30:00+00:00",
+      "state_sha256": "8cdf043333e96af4dc4ed42cbd1a2916babde2ec3fe4e1f6616b4f8bb443819d",
+      "action": "SELL",
+      "probabilities": {
+        "BUY": 0.07,
+        "HOLD": 0.45,
+        "SELL": 0.48
+      },
+      "confidence": 0.22,
+      "model": "jev-1.14.0",
+      "latency_ms": 482.363,
+      "usage": {
+        "input_tokens": 814,
+        "output_tokens": 39
+      }
+    },
+    {
+      "symbol": "GOOGL",
+      "decision_time": "2026-10-02T20:30:00+00:00",
+      "execution_time": "2026-10-05T13:30:00+00:00",
+      "candle_timestamp": "2026-10-02T19:30:00+00:00",
+      "state_sha256": "bea03bd57d39833d7843beb845e9fa710facc57a344302568e9da80a8a2e5cad",
+      "action": "HOLD",
+      "probabilities": {
+        "BUY": 0.22,
+        "HOLD": 0.71,
+        "SELL": 0.07
+      },
+      "confidence": 0.56,
+      "model": "jev-1.14.0",
+      "latency_ms": 474.561,
+      "usage": {
+        "input_tokens": 813,
+        "output_tokens": 40
+      }
+    },
+    {
+      "symbol": "HD",
+      "decision_time": "2026-10-02T20:30:00+00:00",
+      "execution_time": "2026-10-05T13:30:00+00:00",
+      "candle_timestamp": "2026-10-02T19:30:00+00:00",
+      "state_sha256": "69a999f3bc1e8fb3ba85b76388e7a0d154341609557b4c9fcfccf9b71df0c970",
+      "action": "SELL",
+      "probabilities": {
+        "BUY": 0.06,
+        "HOLD": 0.43,
+        "SELL": 0.51
+      },
+      "confidence": 0.26,
+      "model": "jev-1.14.0",
+      "latency_ms": 480.99,
+      "usage": {
+        "input_tokens": 811,
+        "output_tokens": 39
+      }
+    },
+    {
+      "symbol": "IBM",
+      "decision_time": "2026-10-02T20:30:00+00:00",
+      "execution_time": "2026-10-05T13:30:00+00:00",
+      "candle_timestamp": "2026-10-02T19:30:00+00:00",
+      "state_sha256": "de5912b5bcc20c438c779043ac65ad40dde43fc8c821b0081e572646ec1647b5",
+      "action": "HOLD",
+      "probabilities": {
+        "BUY": 0.06,
+        "HOLD": 0.55,
+        "SELL": 0.39
+      },
+      "confidence": 0.33,
+      "model": "jev-1.14.0",
+      "latency_ms": 508.476,
+      "usage": {
+        "input_tokens": 812,
+        "output_tokens": 40
+      }
+    },
+    {
+      "symbol": "INTC",
+      "decision_time": "2026-10-02T20:30:00+00:00",
+      "execution_time": "2026-10-05T13:30:00+00:00",
+      "candle_timestamp": "2026-10-02T19:30:00+00:00",
+      "state_sha256": "2b1a39b86b3fb1a3dc9d0e9f1ca91e0dfb90e1d99b74062a93816eee9b93f9cc",
+      "action": "HOLD",
+      "probabilities": {
+        "BUY": 0.04,
+        "HOLD": 0.5,
+        "SELL": 0.46
+      },
+      "confidence": 0.25,
+      "model": "jev-1.14.0",
+      "latency_ms": 476.118,
+      "usage": {
+        "input_tokens": 812,
+        "output_tokens": 40
+      }
+    },
+    {
+      "symbol": "JNJ",
+      "decision_time": "2026-10-02T20:30:00+00:00",
+      "execution_time": "2026-10-05T13:30:00+00:00",
+      "candle_timestamp": "2026-10-02T19:30:00+00:00",
+      "state_sha256": "81c989ba334625ea65e71010801ce7dc9a936d70b76150b45640ff727df008c8",
+      "action": "SELL",
+      "probabilities": {
+        "BUY": 0.33,
+        "HOLD": 0.28,
+        "SELL": 0.39
+      },
+      "confidence": 0.09,
+      "model": "jev-1.14.0",
+      "latency_ms": 491.343,
+      "usage": {
+        "input_tokens": 807,
+        "output_tokens": 39
+      }
+    },
+    {
+      "symbol": "JPM",
+      "decision_time": "2026-10-02T20:30:00+00:00",
+      "execution_time": "2026-10-05T13:30:00+00:00",
+      "candle_timestamp": "2026-10-02T19:30:00+00:00",
+      "state_sha256": "f32d98bc884bf07d1c08b177c52f863f8500f15d764f8d8f4d5c9143a8aaed3e",
+      "action": "HOLD",
+      "probabilities": {
+        "BUY": 0.22,
+        "HOLD": 0.65,
+        "SELL": 0.13
+      },
+      "confidence": 0.48,
+      "model": "jev-1.14.0",
+      "latency_ms": 517.589,
+      "usage": {
+        "input_tokens": 807,
+        "output_tokens": 40
+      }
+    },
+    {
+      "symbol": "KO",
+      "decision_time": "2026-10-02T20:30:00+00:00",
+      "execution_time": "2026-10-05T13:30:00+00:00",
+      "candle_timestamp": "2026-10-02T19:30:00+00:00",
+      "state_sha256": "d1ef7b76f7742ee2572b0eb6e3d42712d0ec05788d992f5d4a4ef703c70f8924",
+      "action": "SELL",
+      "probabilities": {
+        "BUY": 0.14,
+        "HOLD": 0.4,
+        "SELL": 0.46
+      },
+      "confidence": 0.19,
+      "model": "jev-1.14.0",
+      "latency_ms": 497.682,
+      "usage": {
+        "input_tokens": 808,
+        "output_tokens": 39
+      }
+    },
+    {
+      "symbol": "MCD",
+      "decision_time": "2026-10-02T20:30:00+00:00",
+      "execution_time": "2026-10-05T13:30:00+00:00",
+      "candle_timestamp": "2026-10-02T19:30:00+00:00",
+      "state_sha256": "a2d29df66c54c2629f9bb36435b70ed814bbd0a1037861fff8db931d2601d93d",
+      "action": "HOLD",
+      "probabilities": {
+        "BUY": 0.17,
+        "HOLD": 0.55,
+        "SELL": 0.28
+      },
+      "confidence": 0.33,
+      "model": "jev-1.14.0",
+      "latency_ms": 479.415,
+      "usage": {
+        "input_tokens": 809,
+        "output_tokens": 40
+      }
+    },
+    {
+      "symbol": "META",
+      "decision_time": "2026-10-02T20:30:00+00:00",
+      "execution_time": "2026-10-05T13:30:00+00:00",
+      "candle_timestamp": "2026-10-02T19:30:00+00:00",
+      "state_sha256": "5bdb32b99c8883c789677baad988488cb9840cc63f73ff1596caffbb55555be1",
+      "action": "HOLD",
+      "probabilities": {
+        "BUY": 0.09,
+        "HOLD": 0.52,
+        "SELL": 0.39
+      },
+      "confidence": 0.28,
+      "model": "jev-1.14.0",
+      "latency_ms": 1108.699,
+      "usage": {
+        "input_tokens": 807,
+        "output_tokens": 40
+      }
+    },
+    {
+      "symbol": "MSFT",
+      "decision_time": "2026-10-02T20:30:00+00:00",
+      "execution_time": "2026-10-05T13:30:00+00:00",
+      "candle_timestamp": "2026-10-02T19:30:00+00:00",
+      "state_sha256": "7142e98e8b6df14fc83573c98933ff6974639f0b0011d007c1180fac88fe769d",
+      "action": "BUY",
+      "probabilities": {
+        "BUY": 0.58,
+        "HOLD": 0.37,
+        "SELL": 0.05
+      },
+      "confidence": 0.37,
+      "model": "jev-1.14.0",
+      "latency_ms": 512.903,
+      "usage": {
+        "input_tokens": 802,
+        "output_tokens": 39
+      }
+    },
+    {
+      "symbol": "NVDA",
+      "decision_time": "2026-10-02T20:30:00+00:00",
+      "execution_time": "2026-10-05T13:30:00+00:00",
+      "candle_timestamp": "2026-10-02T19:30:00+00:00",
+      "state_sha256": "be162229529ad1423745b09d2293dff1568a4b64fff44884d1accce608d8c639",
+      "action": "BUY",
+      "probabilities": {
+        "BUY": 0.54,
+        "HOLD": 0.41,
+        "SELL": 0.05
+      },
+      "confidence": 0.31,
+      "model": "jev-1.14.0",
+      "latency_ms": 481.137,
+      "usage": {
+        "input_tokens": 811,
+        "output_tokens": 39
+      }
+    },
+    {
+      "symbol": "PEP",
+      "decision_time": "2026-10-02T20:30:00+00:00",
+      "execution_time": "2026-10-05T13:30:00+00:00",
+      "candle_timestamp": "2026-10-02T19:30:00+00:00",
+      "state_sha256": "441912c618ec0133b01f58e414afb3c116a7510a3ba9d774000f0b88dcbc46bd",
+      "action": "HOLD",
+      "probabilities": {
+        "BUY": 0.22,
+        "HOLD": 0.48,
+        "SELL": 0.3
+      },
+      "confidence": 0.22,
+      "model": "jev-1.14.0",
+      "latency_ms": 485.843,
+      "usage": {
+        "input_tokens": 810,
+        "output_tokens": 40
+      }
+    },
+    {
+      "symbol": "PG",
+      "decision_time": "2026-10-02T20:30:00+00:00",
+      "execution_time": "2026-10-05T13:30:00+00:00",
+      "candle_timestamp": "2026-10-02T19:30:00+00:00",
+      "state_sha256": "c55de13b84e233acc835a324fe9f834d85c395f137d2e01143bbc1de05115c18",
+      "action": "HOLD",
+      "probabilities": {
+        "BUY": 0.23,
+        "HOLD": 0.52,
+        "SELL": 0.25
+      },
+      "confidence": 0.28,
+      "model": "jev-1.14.0",
+      "latency_ms": 491.756,
+      "usage": {
+        "input_tokens": 805,
+        "output_tokens": 40
+      }
+    },
+    {
+      "symbol": "TSLA",
+      "decision_time": "2026-10-02T20:30:00+00:00",
+      "execution_time": "2026-10-05T13:30:00+00:00",
+      "candle_timestamp": "2026-10-02T19:30:00+00:00",
+      "state_sha256": "fb0004dc76c14ddabe1b8ddf4586227f3b59359c6990a80ecdfbf8beaef55555",
+      "action": "BUY",
+      "probabilities": {
+        "BUY": 0.61,
+        "HOLD": 0.32,
+        "SELL": 0.07
+      },
+      "confidence": 0.42,
+      "model": "jev-1.14.0",
+      "latency_ms": 475.056,
+      "usage": {
+        "input_tokens": 809,
+        "output_tokens": 39
+      }
+    },
+    {
+      "symbol": "UNH",
+      "decision_time": "2026-10-02T20:30:00+00:00",
+      "execution_time": "2026-10-05T13:30:00+00:00",
+      "candle_timestamp": "2026-10-02T19:30:00+00:00",
+      "state_sha256": "17a00ad34a1856d568dff00e6201ab68b26ebb1757ee9c7ed0a1a22353a5fc6f",
+      "action": "BUY",
+      "probabilities": {
+        "BUY": 0.73,
+        "HOLD": 0.25,
+        "SELL": 0.02
+      },
+      "confidence": 0.6,
+      "model": "jev-1.14.0",
+      "latency_ms": 475.037,
+      "usage": {
+        "input_tokens": 807,
+        "output_tokens": 39
+      }
+    },
+    {
+      "symbol": "V",
+      "decision_time": "2026-10-02T20:30:00+00:00",
+      "execution_time": "2026-10-05T13:30:00+00:00",
+      "candle_timestamp": "2026-10-02T19:30:00+00:00",
+      "state_sha256": "d29742732d05b5aecb48427559c0a4064ce8baa4f81825990c5c25625225f1e3",
+      "action": "HOLD",
+      "probabilities": {
+        "BUY": 0.16,
+        "HOLD": 0.61,
+        "SELL": 0.23
+      },
+      "confidence": 0.42,
+      "model": "jev-1.14.0",
+      "latency_ms": 478.41,
+      "usage": {
+        "input_tokens": 811,
+        "output_tokens": 40
+      }
+    },
+    {
+      "symbol": "WMT",
+      "decision_time": "2026-10-02T20:30:00+00:00",
+      "execution_time": "2026-10-05T13:30:00+00:00",
+      "candle_timestamp": "2026-10-02T19:30:00+00:00",
+      "state_sha256": "fa359246687cdb67f9bb988d65507a8d6f120b5e525a9d64f49a896fe979f7bb",
+      "action": "HOLD",
+      "probabilities": {
+        "BUY": 0.15,
+        "HOLD": 0.46,
+        "SELL": 0.39
+      },
+      "confidence": 0.19,
+      "model": "jev-1.14.0",
+      "latency_ms": 473.931,
+      "usage": {
+        "input_tokens": 814,
+        "output_tokens": 40
+      }
+    },
+    {
+      "symbol": "XOM",
+      "decision_time": "2026-10-02T20:30:00+00:00",
+      "execution_time": "2026-10-05T13:30:00+00:00",
+      "candle_timestamp": "2026-10-02T19:30:00+00:00",
+      "state_sha256": "6cfa8bab23471fffbda74664a7611fe241f75cb9bc61849cd3aa3cbf0a5fcd0c",
+      "action": "BUY",
+      "probabilities": {
+        "BUY": 0.78,
+        "HOLD": 0.21,
+        "SELL": 0.01
+      },
+      "confidence": 0.67,
+      "model": "jev-1.14.0",
+      "latency_ms": 478.576,
+      "usage": {
+        "input_tokens": 813,
+        "output_tokens": 39
+      }
+    },
+    {
+      "symbol": "AAPL",
+      "decision_time": "2026-10-09T20:30:00+00:00",
+      "execution_time": "2026-10-12T13:30:00+00:00",
+      "candle_timestamp": "2026-10-09T19:30:00+00:00",
+      "state_sha256": "a9a03ae949db2c14d6d9c640cb114e397101bca13b6dc4c7c9f1c700602ae730",
+      "action": "HOLD",
+      "probabilities": {
+        "BUY": 0.42,
+        "HOLD": 0.53,
+        "SELL": 0.05
+      },
+      "confidence": 0.3,
+      "model": "jev-1.14.0",
+      "latency_ms": 479.832,
+      "usage": {
+        "input_tokens": 802,
+        "output_tokens": 40
+      }
+    },
+    {
+      "symbol": "AMD",
+      "decision_time": "2026-10-09T20:30:00+00:00",
+      "execution_time": "2026-10-12T13:30:00+00:00",
+      "candle_timestamp": "2026-10-09T19:30:00+00:00",
+      "state_sha256": "f18894722e3dfc4aadee43374ef2ddf317090c3b69d480ac3e0b3c1b44b9e88a",
+      "action": "SELL",
+      "probabilities": {
+        "BUY": 0.12,
+        "HOLD": 0.32,
+        "SELL": 0.56
+      },
+      "confidence": 0.34,
+      "model": "jev-1.14.0",
+      "latency_ms": 475.656,
+      "usage": {
+        "input_tokens": 804,
+        "output_tokens": 39
+      }
+    },
+    {
+      "symbol": "AMZN",
+      "decision_time": "2026-10-09T20:30:00+00:00",
+      "execution_time": "2026-10-12T13:30:00+00:00",
+      "candle_timestamp": "2026-10-09T19:30:00+00:00",
+      "state_sha256": "313687e0e607a274b1b32ca9940a3f0bda65038b94e605a5d68b91623abec527",
+      "action": "BUY",
+      "probabilities": {
+        "BUY": 0.92,
+        "HOLD": 0.07,
+        "SELL": 0.01
+      },
+      "confidence": 0.88,
+      "model": "jev-1.14.0",
+      "latency_ms": 499.826,
+      "usage": {
+        "input_tokens": 803,
+        "output_tokens": 39
+      }
+    },
+    {
+      "symbol": "BAC",
+      "decision_time": "2026-10-09T20:30:00+00:00",
+      "execution_time": "2026-10-12T13:30:00+00:00",
+      "candle_timestamp": "2026-10-09T19:30:00+00:00",
+      "state_sha256": "4d6e9460df245c57dc344460731e321cf3bd975f17357500777a97bfd8f86b70",
+      "action": "BUY",
+      "probabilities": {
+        "BUY": 0.88,
+        "HOLD": 0.11,
+        "SELL": 0.01
+      },
+      "confidence": 0.82,
+      "model": "jev-1.14.0",
+      "latency_ms": 490.628,
+      "usage": {
+        "input_tokens": 805,
+        "output_tokens": 39
+      }
+    },
+    {
+      "symbol": "COST",
+      "decision_time": "2026-10-09T20:30:00+00:00",
+      "execution_time": "2026-10-12T13:30:00+00:00",
+      "candle_timestamp": "2026-10-09T19:30:00+00:00",
+      "state_sha256": "0c8d60d915f6e536f7f87a95472303613fea325e751146cf70692704fb975c17",
+      "action": "BUY",
+      "probabilities": {
+        "BUY": 0.69,
+        "HOLD": 0.27,
+        "SELL": 0.04
+      },
+      "confidence": 0.53,
+      "model": "jev-1.14.0",
+      "latency_ms": 471.023,
+      "usage": {
+        "input_tokens": 803,
+        "output_tokens": 39
+      }
+    },
+    {
+      "symbol": "CVX",
+      "decision_time": "2026-10-09T20:30:00+00:00",
+      "execution_time": "2026-10-12T13:30:00+00:00",
+      "candle_timestamp": "2026-10-09T19:30:00+00:00",
+      "state_sha256": "b4ed1d4164248b6a6a4d493e5f37a30cf482b88e9ba35de0618aa6b6c1d9b9ac",
+      "action": "BUY",
+      "probabilities": {
+        "BUY": 0.59,
+        "HOLD": 0.36,
+        "SELL": 0.05
+      },
+      "confidence": 0.38,
+      "model": "jev-1.14.0",
+      "latency_ms": 474.988,
+      "usage": {
+        "input_tokens": 807,
+        "output_tokens": 39
+      }
+    },
+    {
+      "symbol": "DIS",
+      "decision_time": "2026-10-09T20:30:00+00:00",
+      "execution_time": "2026-10-12T13:30:00+00:00",
+      "candle_timestamp": "2026-10-09T19:30:00+00:00",
+      "state_sha256": "044f88029ca1b96b0cfbe967daff9db6c7f6a780b47be2e2791803bcf139c2e3",
+      "action": "BUY",
+      "probabilities": {
+        "BUY": 0.48,
+        "HOLD": 0.28,
+        "SELL": 0.24
+      },
+      "confidence": 0.22,
+      "model": "jev-1.14.0",
+      "latency_ms": 489.438,
+      "usage": {
+        "input_tokens": 805,
+        "output_tokens": 39
+      }
+    },
+    {
+      "symbol": "GOOGL",
+      "decision_time": "2026-10-09T20:30:00+00:00",
+      "execution_time": "2026-10-12T13:30:00+00:00",
+      "candle_timestamp": "2026-10-09T19:30:00+00:00",
+      "state_sha256": "63fd785a6dae7f9ee643e61f8dcf814b25575e3eef7ef15cdab01210a850b898",
+      "action": "BUY",
+      "probabilities": {
+        "BUY": 0.72,
+        "HOLD": 0.26,
+        "SELL": 0.02
+      },
+      "confidence": 0.58,
+      "model": "jev-1.14.0",
+      "latency_ms": 510.374,
+      "usage": {
+        "input_tokens": 810,
+        "output_tokens": 39
+      }
+    },
+    {
+      "symbol": "HD",
+      "decision_time": "2026-10-09T20:30:00+00:00",
+      "execution_time": "2026-10-12T13:30:00+00:00",
+      "candle_timestamp": "2026-10-09T19:30:00+00:00",
+      "state_sha256": "69ee79ae260b556c357681806e5933e9df5387c0a7400b6d2df07ccc9180158e",
+      "action": "HOLD",
+      "probabilities": {
+        "BUY": 0.19,
+        "HOLD": 0.65,
+        "SELL": 0.16
+      },
+      "confidence": 0.48,
+      "model": "jev-1.14.0",
+      "latency_ms": 526.13,
+      "usage": {
+        "input_tokens": 808,
+        "output_tokens": 40
+      }
+    },
+    {
+      "symbol": "IBM",
+      "decision_time": "2026-10-09T20:30:00+00:00",
+      "execution_time": "2026-10-12T13:30:00+00:00",
+      "candle_timestamp": "2026-10-09T19:30:00+00:00",
+      "state_sha256": "62face55808eddc4f6228a07d0ff38728a4fbb4e9051a67d6e60cb5651f2c13f",
+      "action": "BUY",
+      "probabilities": {
+        "BUY": 0.9,
+        "HOLD": 0.09,
+        "SELL": 0.01
+      },
+      "confidence": 0.85,
+      "model": "jev-1.14.0",
+      "latency_ms": 476.152,
+      "usage": {
+        "input_tokens": 809,
+        "output_tokens": 39
+      }
+    },
+    {
+      "symbol": "INTC",
+      "decision_time": "2026-10-09T20:30:00+00:00",
+      "execution_time": "2026-10-12T13:30:00+00:00",
+      "candle_timestamp": "2026-10-09T19:30:00+00:00",
+      "state_sha256": "e80773023907862466913b8f8abe08046e1956cb85da6c2bf004b44b21cbcf6c",
+      "action": "SELL",
+      "probabilities": {
+        "BUY": 0.17,
+        "HOLD": 0.31,
+        "SELL": 0.52
+      },
+      "confidence": 0.28,
+      "model": "jev-1.14.0",
+      "latency_ms": 500.408,
+      "usage": {
+        "input_tokens": 811,
+        "output_tokens": 39
+      }
+    },
+    {
+      "symbol": "JNJ",
+      "decision_time": "2026-10-09T20:30:00+00:00",
+      "execution_time": "2026-10-12T13:30:00+00:00",
+      "candle_timestamp": "2026-10-09T19:30:00+00:00",
+      "state_sha256": "f651ee89d6a40e615e720fc17ac2b3ddc54574d056387e6a06a9af590b734004",
+      "action": "BUY",
+      "probabilities": {
+        "BUY": 0.94,
+        "HOLD": 0.05,
+        "SELL": 0.01
+      },
+      "confidence": 0.91,
+      "model": "jev-1.14.0",
+      "latency_ms": 503.648,
+      "usage": {
+        "input_tokens": 801,
+        "output_tokens": 39
+      }
+    },
+    {
+      "symbol": "JPM",
+      "decision_time": "2026-10-09T20:30:00+00:00",
+      "execution_time": "2026-10-12T13:30:00+00:00",
+      "candle_timestamp": "2026-10-09T19:30:00+00:00",
+      "state_sha256": "efcb3645e49c3cd28202a4debd5fbe3394c53c43afbf01387fb54ead143ced76",
+      "action": "BUY",
+      "probabilities": {
+        "BUY": 0.79,
+        "HOLD": 0.2,
+        "SELL": 0.01
+      },
+      "confidence": 0.68,
+      "model": "jev-1.14.0",
+      "latency_ms": 469.956,
+      "usage": {
+        "input_tokens": 811,
+        "output_tokens": 39
+      }
+    },
+    {
+      "symbol": "KO",
+      "decision_time": "2026-10-09T20:30:00+00:00",
+      "execution_time": "2026-10-12T13:30:00+00:00",
+      "candle_timestamp": "2026-10-09T19:30:00+00:00",
+      "state_sha256": "e1bd00c14ff93775e870b3a1a4b7b3546c81a53852fae779988ea6aed981bc4c",
+      "action": "BUY",
+      "probabilities": {
+        "BUY": 0.68,
+        "HOLD": 0.29,
+        "SELL": 0.03
+      },
+      "confidence": 0.52,
+      "model": "jev-1.14.0",
+      "latency_ms": 510.418,
+      "usage": {
+        "input_tokens": 806,
+        "output_tokens": 39
+      }
+    },
+    {
+      "symbol": "MCD",
+      "decision_time": "2026-10-09T20:30:00+00:00",
+      "execution_time": "2026-10-12T13:30:00+00:00",
+      "candle_timestamp": "2026-10-09T19:30:00+00:00",
+      "state_sha256": "3c382e43d8308ac59da706ce7a2f9fd70ca9aa55e7b0d62677b22d670a96058c",
+      "action": "HOLD",
+      "probabilities": {
+        "BUY": 0.34,
+        "HOLD": 0.59,
+        "SELL": 0.07
+      },
+      "confidence": 0.38,
+      "model": "jev-1.14.0",
+      "latency_ms": 486.09,
+      "usage": {
+        "input_tokens": 811,
+        "output_tokens": 40
+      }
+    },
+    {
+      "symbol": "META",
+      "decision_time": "2026-10-09T20:30:00+00:00",
+      "execution_time": "2026-10-12T13:30:00+00:00",
+      "candle_timestamp": "2026-10-09T19:30:00+00:00",
+      "state_sha256": "e91c19157d6277bf6250107ae6ca7e498e3ba430264d9db4a0f7fc248a377009",
+      "action": "SELL",
+      "probabilities": {
+        "BUY": 0.08,
+        "HOLD": 0.39,
+        "SELL": 0.53
+      },
+      "confidence": 0.3,
+      "model": "jev-1.14.0",
+      "latency_ms": 482.772,
+      "usage": {
+        "input_tokens": 806,
+        "output_tokens": 39
+      }
+    },
+    {
+      "symbol": "MSFT",
+      "decision_time": "2026-10-09T20:30:00+00:00",
+      "execution_time": "2026-10-12T13:30:00+00:00",
+      "candle_timestamp": "2026-10-09T19:30:00+00:00",
+      "state_sha256": "a11e7562af3facd5ec9b907372a743820178a4900c6ae302459740a611c97631",
+      "action": "BUY",
+      "probabilities": {
+        "BUY": 0.85,
+        "HOLD": 0.14,
+        "SELL": 0.01
+      },
+      "confidence": 0.77,
+      "model": "jev-1.14.0",
+      "latency_ms": 521.53,
+      "usage": {
+        "input_tokens": 805,
+        "output_tokens": 39
+      }
+    },
+    {
+      "symbol": "NVDA",
+      "decision_time": "2026-10-09T20:30:00+00:00",
+      "execution_time": "2026-10-12T13:30:00+00:00",
+      "candle_timestamp": "2026-10-09T19:30:00+00:00",
+      "state_sha256": "e76008ece428b282d115e8bd0f7e21be851ddc6f75825b563b7a54f085909d10",
+      "action": "SELL",
+      "probabilities": {
+        "BUY": 0.12,
+        "HOLD": 0.33,
+        "SELL": 0.55
+      },
+      "confidence": 0.33,
+      "model": "jev-1.14.0",
+      "latency_ms": 478.286,
+      "usage": {
+        "input_tokens": 811,
+        "output_tokens": 39
+      }
+    },
+    {
+      "symbol": "PEP",
+      "decision_time": "2026-10-09T20:30:00+00:00",
+      "execution_time": "2026-10-12T13:30:00+00:00",
+      "candle_timestamp": "2026-10-09T19:30:00+00:00",
+      "state_sha256": "f3f622435b5a281219f102023337ea5dcb751ca9044fe61398e913f39123b258",
+      "action": "HOLD",
+      "probabilities": {
+        "BUY": 0.23,
+        "HOLD": 0.73,
+        "SELL": 0.04
+      },
+      "confidence": 0.6,
+      "model": "jev-1.14.0",
+      "latency_ms": 484.476,
+      "usage": {
+        "input_tokens": 813,
+        "output_tokens": 40
+      }
+    },
+    {
+      "symbol": "PG",
+      "decision_time": "2026-10-09T20:30:00+00:00",
+      "execution_time": "2026-10-12T13:30:00+00:00",
+      "candle_timestamp": "2026-10-09T19:30:00+00:00",
+      "state_sha256": "4206e9c64a48c166c87be2a4911b0039eb73f2a3978f840c358e0b80d64939b8",
+      "action": "BUY",
+      "probabilities": {
+        "BUY": 0.79,
+        "HOLD": 0.17,
+        "SELL": 0.04
+      },
+      "confidence": 0.68,
+      "model": "jev-1.14.0",
+      "latency_ms": 475.339,
+      "usage": {
+        "input_tokens": 806,
+        "output_tokens": 39
+      }
+    },
+    {
+      "symbol": "TSLA",
+      "decision_time": "2026-10-09T20:30:00+00:00",
+      "execution_time": "2026-10-12T13:30:00+00:00",
+      "candle_timestamp": "2026-10-09T19:30:00+00:00",
+      "state_sha256": "963a348972db81c1d8eb9d6ebbe7959f633100eca5937dee983411c2614bc072",
+      "action": "BUY",
+      "probabilities": {
+        "BUY": 0.64,
+        "HOLD": 0.33,
+        "SELL": 0.03
+      },
+      "confidence": 0.46,
+      "model": "jev-1.14.0",
+      "latency_ms": 466.189,
+      "usage": {
+        "input_tokens": 806,
+        "output_tokens": 39
+      }
+    },
+    {
+      "symbol": "UNH",
+      "decision_time": "2026-10-09T20:30:00+00:00",
+      "execution_time": "2026-10-12T13:30:00+00:00",
+      "candle_timestamp": "2026-10-09T19:30:00+00:00",
+      "state_sha256": "364768691735a687e88615179b0694af614248872df65f1f1d53913a1f497852",
+      "action": "BUY",
+      "probabilities": {
+        "BUY": 0.86,
+        "HOLD": 0.12,
+        "SELL": 0.02
+      },
+      "confidence": 0.79,
+      "model": "jev-1.14.0",
+      "latency_ms": 478.85,
+      "usage": {
+        "input_tokens": 802,
+        "output_tokens": 39
+      }
+    },
+    {
+      "symbol": "V",
+      "decision_time": "2026-10-09T20:30:00+00:00",
+      "execution_time": "2026-10-12T13:30:00+00:00",
+      "candle_timestamp": "2026-10-09T19:30:00+00:00",
+      "state_sha256": "af43769fbea49b07e3b5126b9b9dc28d0e14f39fc147109e8d52f051bc4234b4",
+      "action": "BUY",
+      "probabilities": {
+        "BUY": 0.66,
+        "HOLD": 0.17,
+        "SELL": 0.17
+      },
+      "confidence": 0.49,
+      "model": "jev-1.14.0",
+      "latency_ms": 482.489,
+      "usage": {
+        "input_tokens": 807,
+        "output_tokens": 39
+      }
+    },
+    {
+      "symbol": "WMT",
+      "decision_time": "2026-10-09T20:30:00+00:00",
+      "execution_time": "2026-10-12T13:30:00+00:00",
+      "candle_timestamp": "2026-10-09T19:30:00+00:00",
+      "state_sha256": "ba0cbf59cc73771ab3d18ab1d36fe7af74dbaac26fff2bdd152908ea51afd551",
+      "action": "SELL",
+      "probabilities": {
+        "BUY": 0.29,
+        "HOLD": 0.32,
+        "SELL": 0.39
+      },
+      "confidence": 0.09,
+      "model": "jev-1.14.0",
+      "latency_ms": 507.941,
+      "usage": {
+        "input_tokens": 808,
+        "output_tokens": 39
+      }
+    },
+    {
+      "symbol": "XOM",
+      "decision_time": "2026-10-09T20:30:00+00:00",
+      "execution_time": "2026-10-12T13:30:00+00:00",
+      "candle_timestamp": "2026-10-09T19:30:00+00:00",
+      "state_sha256": "0af1874d84cd41f4b3273f3db5474b88f19bfe871162fcd87d240b990969102f",
+      "action": "BUY",
+      "probabilities": {
+        "BUY": 0.57,
+        "HOLD": 0.38,
+        "SELL": 0.05
+      },
+      "confidence": 0.35,
+      "model": "jev-1.14.0",
+      "latency_ms": 473.599,
+      "usage": {
+        "input_tokens": 813,
+        "output_tokens": 39
+      }
+    },
+    {
+      "symbol": "AAPL",
+      "decision_time": "2026-10-16T20:30:00+00:00",
+      "execution_time": "2026-10-19T13:30:00+00:00",
+      "candle_timestamp": "2026-10-16T19:30:00+00:00",
+      "state_sha256": "c6d8ee5c29461a0cf0c262423bfda1b71174e5fb226014626b49996f398a17b6",
+      "action": "HOLD",
+      "probabilities": {
+        "BUY": 0.15,
+        "HOLD": 0.76,
+        "SELL": 0.09
+      },
+      "confidence": 0.64,
+      "model": "jev-1.14.0",
+      "latency_ms": 514.844,
+      "usage": {
+        "input_tokens": 810,
+        "output_tokens": 40
+      }
+    },
+    {
+      "symbol": "AMD",
+      "decision_time": "2026-10-16T20:30:00+00:00",
+      "execution_time": "2026-10-19T13:30:00+00:00",
+      "candle_timestamp": "2026-10-16T19:30:00+00:00",
+      "state_sha256": "c2595c698acb48c77957201062c3784b87ee98457c845934fa6cda322329fbcc",
+      "action": "SELL",
+      "probabilities": {
+        "BUY": 0.12,
+        "HOLD": 0.33,
+        "SELL": 0.55
+      },
+      "confidence": 0.33,
+      "model": "jev-1.14.0",
+      "latency_ms": 491.715,
+      "usage": {
+        "input_tokens": 802,
+        "output_tokens": 39
+      }
+    },
+    {
+      "symbol": "AMZN",
+      "decision_time": "2026-10-16T20:30:00+00:00",
+      "execution_time": "2026-10-19T13:30:00+00:00",
+      "candle_timestamp": "2026-10-16T19:30:00+00:00",
+      "state_sha256": "0c7293a545a676dcda6d5fa873d3dcbd543fc6cfdb0a211f5bea1d68f75a4262",
+      "action": "SELL",
+      "probabilities": {
+        "BUY": 0.07,
+        "HOLD": 0.3,
+        "SELL": 0.63
+      },
+      "confidence": 0.44,
+      "model": "jev-1.14.0",
+      "latency_ms": 475.753,
+      "usage": {
+        "input_tokens": 809,
+        "output_tokens": 39
+      }
+    },
+    {
+      "symbol": "BAC",
+      "decision_time": "2026-10-16T20:30:00+00:00",
+      "execution_time": "2026-10-19T13:30:00+00:00",
+      "candle_timestamp": "2026-10-16T19:30:00+00:00",
+      "state_sha256": "b8682b473fc06e22f73e7828633bf856146ddf890a0c66b75c767e81795e86d5",
+      "action": "SELL",
+      "probabilities": {
+        "BUY": 0.06,
+        "HOLD": 0.31,
+        "SELL": 0.63
+      },
+      "confidence": 0.44,
+      "model": "jev-1.14.0",
+      "latency_ms": 474.466,
+      "usage": {
+        "input_tokens": 808,
+        "output_tokens": 39
+      }
+    },
+    {
+      "symbol": "COST",
+      "decision_time": "2026-10-16T20:30:00+00:00",
+      "execution_time": "2026-10-19T13:30:00+00:00",
+      "candle_timestamp": "2026-10-16T19:30:00+00:00",
+      "state_sha256": "88a0ea1f463626524c64909dab315e4b3b591dbfe7f24d48e564aafeafa290c6",
+      "action": "HOLD",
+      "probabilities": {
+        "BUY": 0.44,
+        "HOLD": 0.49,
+        "SELL": 0.07
+      },
+      "confidence": 0.24,
+      "model": "jev-1.14.0",
+      "latency_ms": 520.4,
+      "usage": {
+        "input_tokens": 809,
+        "output_tokens": 40
+      }
+    },
+    {
+      "symbol": "CVX",
+      "decision_time": "2026-10-16T20:30:00+00:00",
+      "execution_time": "2026-10-19T13:30:00+00:00",
+      "candle_timestamp": "2026-10-16T19:30:00+00:00",
+      "state_sha256": "511e9445068210ba5075305391f83086d66d153292497015b5aff0afe13f8b79",
+      "action": "BUY",
+      "probabilities": {
+        "BUY": 0.59,
+        "HOLD": 0.2,
+        "SELL": 0.21
+      },
+      "confidence": 0.38,
+      "model": "jev-1.14.0",
+      "latency_ms": 470.398,
+      "usage": {
+        "input_tokens": 804,
+        "output_tokens": 39
+      }
+    },
+    {
+      "symbol": "DIS",
+      "decision_time": "2026-10-16T20:30:00+00:00",
+      "execution_time": "2026-10-19T13:30:00+00:00",
+      "candle_timestamp": "2026-10-16T19:30:00+00:00",
+      "state_sha256": "52cdebc63e8e9d9b1bf614307fced10185a69aaa5ac2280c4beee45493b86c43",
+      "action": "HOLD",
+      "probabilities": {
+        "BUY": 0.22,
+        "HOLD": 0.62,
+        "SELL": 0.16
+      },
+      "confidence": 0.43,
+      "model": "jev-1.14.0",
+      "latency_ms": 474.237,
+      "usage": {
+        "input_tokens": 806,
+        "output_tokens": 40
+      }
+    },
+    {
+      "symbol": "GOOGL",
+      "decision_time": "2026-10-16T20:30:00+00:00",
+      "execution_time": "2026-10-19T13:30:00+00:00",
+      "candle_timestamp": "2026-10-16T19:30:00+00:00",
+      "state_sha256": "d13a27cbef3d235c3dce030f47b1e3169ee29341ab3ff69688406b5aa2301be1",
+      "action": "SELL",
+      "probabilities": {
+        "BUY": 0.19,
+        "HOLD": 0.35,
+        "SELL": 0.46
+      },
+      "confidence": 0.19,
+      "model": "jev-1.14.0",
+      "latency_ms": 479.968,
+      "usage": {
+        "input_tokens": 808,
+        "output_tokens": 39
+      }
+    },
+    {
+      "symbol": "HD",
+      "decision_time": "2026-10-16T20:30:00+00:00",
+      "execution_time": "2026-10-19T13:30:00+00:00",
+      "candle_timestamp": "2026-10-16T19:30:00+00:00",
+      "state_sha256": "9dd4f2aab3d3a67c4f541946d8795f170bc318f1dce66d0ef546cdc7c6fb618c",
+      "action": "BUY",
+      "probabilities": {
+        "BUY": 0.55,
+        "HOLD": 0.35,
+        "SELL": 0.1
+      },
+      "confidence": 0.33,
+      "model": "jev-1.14.0",
+      "latency_ms": 479.414,
+      "usage": {
+        "input_tokens": 803,
+        "output_tokens": 39
+      }
+    },
+    {
+      "symbol": "IBM",
+      "decision_time": "2026-10-16T20:30:00+00:00",
+      "execution_time": "2026-10-19T13:30:00+00:00",
+      "candle_timestamp": "2026-10-16T19:30:00+00:00",
+      "state_sha256": "a801cb8109f26be6bf5a97a0c200014ecf0cf9d640e7b6d92bb330f53da29c65",
+      "action": "BUY",
+      "probabilities": {
+        "BUY": 0.54,
+        "HOLD": 0.41,
+        "SELL": 0.05
+      },
+      "confidence": 0.31,
+      "model": "jev-1.14.0",
+      "latency_ms": 475.645,
+      "usage": {
+        "input_tokens": 807,
+        "output_tokens": 39
+      }
+    },
+    {
+      "symbol": "INTC",
+      "decision_time": "2026-10-16T20:30:00+00:00",
+      "execution_time": "2026-10-19T13:30:00+00:00",
+      "candle_timestamp": "2026-10-16T19:30:00+00:00",
+      "state_sha256": "bdc68593405a9c4df9312b61e8d12ee2453c7a4392a04ca0fe2d9e95199835db",
+      "action": "SELL",
+      "probabilities": {
+        "BUY": 0.17,
+        "HOLD": 0.38,
+        "SELL": 0.45
+      },
+      "confidence": 0.18,
+      "model": "jev-1.14.0",
+      "latency_ms": 472.113,
+      "usage": {
+        "input_tokens": 804,
+        "output_tokens": 39
+      }
+    },
+    {
+      "symbol": "JNJ",
+      "decision_time": "2026-10-16T20:30:00+00:00",
+      "execution_time": "2026-10-19T13:30:00+00:00",
+      "candle_timestamp": "2026-10-16T19:30:00+00:00",
+      "state_sha256": "9e0bb45e473d3345a3d17750e02fcc38e19a27c331fd670748d5351b13cb9637",
+      "action": "HOLD",
+      "probabilities": {
+        "BUY": 0.48,
+        "HOLD": 0.49,
+        "SELL": 0.03
+      },
+      "confidence": 0.24,
+      "model": "jev-1.14.0",
+      "latency_ms": 477.925,
+      "usage": {
+        "input_tokens": 814,
+        "output_tokens": 40
+      }
+    },
+    {
+      "symbol": "JPM",
+      "decision_time": "2026-10-16T20:30:00+00:00",
+      "execution_time": "2026-10-19T13:30:00+00:00",
+      "candle_timestamp": "2026-10-16T19:30:00+00:00",
+      "state_sha256": "5c83006f637da5847cf06680803f686ab172ec63743eb0a78950c38a2a4b4381",
+      "action": "BUY",
+      "probabilities": {
+        "BUY": 0.71,
+        "HOLD": 0.25,
+        "SELL": 0.04
+      },
+      "confidence": 0.56,
+      "model": "jev-1.14.0",
+      "latency_ms": 498.227,
+      "usage": {
+        "input_tokens": 806,
+        "output_tokens": 39
+      }
+    },
+    {
+      "symbol": "KO",
+      "decision_time": "2026-10-16T20:30:00+00:00",
+      "execution_time": "2026-10-19T13:30:00+00:00",
+      "candle_timestamp": "2026-10-16T19:30:00+00:00",
+      "state_sha256": "62d958d609ca3c6cbd4cff85c5468dc6b4d5ef883e6dee44e475dee0647fdf14",
+      "action": "BUY",
+      "probabilities": {
+        "BUY": 0.38,
+        "HOLD": 0.31,
+        "SELL": 0.31
+      },
+      "confidence": 0.07,
+      "model": "jev-1.14.0",
+      "latency_ms": 493.254,
+      "usage": {
+        "input_tokens": 800,
+        "output_tokens": 39
+      }
+    },
+    {
+      "symbol": "MCD",
+      "decision_time": "2026-10-16T20:30:00+00:00",
+      "execution_time": "2026-10-19T13:30:00+00:00",
+      "candle_timestamp": "2026-10-16T19:30:00+00:00",
+      "state_sha256": "0255e778cdd5f2a3686ffc179f51a6e7e0028511eaae6fc0c9ee4d11c7c58025",
+      "action": "BUY",
+      "probabilities": {
+        "BUY": 0.5,
+        "HOLD": 0.4,
+        "SELL": 0.1
+      },
+      "confidence": 0.25,
+      "model": "jev-1.14.0",
+      "latency_ms": 491.971,
+      "usage": {
+        "input_tokens": 806,
+        "output_tokens": 39
+      }
+    },
+    {
+      "symbol": "META",
+      "decision_time": "2026-10-16T20:30:00+00:00",
+      "execution_time": "2026-10-19T13:30:00+00:00",
+      "candle_timestamp": "2026-10-16T19:30:00+00:00",
+      "state_sha256": "ded68a19c6ea13078eec52e92b2d02d8ffe751235d920d3edbfb7d7f8bbff775",
+      "action": "SELL",
+      "probabilities": {
+        "BUY": 0.13,
+        "HOLD": 0.39,
+        "SELL": 0.48
+      },
+      "confidence": 0.22,
+      "model": "jev-1.14.0",
+      "latency_ms": 468.312,
+      "usage": {
+        "input_tokens": 802,
+        "output_tokens": 39
+      }
+    },
+    {
+      "symbol": "MSFT",
+      "decision_time": "2026-10-16T20:30:00+00:00",
+      "execution_time": "2026-10-19T13:30:00+00:00",
+      "candle_timestamp": "2026-10-16T19:30:00+00:00",
+      "state_sha256": "b8cf7286cc771dfcedec5236e7e3a83893ecfa95586bfe2193eef7ca3ff14ffa",
+      "action": "SELL",
+      "probabilities": {
+        "BUY": 0.07,
+        "HOLD": 0.42,
+        "SELL": 0.51
+      },
+      "confidence": 0.26,
+      "model": "jev-1.14.0",
+      "latency_ms": 471.309,
+      "usage": {
+        "input_tokens": 805,
+        "output_tokens": 39
+      }
+    },
+    {
+      "symbol": "NVDA",
+      "decision_time": "2026-10-16T20:30:00+00:00",
+      "execution_time": "2026-10-19T13:30:00+00:00",
+      "candle_timestamp": "2026-10-16T19:30:00+00:00",
+      "state_sha256": "136f3027e41675eb9fcb85e2224896bd90d57bd085ae0ee3abbaa420e6bf6454",
+      "action": "SELL",
+      "probabilities": {
+        "BUY": 0.2,
+        "HOLD": 0.37,
+        "SELL": 0.43
+      },
+      "confidence": 0.14,
+      "model": "jev-1.14.0",
+      "latency_ms": 536.483,
+      "usage": {
+        "input_tokens": 811,
+        "output_tokens": 39
+      }
+    },
+    {
+      "symbol": "PEP",
+      "decision_time": "2026-10-16T20:30:00+00:00",
+      "execution_time": "2026-10-19T13:30:00+00:00",
+      "candle_timestamp": "2026-10-16T19:30:00+00:00",
+      "state_sha256": "9ccba8475e72fc3dac0d21d0c3cd0a295738c249b89dfe148f98f4165906ada3",
+      "action": "BUY",
+      "probabilities": {
+        "BUY": 0.9,
+        "HOLD": 0.09,
+        "SELL": 0.01
+      },
+      "confidence": 0.85,
+      "model": "jev-1.14.0",
+      "latency_ms": 478.043,
+      "usage": {
+        "input_tokens": 802,
+        "output_tokens": 39
+      }
+    },
+    {
+      "symbol": "PG",
+      "decision_time": "2026-10-16T20:30:00+00:00",
+      "execution_time": "2026-10-19T13:30:00+00:00",
+      "candle_timestamp": "2026-10-16T19:30:00+00:00",
+      "state_sha256": "e5b29ec56f4d688a35376d519a76f2211b73d54d25c06a783c655303e6c01425",
+      "action": "BUY",
+      "probabilities": {
+        "BUY": 0.53,
+        "HOLD": 0.34,
+        "SELL": 0.13
+      },
+      "confidence": 0.3,
+      "model": "jev-1.14.0",
+      "latency_ms": 482.976,
+      "usage": {
+        "input_tokens": 802,
+        "output_tokens": 39
+      }
+    },
+    {
+      "symbol": "TSLA",
+      "decision_time": "2026-10-16T20:30:00+00:00",
+      "execution_time": "2026-10-19T13:30:00+00:00",
+      "candle_timestamp": "2026-10-16T19:30:00+00:00",
+      "state_sha256": "a497e8c8f37bad10c75943213c8bbd20b5cc856786f07276f9049699d70102e2",
+      "action": "SELL",
+      "probabilities": {
+        "BUY": 0.12,
+        "HOLD": 0.37,
+        "SELL": 0.51
+      },
+      "confidence": 0.26,
+      "model": "jev-1.14.0",
+      "latency_ms": 486.321,
+      "usage": {
+        "input_tokens": 800,
+        "output_tokens": 39
+      }
+    },
+    {
+      "symbol": "UNH",
+      "decision_time": "2026-10-16T20:30:00+00:00",
+      "execution_time": "2026-10-19T13:30:00+00:00",
+      "candle_timestamp": "2026-10-16T19:30:00+00:00",
+      "state_sha256": "e5fb3550b7d64dc19c076b99a604d13dcf8b63851ba77113a8d16ac6f017ec98",
+      "action": "HOLD",
+      "probabilities": {
+        "BUY": 0.32,
+        "HOLD": 0.57,
+        "SELL": 0.11
+      },
+      "confidence": 0.35,
+      "model": "jev-1.14.0",
+      "latency_ms": 516.07,
+      "usage": {
+        "input_tokens": 807,
+        "output_tokens": 40
+      }
+    },
+    {
+      "symbol": "V",
+      "decision_time": "2026-10-16T20:30:00+00:00",
+      "execution_time": "2026-10-19T13:30:00+00:00",
+      "candle_timestamp": "2026-10-16T19:30:00+00:00",
+      "state_sha256": "b1c3678789ad8784ff1943da38597f4bc27815a1d72186712aeec3f6fe1a19ad",
+      "action": "BUY",
+      "probabilities": {
+        "BUY": 0.56,
+        "HOLD": 0.38,
+        "SELL": 0.06
+      },
+      "confidence": 0.34,
+      "model": "jev-1.14.0",
+      "latency_ms": 495.451,
+      "usage": {
+        "input_tokens": 803,
+        "output_tokens": 39
+      }
+    },
+    {
+      "symbol": "WMT",
+      "decision_time": "2026-10-16T20:30:00+00:00",
+      "execution_time": "2026-10-19T13:30:00+00:00",
+      "candle_timestamp": "2026-10-16T19:30:00+00:00",
+      "state_sha256": "e3b4f423a4afeceecfe0102702c614e68de8c791ff5eaad9f671150a12a4b5c3",
+      "action": "BUY",
+      "probabilities": {
+        "BUY": 0.66,
+        "HOLD": 0.28,
+        "SELL": 0.06
+      },
+      "confidence": 0.49,
+      "model": "jev-1.14.0",
+      "latency_ms": 477.388,
+      "usage": {
+        "input_tokens": 807,
+        "output_tokens": 39
+      }
+    },
+    {
+      "symbol": "XOM",
+      "decision_time": "2026-10-16T20:30:00+00:00",
+      "execution_time": "2026-10-19T13:30:00+00:00",
+      "candle_timestamp": "2026-10-16T19:30:00+00:00",
+      "state_sha256": "f2e845395d15d1ff549c4a3eca02c6c6cc305077792be1c039410c3126a2beca",
+      "action": "BUY",
+      "probabilities": {
+        "BUY": 0.62,
+        "HOLD": 0.17,
+        "SELL": 0.21
+      },
+      "confidence": 0.43,
+      "model": "jev-1.14.0",
+      "latency_ms": 475.862,
+      "usage": {
+        "input_tokens": 803,
+        "output_tokens": 39
+      }
+    },
+    {
+      "symbol": "AAPL",
+      "decision_time": "2026-10-23T20:30:00+00:00",
+      "execution_time": "2026-10-26T13:30:00+00:00",
+      "candle_timestamp": "2026-10-23T19:30:00+00:00",
+      "state_sha256": "6e454b47ff3ac4d48ced593db450e9bfd78c9a825863bd2d301db7c95680320f",
+      "action": "BUY",
+      "probabilities": {
+        "BUY": 0.76,
+        "HOLD": 0.22,
+        "SELL": 0.02
+      },
+      "confidence": 0.64,
+      "model": "jev-1.14.0",
+      "latency_ms": 494.17,
+      "usage": {
+        "input_tokens": 805,
+        "output_tokens": 39
+      }
+    },
+    {
+      "symbol": "AMD",
+      "decision_time": "2026-10-23T20:30:00+00:00",
+      "execution_time": "2026-10-26T13:30:00+00:00",
+      "candle_timestamp": "2026-10-23T19:30:00+00:00",
+      "state_sha256": "d54c8221269e4c78f1f9eb4c63b5fb889fdf281bb6c9ab961116f765ed0586ed",
+      "action": "SELL",
+      "probabilities": {
+        "BUY": 0.08,
+        "HOLD": 0.42,
+        "SELL": 0.5
+      },
+      "confidence": 0.25,
+      "model": "jev-1.14.0",
+      "latency_ms": 517.733,
+      "usage": {
+        "input_tokens": 805,
+        "output_tokens": 39
+      }
+    },
+    {
+      "symbol": "AMZN",
+      "decision_time": "2026-10-23T20:30:00+00:00",
+      "execution_time": "2026-10-26T13:30:00+00:00",
+      "candle_timestamp": "2026-10-23T19:30:00+00:00",
+      "state_sha256": "dda920180e3d62fbd9e749c70ddf2548630e12a421c0e4dbd7e566df3341bcc7",
+      "action": "SELL",
+      "probabilities": {
+        "BUY": 0.13,
+        "HOLD": 0.4,
+        "SELL": 0.47
+      },
+      "confidence": 0.2,
+      "model": "jev-1.14.0",
+      "latency_ms": 472.911,
+      "usage": {
+        "input_tokens": 813,
+        "output_tokens": 39
+      }
+    },
+    {
+      "symbol": "BAC",
+      "decision_time": "2026-10-23T20:30:00+00:00",
+      "execution_time": "2026-10-26T13:30:00+00:00",
+      "candle_timestamp": "2026-10-23T19:30:00+00:00",
+      "state_sha256": "8653ab0cdb2a40f7cb6a7b81fa89415f3e2bd1c6c832fe15f21f8a200b0ea52e",
+      "action": "SELL",
+      "probabilities": {
+        "BUY": 0.02,
+        "HOLD": 0.42,
+        "SELL": 0.56
+      },
+      "confidence": 0.34,
+      "model": "jev-1.14.0",
+      "latency_ms": 477.473,
+      "usage": {
+        "input_tokens": 809,
+        "output_tokens": 39
+      }
+    },
+    {
+      "symbol": "COST",
+      "decision_time": "2026-10-23T20:30:00+00:00",
+      "execution_time": "2026-10-26T13:30:00+00:00",
+      "candle_timestamp": "2026-10-23T19:30:00+00:00",
+      "state_sha256": "9a39ffa4a0f9af3d4f3b011b2c4233f9de526a8f7e4746f468937094c332b271",
+      "action": "HOLD",
+      "probabilities": {
+        "BUY": 0.15,
+        "HOLD": 0.66,
+        "SELL": 0.19
+      },
+      "confidence": 0.49,
+      "model": "jev-1.14.0",
+      "latency_ms": 490.992,
+      "usage": {
+        "input_tokens": 811,
+        "output_tokens": 40
+      }
+    },
+    {
+      "symbol": "CVX",
+      "decision_time": "2026-10-23T20:30:00+00:00",
+      "execution_time": "2026-10-26T13:30:00+00:00",
+      "candle_timestamp": "2026-10-23T19:30:00+00:00",
+      "state_sha256": "2455949d673a441b2ced21840c763a8b94f01ed07756d5cdf4ea8afbf361ab9a",
+      "action": "BUY",
+      "probabilities": {
+        "BUY": 0.6,
+        "HOLD": 0.22,
+        "SELL": 0.18
+      },
+      "confidence": 0.4,
+      "model": "jev-1.14.0",
+      "latency_ms": 524.292,
+      "usage": {
+        "input_tokens": 807,
+        "output_tokens": 39
+      }
+    },
+    {
+      "symbol": "DIS",
+      "decision_time": "2026-10-23T20:30:00+00:00",
+      "execution_time": "2026-10-26T13:30:00+00:00",
+      "candle_timestamp": "2026-10-23T19:30:00+00:00",
+      "state_sha256": "a1ab0f94edf98b81af5ae0d5a9c2c4a2cdb8afdfd0a11668bd954e227f8ebd03",
+      "action": "BUY",
+      "probabilities": {
+        "BUY": 0.55,
+        "HOLD": 0.41,
+        "SELL": 0.04
+      },
+      "confidence": 0.33,
+      "model": "jev-1.14.0",
+      "latency_ms": 493.773,
+      "usage": {
+        "input_tokens": 809,
+        "output_tokens": 39
+      }
+    },
+    {
+      "symbol": "GOOGL",
+      "decision_time": "2026-10-23T20:30:00+00:00",
+      "execution_time": "2026-10-26T13:30:00+00:00",
+      "candle_timestamp": "2026-10-23T19:30:00+00:00",
+      "state_sha256": "52f4a128c6cddc339b9b350db0ee98a4271d9c1a797d85057d5e37360d0a64b0",
+      "action": "SELL",
+      "probabilities": {
+        "BUY": 0.21,
+        "HOLD": 0.26,
+        "SELL": 0.53
+      },
+      "confidence": 0.3,
+      "model": "jev-1.14.0",
+      "latency_ms": 509.755,
+      "usage": {
+        "input_tokens": 808,
+        "output_tokens": 39
+      }
+    },
+    {
+      "symbol": "HD",
+      "decision_time": "2026-10-23T20:30:00+00:00",
+      "execution_time": "2026-10-26T13:30:00+00:00",
+      "candle_timestamp": "2026-10-23T19:30:00+00:00",
+      "state_sha256": "775cfc62db2e00629a571945edcf92dc661547e370ab58eee3fe106883453f88",
+      "action": "BUY",
+      "probabilities": {
+        "BUY": 0.49,
+        "HOLD": 0.47,
+        "SELL": 0.04
+      },
+      "confidence": 0.24,
+      "model": "jev-1.14.0",
+      "latency_ms": 477.575,
+      "usage": {
+        "input_tokens": 804,
+        "output_tokens": 39
+      }
+    },
+    {
+      "symbol": "IBM",
+      "decision_time": "2026-10-23T20:30:00+00:00",
+      "execution_time": "2026-10-26T13:30:00+00:00",
+      "candle_timestamp": "2026-10-23T19:30:00+00:00",
+      "state_sha256": "9da26b0e1f0e72950cf0ba44414f5dae924c0ac95a8564fbb92b0774236ee559",
+      "action": "BUY",
+      "probabilities": {
+        "BUY": 0.72,
+        "HOLD": 0.22,
+        "SELL": 0.06
+      },
+      "confidence": 0.58,
+      "model": "jev-1.14.0",
+      "latency_ms": 525.029,
+      "usage": {
+        "input_tokens": 801,
+        "output_tokens": 39
+      }
+    },
+    {
+      "symbol": "INTC",
+      "decision_time": "2026-10-23T20:30:00+00:00",
+      "execution_time": "2026-10-26T13:30:00+00:00",
+      "candle_timestamp": "2026-10-23T19:30:00+00:00",
+      "state_sha256": "708ea37d335f0667ada83e8a921b0802dee1bca0b535ea0b7851a9550947bb15",
+      "action": "HOLD",
+      "probabilities": {
+        "BUY": 0.14,
+        "HOLD": 0.45,
+        "SELL": 0.41
+      },
+      "confidence": 0.18,
+      "model": "jev-1.14.0",
+      "latency_ms": 512.545,
+      "usage": {
+        "input_tokens": 801,
+        "output_tokens": 40
+      }
+    },
+    {
+      "symbol": "JNJ",
+      "decision_time": "2026-10-23T20:30:00+00:00",
+      "execution_time": "2026-10-26T13:30:00+00:00",
+      "candle_timestamp": "2026-10-23T19:30:00+00:00",
+      "state_sha256": "8f0473ae58e415938155f76573181332c0eea832dd10f52535f592307244878c",
+      "action": "HOLD",
+      "probabilities": {
+        "BUY": 0.35,
+        "HOLD": 0.56,
+        "SELL": 0.09
+      },
+      "confidence": 0.34,
+      "model": "jev-1.14.0",
+      "latency_ms": 487.288,
+      "usage": {
+        "input_tokens": 807,
+        "output_tokens": 40
+      }
+    },
+    {
+      "symbol": "JPM",
+      "decision_time": "2026-10-23T20:30:00+00:00",
+      "execution_time": "2026-10-26T13:30:00+00:00",
+      "candle_timestamp": "2026-10-23T19:30:00+00:00",
+      "state_sha256": "1205fb8ebe2e094d05ec3d15ab38492c14602262a45da337afa46e1022b81b50",
+      "action": "SELL",
+      "probabilities": {
+        "BUY": 0.03,
+        "HOLD": 0.38,
+        "SELL": 0.59
+      },
+      "confidence": 0.38,
+      "model": "jev-1.14.0",
+      "latency_ms": 486.343,
+      "usage": {
+        "input_tokens": 810,
+        "output_tokens": 39
+      }
+    },
+    {
+      "symbol": "KO",
+      "decision_time": "2026-10-23T20:30:00+00:00",
+      "execution_time": "2026-10-26T13:30:00+00:00",
+      "candle_timestamp": "2026-10-23T19:30:00+00:00",
+      "state_sha256": "ae5b1a2520c08f110f10cd05b60f7caba5be4f6c4240830433adf2b0cffd10e8",
+      "action": "SELL",
+      "probabilities": {
+        "BUY": 0.05,
+        "HOLD": 0.32,
+        "SELL": 0.63
+      },
+      "confidence": 0.44,
+      "model": "jev-1.14.0",
+      "latency_ms": 477.61,
+      "usage": {
+        "input_tokens": 809,
+        "output_tokens": 39
+      }
+    },
+    {
+      "symbol": "MCD",
+      "decision_time": "2026-10-23T20:30:00+00:00",
+      "execution_time": "2026-10-26T13:30:00+00:00",
+      "candle_timestamp": "2026-10-23T19:30:00+00:00",
+      "state_sha256": "9022af08bf09933ed8a30d29e41e8276fe32083c7188a231f1e38c736e735973",
+      "action": "BUY",
+      "probabilities": {
+        "BUY": 0.62,
+        "HOLD": 0.34,
+        "SELL": 0.04
+      },
+      "confidence": 0.43,
+      "model": "jev-1.14.0",
+      "latency_ms": 508.875,
+      "usage": {
+        "input_tokens": 807,
+        "output_tokens": 39
+      }
+    },
+    {
+      "symbol": "META",
+      "decision_time": "2026-10-23T20:30:00+00:00",
+      "execution_time": "2026-10-26T13:30:00+00:00",
+      "candle_timestamp": "2026-10-23T19:30:00+00:00",
+      "state_sha256": "e56a2f11f411ec25c1ccc2c15bb4347437385cce93579198a07c203503f47c90",
+      "action": "SELL",
+      "probabilities": {
+        "BUY": 0.25,
+        "HOLD": 0.36,
+        "SELL": 0.39
+      },
+      "confidence": 0.09,
+      "model": "jev-1.14.0",
+      "latency_ms": 507.328,
+      "usage": {
+        "input_tokens": 803,
+        "output_tokens": 39
+      }
+    },
+    {
+      "symbol": "MSFT",
+      "decision_time": "2026-10-23T20:30:00+00:00",
+      "execution_time": "2026-10-26T13:30:00+00:00",
+      "candle_timestamp": "2026-10-23T19:30:00+00:00",
+      "state_sha256": "7fcf6edeb557ba8042ddbf8f2ede7201053481d4ddb9445f413436f53fe8fc63",
+      "action": "HOLD",
+      "probabilities": {
+        "BUY": 0.16,
+        "HOLD": 0.58,
+        "SELL": 0.26
+      },
+      "confidence": 0.37,
+      "model": "jev-1.14.0",
+      "latency_ms": 535.106,
+      "usage": {
+        "input_tokens": 808,
+        "output_tokens": 40
+      }
+    },
+    {
+      "symbol": "NVDA",
+      "decision_time": "2026-10-23T20:30:00+00:00",
+      "execution_time": "2026-10-26T13:30:00+00:00",
+      "candle_timestamp": "2026-10-23T19:30:00+00:00",
+      "state_sha256": "f240665ba8101b77139139a2a16c20191534df3ce0e2b14bb2de08e145f46b13",
+      "action": "SELL",
+      "probabilities": {
+        "BUY": 0.07,
+        "HOLD": 0.3,
+        "SELL": 0.63
+      },
+      "confidence": 0.44,
+      "model": "jev-1.14.0",
+      "latency_ms": 548.757,
+      "usage": {
+        "input_tokens": 811,
+        "output_tokens": 39
+      }
+    },
+    {
+      "symbol": "PEP",
+      "decision_time": "2026-10-23T20:30:00+00:00",
+      "execution_time": "2026-10-26T13:30:00+00:00",
+      "candle_timestamp": "2026-10-23T19:30:00+00:00",
+      "state_sha256": "6ce136e51110a0169faa5945cf1cf52dfaf2dbd0b8a245405966c4ec2ac0516b",
+      "action": "HOLD",
+      "probabilities": {
+        "BUY": 0.26,
+        "HOLD": 0.66,
+        "SELL": 0.08
+      },
+      "confidence": 0.49,
+      "model": "jev-1.14.0",
+      "latency_ms": 538.127,
+      "usage": {
+        "input_tokens": 809,
+        "output_tokens": 40
+      }
+    },
+    {
+      "symbol": "PG",
+      "decision_time": "2026-10-23T20:30:00+00:00",
+      "execution_time": "2026-10-26T13:30:00+00:00",
+      "candle_timestamp": "2026-10-23T19:30:00+00:00",
+      "state_sha256": "eac4f94db169c9d54fc53fb41bca100cbd87be1b08e2bb487a9e1806516498d9",
+      "action": "HOLD",
+      "probabilities": {
+        "BUY": 0.1,
+        "HOLD": 0.74,
+        "SELL": 0.16
+      },
+      "confidence": 0.61,
+      "model": "jev-1.14.0",
+      "latency_ms": 474.875,
+      "usage": {
+        "input_tokens": 809,
+        "output_tokens": 40
+      }
+    },
+    {
+      "symbol": "TSLA",
+      "decision_time": "2026-10-23T20:30:00+00:00",
+      "execution_time": "2026-10-26T13:30:00+00:00",
+      "candle_timestamp": "2026-10-23T19:30:00+00:00",
+      "state_sha256": "8df3c36a1fdd7f582f903cb0929428e6f40f6493c6ac09f57b474aa94efd9a00",
+      "action": "SELL",
+      "probabilities": {
+        "BUY": 0.05,
+        "HOLD": 0.46,
+        "SELL": 0.49
+      },
+      "confidence": 0.24,
+      "model": "jev-1.14.0",
+      "latency_ms": 502.084,
+      "usage": {
+        "input_tokens": 809,
+        "output_tokens": 39
+      }
+    },
+    {
+      "symbol": "UNH",
+      "decision_time": "2026-10-23T20:30:00+00:00",
+      "execution_time": "2026-10-26T13:30:00+00:00",
+      "candle_timestamp": "2026-10-23T19:30:00+00:00",
+      "state_sha256": "9775425010f8700673d99cbaedf978f37832b4811e9c9828e1584ed8474bf4f2",
+      "action": "HOLD",
+      "probabilities": {
+        "BUY": 0.1,
+        "HOLD": 0.61,
+        "SELL": 0.29
+      },
+      "confidence": 0.42,
+      "model": "jev-1.14.0",
+      "latency_ms": 473.099,
+      "usage": {
+        "input_tokens": 808,
+        "output_tokens": 40
+      }
+    },
+    {
+      "symbol": "V",
+      "decision_time": "2026-10-23T20:30:00+00:00",
+      "execution_time": "2026-10-26T13:30:00+00:00",
+      "candle_timestamp": "2026-10-23T19:30:00+00:00",
+      "state_sha256": "280dbbf9a7b2284f05e43896b35caeeca5950d639da68226298ebd515424f347",
+      "action": "HOLD",
+      "probabilities": {
+        "BUY": 0.09,
+        "HOLD": 0.67,
+        "SELL": 0.24
+      },
+      "confidence": 0.5,
+      "model": "jev-1.14.0",
+      "latency_ms": 494.367,
+      "usage": {
+        "input_tokens": 806,
+        "output_tokens": 40
+      }
+    },
+    {
+      "symbol": "WMT",
+      "decision_time": "2026-10-23T20:30:00+00:00",
+      "execution_time": "2026-10-26T13:30:00+00:00",
+      "candle_timestamp": "2026-10-23T19:30:00+00:00",
+      "state_sha256": "21dd60cec398980edc66e04de8ba9801e66d1bc9873578b17386adf0cc3c9092",
+      "action": "HOLD",
+      "probabilities": {
+        "BUY": 0.46,
+        "HOLD": 0.49,
+        "SELL": 0.05
+      },
+      "confidence": 0.24,
+      "model": "jev-1.14.0",
+      "latency_ms": 478.879,
+      "usage": {
+        "input_tokens": 809,
+        "output_tokens": 40
+      }
+    },
+    {
+      "symbol": "XOM",
+      "decision_time": "2026-10-23T20:30:00+00:00",
+      "execution_time": "2026-10-26T13:30:00+00:00",
+      "candle_timestamp": "2026-10-23T19:30:00+00:00",
+      "state_sha256": "94d598d98b54e47a28f4ad9171b05cba2ee44100490f4d396898e2f8872ba598",
+      "action": "BUY",
+      "probabilities": {
+        "BUY": 0.69,
+        "HOLD": 0.17,
+        "SELL": 0.14
+      },
+      "confidence": 0.53,
+      "model": "jev-1.14.0",
+      "latency_ms": 478.365,
+      "usage": {
+        "input_tokens": 809,
+        "output_tokens": 39
+      }
+    }
+  ],
+  "trades": [
+    {
+      "symbol": "AMD",
+      "time": "2026-10-05T13:30:00+00:00",
+      "action": "BUY",
+      "reference_open": 630.06,
+      "fill_price": 630.6900599999999,
+      "shares": 0.6339089916052031,
+      "fee": 0.19990004997501248
+    },
+    {
+      "symbol": "AMZN",
+      "time": "2026-10-05T13:30:00+00:00",
+      "action": "BUY",
+      "reference_open": 250.69,
+      "fill_price": 250.94068999999996,
+      "shares": 1.5932055496859638,
+      "fee": 0.1999000499750125
+    },
+    {
+      "symbol": "COST",
+      "time": "2026-10-05T13:30:00+00:00",
+      "action": "BUY",
+      "reference_open": 919.72,
+      "fill_price": 920.6397199999999,
+      "shares": 0.43426336194795623,
+      "fee": 0.1999000499750125
+    },
+    {
+      "symbol": "CVX",
+      "time": "2026-10-05T13:30:00+00:00",
+      "action": "BUY",
+      "reference_open": 207.04,
+      "fill_price": 207.24703999999997,
+      "shares": 1.9290992042637862,
+      "fee": 0.1999000499750125
+    },
+    {
+      "symbol": "MSFT",
+      "time": "2026-10-05T13:30:00+00:00",
+      "action": "BUY",
+      "reference_open": 521.96,
+      "fill_price": 522.48196,
+      "shares": 0.7651940747390111,
+      "fee": 0.1999000499750125
+    },
+    {
+      "symbol": "NVDA",
+      "time": "2026-10-05T13:30:00+00:00",
+      "action": "BUY",
+      "reference_open": 236.145,
+      "fill_price": 236.38114499999998,
+      "shares": 1.6913366755627868,
+      "fee": 0.1999000499750125
+    },
+    {
+      "symbol": "TSLA",
+      "time": "2026-10-05T13:30:00+00:00",
+      "action": "BUY",
+      "reference_open": 368.1,
+      "fill_price": 368.4681,
+      "shares": 1.085033141132231,
+      "fee": 0.19990004997501248
+    },
+    {
+      "symbol": "UNH",
+      "time": "2026-10-05T13:30:00+00:00",
+      "action": "BUY",
+      "reference_open": 373.49,
+      "fill_price": 373.86348999999996,
+      "shares": 1.0693745461746613,
+      "fee": 0.19990004997501248
+    },
+    {
+      "symbol": "XOM",
+      "time": "2026-10-05T13:30:00+00:00",
+      "action": "BUY",
+      "reference_open": 163.67,
+      "fill_price": 163.83366999999996,
+      "shares": 2.440280437775856,
+      "fee": 0.1999000499750125
+    },
+    {
+      "symbol": "AMD",
+      "time": "2026-10-12T13:30:00+00:00",
+      "action": "SELL",
+      "reference_open": 599.01,
+      "fill_price": 598.41099,
+      "shares": 0.6339089916052031,
+      "fee": 0.18966905361818562
+    },
+    {
+      "symbol": "BAC",
+      "time": "2026-10-12T13:30:00+00:00",
+      "action": "BUY",
+      "reference_open": 54.49,
+      "fill_price": 54.544489999999996,
+      "shares": 7.329798114347114,
+      "fee": 0.1999000499750125
+    },
+    {
+      "symbol": "DIS",
+      "time": "2026-10-12T13:30:00+00:00",
+      "action": "BUY",
+      "reference_open": 108.17,
+      "fill_price": 108.27816999999999,
+      "shares": 3.6923426019300574,
+      "fee": 0.1999000499750125
+    },
+    {
+      "symbol": "GOOGL",
+      "time": "2026-10-12T13:30:00+00:00",
+      "action": "BUY",
+      "reference_open": 352.045,
+      "fill_price": 352.397045,
+      "shares": 1.1345160398550589,
+      "fee": 0.19990004997501248
+    },
+    {
+      "symbol": "IBM",
+      "time": "2026-10-12T13:30:00+00:00",
+      "action": "BUY",
+      "reference_open": 227.975,
+      "fill_price": 228.20297499999998,
+      "shares": 1.7519495525859163,
+      "fee": 0.1999000499750125
+    },
+    {
+      "symbol": "JNJ",
+      "time": "2026-10-12T13:30:00+00:00",
+      "action": "BUY",
+      "reference_open": 261.6,
+      "fill_price": 261.8616,
+      "shares": 1.5267610827628983,
+      "fee": 0.1999000499750125
+    },
+    {
+      "symbol": "JPM",
+      "time": "2026-10-12T13:30:00+00:00",
+      "action": "BUY",
+      "reference_open": 334.36,
+      "fill_price": 334.69435999999996,
+      "shares": 1.19452296701392,
+      "fee": 0.1999000499750125
+    },
+    {
+      "symbol": "KO",
+      "time": "2026-10-12T13:30:00+00:00",
+      "action": "BUY",
+      "reference_open": 88.415,
+      "fill_price": 88.50341499999999,
+      "shares": 4.517340940460039,
+      "fee": 0.19990004997501254
+    },
+    {
+      "symbol": "NVDA",
+      "time": "2026-10-12T13:30:00+00:00",
+      "action": "SELL",
+      "reference_open": 228.69,
+      "fill_price": 228.46131,
+      "shares": 1.6913366755627868,
+      "fee": 0.19320249627505962
+    },
+    {
+      "symbol": "PG",
+      "time": "2026-10-12T13:30:00+00:00",
+      "action": "BUY",
+      "reference_open": 151.375,
+      "fill_price": 151.52637499999997,
+      "shares": 2.6384852138779475,
+      "fee": 0.1999000499750125
+    },
+    {
+      "symbol": "V",
+      "time": "2026-10-12T13:30:00+00:00",
+      "action": "BUY",
+      "reference_open": 385.74,
+      "fill_price": 386.12573999999995,
+      "shares": 1.0354142667360768,
+      "fee": 0.1999000499750125
+    },
+    {
+      "symbol": "AMZN",
+      "time": "2026-10-19T13:30:00+00:00",
+      "action": "SELL",
+      "reference_open": 255.605,
+      "fill_price": 255.349395,
+      "shares": 1.5932055496859638,
+      "fee": 0.20341203661147667
+    },
+    {
+      "symbol": "BAC",
+      "time": "2026-10-19T13:30:00+00:00",
+      "action": "SELL",
+      "reference_open": 51.275,
+      "fill_price": 51.223725,
+      "shares": 7.329798114347114,
+      "fee": 0.1877297814574176
+    },
+    {
+      "symbol": "GOOGL",
+      "time": "2026-10-19T13:30:00+00:00",
+      "action": "SELL",
+      "reference_open": 343.76,
+      "fill_price": 343.41624,
+      "shares": 1.1345160398550589,
+      "fee": 0.19480561631335724
+    },
+    {
+      "symbol": "HD",
+      "time": "2026-10-19T13:30:00+00:00",
+      "action": "BUY",
+      "reference_open": 306.29,
+      "fill_price": 306.59629,
+      "shares": 1.3039952308295217,
+      "fee": 0.1999000499750125
+    },
+    {
+      "symbol": "MCD",
+      "time": "2026-10-19T13:30:00+00:00",
+      "action": "BUY",
+      "reference_open": 241.25,
+      "fill_price": 241.49124999999998,
+      "shares": 1.6555469398995826,
+      "fee": 0.1999000499750125
+    },
+    {
+      "symbol": "MSFT",
+      "time": "2026-10-19T13:30:00+00:00",
+      "action": "SELL",
+      "reference_open": 528.615,
+      "fill_price": 528.0863850000001,
+      "shares": 0.7651940747390111,
+      "fee": 0.20204428637617214
+    },
+    {
+      "symbol": "PEP",
+      "time": "2026-10-19T13:30:00+00:00",
+      "action": "BUY",
+      "reference_open": 130.875,
+      "fill_price": 131.00587499999997,
+      "shares": 3.0517722960899665,
+      "fee": 0.19990004997501254
+    },
+    {
+      "symbol": "TSLA",
+      "time": "2026-10-19T13:30:00+00:00",
+      "action": "SELL",
+      "reference_open": 357.45,
+      "fill_price": 357.09254999999996,
+      "shares": 1.085033141132231,
+      "fee": 0.19372862560070908
+    },
+    {
+      "symbol": "WMT",
+      "time": "2026-10-19T13:30:00+00:00",
+      "action": "BUY",
+      "reference_open": 118.375,
+      "fill_price": 118.49337499999999,
+      "shares": 3.3740291383381145,
+      "fee": 0.1999000499750125
+    },
+    {
+      "symbol": "AAPL",
+      "time": "2026-10-26T13:30:00+00:00",
+      "action": "BUY",
+      "reference_open": 343.875,
+      "fill_price": 344.21887499999997,
+      "shares": 1.1614705903330405,
+      "fee": 0.1999000499750125
+    },
+    {
+      "symbol": "JPM",
+      "time": "2026-10-26T13:30:00+00:00",
+      "action": "SELL",
+      "reference_open": 333.99,
+      "fill_price": 333.65601,
+      "shares": 1.19452296701392,
+      "fee": 0.19927988351361306
+    },
+    {
+      "symbol": "KO",
+      "time": "2026-10-26T13:30:00+00:00",
+      "action": "SELL",
+      "reference_open": 92.69,
+      "fill_price": 92.59731,
+      "shares": 4.517340940460039,
+      "fee": 0.20914680971973484
+    }
+  ],
+  "equity_curve": [
+    {
+      "date": "2026-09-28",
+      "equity": 10000.0
+    },
+    {
+      "date": "2026-09-29",
+      "equity": 10000.0
+    },
+    {
+      "date": "2026-09-30",
+      "equity": 10000.0
+    },
+    {
+      "date": "2026-10-01",
+      "equity": 10000.0
+    },
+    {
+      "date": "2026-10-02",
+      "equity": 10000.0
+    },
+    {
+      "date": "2026-10-05",
+      "equity": 10022.250022107033
+    },
+    {
+      "date": "2026-10-06",
+      "equity": 10053.23392533447
+    },
+    {
+      "date": "2026-10-07",
+      "equity": 10047.393541795107
+    },
+    {
+      "date": "2026-10-08",
+      "equity": 10022.724604431143
+    },
+    {
+      "date": "2026-10-09",
+      "equity": 10054.221862073548
+    },
+    {
+      "date": "2026-10-12",
+      "equity": 10073.55493829932
+    },
+    {
+      "date": "2026-10-13",
+      "equity": 10061.739908356018
+    },
+    {
+      "date": "2026-10-14",
+      "equity": 10082.276176982537
+    },
+    {
+      "date": "2026-10-15",
+      "equity": 10110.806280932906
+    },
+    {
+      "date": "2026-10-16",
+      "equity": 10117.039969605097
+    },
+    {
+      "date": "2026-10-19",
+      "equity": 10137.31611622952
+    },
+    {
+      "date": "2026-10-20",
+      "equity": 10200.41839591486
+    },
+    {
+      "date": "2026-10-21",
+      "equity": 10206.389021804458
+    },
+    {
+      "date": "2026-10-22",
+      "equity": 10341.43493519356
+    },
+    {
+      "date": "2026-10-23",
+      "equity": 10282.320920587817
+    },
+    {
+      "date": "2026-10-26",
+      "equity": 10269.904989630986
+    },
+    {
+      "date": "2026-10-27",
+      "equity": 10229.938834327915
+    }
+  ],
+  "significance": {
+    "method": "stationary bootstrap",
+    "observations": 3,
+    "mean_weekly_excess_return": 0.012840711802391472,
+    "confidence_interval": [
+      0.0037734611748741673,
+      0.02190796242990878
+    ],
+    "p_value": null,
+    "variants_tested": null,
+    "block_length": 2,
+    "draws": 2000,
+    "seed": 0,
+    "confidence_level": 0.95,
+    "final_partial_period_excluded": true,
+    "reason": null
+  },
+  "cost_sensitivity": {
+    "method": "fixed-decision flat-cost replay",
+    "scenarios": [
+      {
+        "multiplier": 0.5,
+        "fee_bps": 2.5,
+        "slippage_bps": 5.0,
+        "ending_balance": 10239.67,
+        "return_pct": 2.4,
+        "spy_ending_balance": 9990.69,
+        "spy_return_pct": -0.09
+      },
+      {
+        "multiplier": 1,
+        "fee_bps": 5.0,
+        "slippage_bps": 10.0,
+        "ending_balance": 10229.94,
+        "return_pct": 2.3,
+        "spy_ending_balance": 9983.2,
+        "spy_return_pct": -0.17
+      },
+      {
+        "multiplier": 2,
+        "fee_bps": 10.0,
+        "slippage_bps": 20.0,
+        "ending_balance": 10210.51,
+        "return_pct": 2.11,
+        "spy_ending_balance": 9968.26,
+        "spy_return_pct": -0.32
+      }
+    ]
+  },
+  "overfitting": {
+    "pbo": null,
+    "fold_distribution": null,
+    "reason": "requires aligned returns from multiple variants"
+  },
+  "limitations": "The input manifest is an unverified attestation; corporate actions, model training knowledge, survivorship and hindsight selection are not verified. Only cash dividends payable after the test are supported; no split accounting. Fees and slippage are assumptions; no liquidity or market impact model."
+}

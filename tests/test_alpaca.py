@@ -65,3 +65,39 @@ def test_alpaca_auth_failure_does_not_expose_credentials(monkeypatch):
     with pytest.raises(ValueError, match='Alpaca credentials or data access') as error:
         market.alpaca('NVDA', '5m', pd.Timestamp('2026-01-02T15:00:00Z'))
     assert 'private-secret' not in str(error.value)
+
+
+def test_alpaca_retries_rate_limit_after_requested_delay(monkeypatch):
+    from fasttrade import resilience
+    resilience._circuits.clear()
+    delays, calls = [], []
+    monkeypatch.setattr(resilience, 'sleep', delays.append)
+    monkeypatch.setattr(resilience.random, 'uniform', lambda *args: 0)
+    monkeypatch.setenv('ALPACA_API_KEY', 'test-key')
+    monkeypatch.setenv('ALPACA_SECRET_KEY', 'test-secret')
+    def get(url, **kwargs):
+        calls.append(1)
+        if len(calls) == 1:
+            return httpx.Response(429, headers={'Retry-After': '2'}, request=httpx.Request('GET', url))
+        return httpx.Response(200, json={'bars': [{'t': '2026-01-02T14:30:00Z', 'o': 1, 'h': 2, 'l': 1, 'c': 2, 'v': 50}]}, request=httpx.Request('GET', url))
+    monkeypatch.setattr(httpx, 'get', get)
+    frame, _, _ = market.alpaca('NVDA', '5m', pd.Timestamp('2026-01-02T15:00:00Z'))
+    assert len(frame) == 1 and len(calls) == 2 and delays == [2]
+
+
+def test_alpaca_news_rate_limit_also_blocks_bars_for_same_account(monkeypatch):
+    from fasttrade import resilience
+    resilience._circuits.clear()
+    calls = []
+    monkeypatch.setenv('ALPACA_API_KEY', 'test-key')
+    monkeypatch.setenv('ALPACA_SECRET_KEY', 'test-secret')
+    def get(url, **kwargs):
+        calls.append(url)
+        return httpx.Response(429, headers={'Retry-After': '60'}, request=httpx.Request('GET', url))
+    monkeypatch.setattr(httpx, 'get', get)
+    now = pd.Timestamp('2026-01-02T15:00:00Z')
+    with pytest.raises(ValueError, match='News unavailable'):
+        market.alpaca_news('SPY', now)
+    with pytest.raises(ValueError, match='Alpaca market data request failed'):
+        market.alpaca('NVDA', '5m', now)
+    assert len(calls) == 1

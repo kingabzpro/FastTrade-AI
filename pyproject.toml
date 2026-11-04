@@ -17,6 +17,7 @@ dependencies = [
     "uvicorn>=0.54.0",
     "slowapi>=0.1.10",
     "redis>=8.1.0",
+    "tenacity>=9.1,<10",
 ]
 
 [project.scripts]

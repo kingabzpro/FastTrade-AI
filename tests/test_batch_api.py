@@ -519,6 +519,12 @@ def test_pending_batch_slots_are_not_reported_as_unpriced_calls(batch_client, mo
         assert cost['estimated_usd'] is None and cost['complete'] is False
     finally:
         release.set()
+    for _ in range(200):
+        job = client.get('/v1/jobs/' + response.json()['id'], headers=key).json()
+        if job['status'] == 'completed':
+            break
+        time.sleep(.02)
+    assert job['status'] == 'completed'
 
 
 def test_reported_tokens_from_retried_calls_are_counted_but_incomplete(batch_client, monkeypatch):

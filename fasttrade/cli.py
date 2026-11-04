@@ -84,9 +84,10 @@ def run(args):
         raise ValueError('Maximum age must be a nonnegative finite number')
     if args.csv:
         frame, details, news = pd.read_csv(args.csv), {}, []
+        snapshot_cutoff = as_of
     else:
         provider = yahoo if args.source == 'yahoo' else alpaca
-        frame, details, news = cached_market(provider, args.symbol, args.timeframe, as_of, max_age=max_age)
+        frame, details, news, snapshot_cutoff = cached_market(provider, args.symbol, args.timeframe, as_of, max_age=max_age, live=args.as_of is None, report_cutoff=True)
         if args.as_of:
             # Current company details do not have historical availability timestamps.
             details = {k: v for k, v in details.items() if k == 'exchangeTimezoneName'}
@@ -111,6 +112,8 @@ def run(args):
             raise ValueError(f'{name} must be nonnegative and finite')
         snapshot[name] = val
     state = {'symbol': args.symbol.upper(), 'timeframe': args.timeframe, 'candle_timestamp': frame.timestamp.iloc[-1].isoformat(), 'evaluation_time': as_of.isoformat(), 'features': snapshot, 'ticker_details': details, 'headlines': news}
+    if not args.csv and args.as_of is None and not stale_preview:
+        state['market_snapshot_cutoff'] = snapshot_cutoff.isoformat()
     provider = getattr(args, 'decision_provider', 'jev')
     if provider != 'jev' and getattr(args, 'calibration', None):
         raise ValueError('Calibration artifacts are only supported with Jev')

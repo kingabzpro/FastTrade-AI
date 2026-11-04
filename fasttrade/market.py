@@ -54,44 +54,65 @@ def validate_candles(frame, timeframe, as_of, max_age):
     return frame
 
 
-def cached_market(provider, symbol, timeframe, as_of, *, max_age=float('inf')):
+def cached_market(provider, symbol, timeframe, as_of, *, max_age=float('inf'), live=False, report_cutoff=False):
     as_of = pd.Timestamp(as_of)
     if timeframe not in INTERVALS or pd.isna(as_of) or as_of.tzinfo is None:
         raise ValueError('Unsupported timeframe or evaluation time')
+    # Alpaca aggregates from minute bars; Yahoo does not document this alignment.
+    live = live and provider is alpaca
     credentials = (os.getenv('ALPACA_API_KEY'), os.getenv('ALPACA_SECRET_KEY'))
     credential_hash = hashlib.sha256(json.dumps(credentials).encode()).digest()
-    key = (provider, symbol.upper(), timeframe, as_of, credential_hash)
-    now = monotonic()
+    key = (provider, symbol.upper(), timeframe, as_of, credential_hash, live)
     with _market_cache_lock:
-        cached = _market_cache.get(key)
+        now = monotonic()
+        cache_key = key
+        if live:
+            candidates = ((k, value) for k, value in _market_cache.items()
+                          if k[:3] == key[:3] and k[4:] == key[4:] and now < value[0]
+                          and value[2] <= as_of < min(value[3], value[2] + pd.Timedelta(seconds=15)))
+            cache_key, cached = max(candidates, key=lambda item: item[1][2], default=(key, None))
+        else:
+            cached = _market_cache.get(key)
         if cached and now < cached[0]:
-            _market_cache.move_to_end(key)
+            _market_cache.move_to_end(cache_key)
             snapshot = copy.deepcopy(cached[1])
         else:
-            _market_cache.pop(key, None)
+            if cached and now >= cached[0]:
+                _market_cache.pop(cache_key, None)
             snapshot = None
     if snapshot is not None:
         try:
             validate_candles(snapshot[0], timeframe, as_of, max_age)
-            return snapshot
+            return (*snapshot, cached[2]) if report_cutoff else snapshot
         except ValueError:
             with _market_cache_lock:
-                if _market_cache.get(key) is cached:
-                    _market_cache.pop(key, None)
+                if _market_cache.get(cache_key) is cached:
+                    _market_cache.pop(cache_key, None)
     result = provider(symbol, timeframe, as_of, credentials=credentials) if provider is alpaca else provider(symbol, timeframe, as_of)
     try:
-        validate_candles(result[0], timeframe, as_of, max_age)
+        validated = validate_candles(result[0], timeframe, as_of, max_age)
     except ValueError as exc:
         if str(exc) == 'Latest completed candle is stale':
-            return result
+            return (*result, as_of) if report_cutoff else result
         raise
     interval = INTERVALS[timeframe]
+    if live:
+        stamps = pd.to_datetime(result[0].timestamp, utc=True)
+        if not (stamps == stamps.dt.floor('min')).all():
+            return (*result, as_of) if report_cutoff else result
     with _market_cache_lock:
-        _market_cache[key] = (monotonic() + min(interval, 600), copy.deepcopy(result))
+        next_close = validated.timestamp.iloc[-1] + pd.Timedelta(seconds=2 * interval)
+        if live:
+            next_close = min(next_close, as_of.floor('min') + pd.Timedelta(minutes=1))
+            closes = pd.to_datetime(result[0].timestamp, utc=True) + pd.Timedelta(seconds=interval)
+            future_closes = closes[closes > as_of]
+            if not future_closes.empty:
+                next_close = min(next_close, future_closes.min())
+        _market_cache[key] = ((now if live else monotonic()) + (min(interval, 15) if live else min(interval, 600)), copy.deepcopy(result), as_of, next_close)
         _market_cache.move_to_end(key)
         while len(_market_cache) > 128:
             _market_cache.popitem(last=False)
-    return result
+    return (*result, as_of) if report_cutoff else result
 
 
 def headlines(items, as_of):

@@ -102,7 +102,7 @@ def test_cli_selects_yahoo_and_validates_candles(monkeypatch):
 
 def test_repeated_historical_analysis_reuses_market_snapshot(monkeypatch):
     calls = []
-    def provider(*args):
+    def provider(*args, **kwargs):
         calls.append(args)
         return candles(), {}, []
     monkeypatch.setattr(cli, 'yahoo', provider)
@@ -111,6 +111,33 @@ def test_repeated_historical_analysis_reuses_market_snapshot(monkeypatch):
     cli.run(args)
     cli.run(args)
     assert len(calls) == 1
+
+
+def test_live_analyses_reuse_snapshot_with_distinct_evaluation_times(monkeypatch):
+    times = iter([pd.Timestamp('2026-01-02T19:31:00Z'), pd.Timestamp('2026-01-02T19:31:10Z')])
+    class Clock:
+        @staticmethod
+        def now(tz):
+            return next(times)
+    calls, states = [], []
+    def provider(*args, **kwargs):
+        calls.append(args)
+        return candles(), {}, []
+    def predict(state, *args):
+        states.append(state)
+        return decisions.normalize(answer(), 1)
+    monkeypatch.setattr(cli, 'datetime', Clock)
+    monkeypatch.setattr(cli, 'alpaca', provider)
+    monkeypatch.setattr(market, 'alpaca', provider)
+    monkeypatch.setattr(cli, 'predict', predict)
+    args = cli.parser().parse_args(['analyze', 'TEST', '--source', 'alpaca'])
+    cli.run(args)
+    cli.run(args)
+    assert len(calls) == 1
+    assert states[0]['evaluation_time'] == '2026-01-02T19:31:00+00:00'
+    assert states[1]['evaluation_time'] == '2026-01-02T19:31:10+00:00'
+    assert states[0]['market_snapshot_cutoff'] == '2026-01-02T19:31:00+00:00'
+    assert states[1]['market_snapshot_cutoff'] == '2026-01-02T19:31:00+00:00'
 
 
 def test_cached_candles_still_obey_each_request_freshness_limit(monkeypatch):
@@ -253,6 +280,22 @@ def test_stale_preview_cannot_be_actionable(monkeypatch):
     result = cli.run(args)
     assert result['actionable_signal'] == 'HOLD'
     assert any('stale' in reason.lower() for reason in result['risk_rejections'])
+
+
+def test_live_stale_preview_does_not_send_future_snapshot_cutoff(monkeypatch):
+    class Clock:
+        @staticmethod
+        def now(tz):
+            return pd.Timestamp('2026-01-03T00:00:00Z')
+    states = []
+    monkeypatch.setattr(cli, 'datetime', Clock)
+    monkeypatch.setattr(cli, 'yahoo', lambda *args: (candles(), {}, []))
+    monkeypatch.setattr(cli, 'predict', lambda state, *args: states.append(state) or decisions.normalize(answer(), 1))
+    args = cli.parser().parse_args(['analyze', 'TEST', '--source', 'yahoo'])
+    args.allow_stale_preview = True
+    result = cli.run(args)
+    assert result['stale_preview'] is True
+    assert 'market_snapshot_cutoff' not in states[0]
     assert states[0]['evaluation_time'] == '2026-01-02T19:30:00+00:00'
     assert states[0]['headlines'] == []
 

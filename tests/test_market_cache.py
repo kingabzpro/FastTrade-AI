@@ -42,6 +42,118 @@ def test_cache_never_reuses_snapshot_for_a_different_as_of():
     assert calls == [later, earlier]
 
 
+def test_live_cache_reuses_only_until_next_candle_can_close(monkeypatch):
+    market._market_cache.clear()
+    now = [0.0]
+    monkeypatch.setattr(market, 'monotonic', lambda: now[0])
+    calls = []
+    def provider(symbol, timeframe, as_of, **kwargs):
+        calls.append(as_of)
+        return candles(), {}, []
+    monkeypatch.setattr(market, 'alpaca', provider)
+    market.cached_market(provider, 'TEST', '5m', pd.Timestamp('2026-01-02T19:31Z'), live=True)
+    market.cached_market(provider, 'TEST', '5m', pd.Timestamp('2026-01-02T19:31:10Z'), live=True)
+    assert len(calls) == 1
+    market.cached_market(provider, 'TEST', '5m', pd.Timestamp('2026-01-02T19:32Z'), live=True)
+    assert len(calls) == 2
+
+
+def test_live_cache_does_not_reuse_future_snapshots_or_cross_historical_cutoffs(monkeypatch):
+    market._market_cache.clear()
+    calls = []
+    def provider(symbol, timeframe, as_of, **kwargs):
+        calls.append(as_of)
+        return candles(), {}, []
+    monkeypatch.setattr(market, 'alpaca', provider)
+    later = pd.Timestamp('2026-01-02T19:31:10Z')
+    earlier = pd.Timestamp('2026-01-02T19:31Z')
+    market.cached_market(provider, 'TEST', '5m', later, live=True)
+    market.cached_market(provider, 'TEST', '5m', earlier, live=True)
+    market.cached_market(provider, 'TEST', '5m', earlier)
+    _, _, _, cutoff = market.cached_market(provider, 'TEST', '5m', later, live=True, report_cutoff=True)
+    assert calls == [later, earlier, earlier]
+    assert cutoff == later
+
+
+def test_live_cache_expires_quickly(monkeypatch):
+    market._market_cache.clear()
+    now = [0.0]
+    monkeypatch.setattr(market, 'monotonic', lambda: now[0])
+    calls = []
+    def provider(symbol, timeframe, as_of, **kwargs):
+        calls.append(as_of)
+        return candles(), {}, []
+    monkeypatch.setattr(market, 'alpaca', provider)
+    market.cached_market(provider, 'TEST', '5m', pd.Timestamp('2026-01-02T19:31Z'), live=True)
+    now[0] = 16
+    market.cached_market(provider, 'TEST', '5m', pd.Timestamp('2026-01-02T19:31:16Z'), live=True)
+    assert len(calls) == 2
+
+
+def test_slow_fetch_does_not_extend_live_snapshot_lifetime(monkeypatch):
+    market._market_cache.clear()
+    now = [0.0]
+    monkeypatch.setattr(market, 'monotonic', lambda: now[0])
+    calls = []
+    def provider(symbol, timeframe, as_of, **kwargs):
+        calls.append(as_of)
+        now[0] += 40
+        return candles(), {}, []
+    monkeypatch.setattr(market, 'alpaca', provider)
+    market.cached_market(provider, 'TEST', '5m', pd.Timestamp('2026-01-02T19:31Z'), live=True)
+    market.cached_market(provider, 'TEST', '5m', pd.Timestamp('2026-01-02T19:31:41Z'), live=True)
+    assert len(calls) == 2
+
+
+def test_live_cache_refetches_when_a_returned_partial_candle_completes(monkeypatch):
+    market._market_cache.clear()
+    calls = []
+    frame = candles()
+    partial = frame.iloc[[-1]].copy()
+    partial['timestamp'] = pd.Timestamp('2026-01-02T19:27Z')
+    frame = pd.concat([frame, partial], ignore_index=True)
+    def provider(symbol, timeframe, as_of, **kwargs):
+        calls.append(as_of)
+        return frame, {}, []
+    monkeypatch.setattr(market, 'alpaca', provider)
+    market.cached_market(provider, 'TEST', '5m', pd.Timestamp('2026-01-02T19:31Z'), live=True)
+    market.cached_market(provider, 'TEST', '5m', pd.Timestamp('2026-01-02T19:32Z'), live=True)
+    assert len(calls) == 2
+
+
+def test_live_yahoo_does_not_reuse_a_different_cutoff():
+    market._market_cache.clear()
+    calls = []
+    def provider(symbol, timeframe, as_of):
+        calls.append(as_of)
+        return candles(), {}, []
+    market.cached_market(provider, 'TEST', '5m', pd.Timestamp('2026-01-02T19:31Z'), live=True)
+    market.cached_market(provider, 'TEST', '5m', pd.Timestamp('2026-01-02T19:31:10Z'), live=True)
+    assert len(calls) == 2
+
+
+def test_live_cache_checks_expiry_after_obtaining_lock(monkeypatch):
+    market._market_cache.clear()
+    now = [0.0]
+    monkeypatch.setattr(market, 'monotonic', lambda: now[0])
+    calls = []
+    def provider(symbol, timeframe, as_of, **kwargs):
+        calls.append(as_of)
+        return candles(), {}, []
+    monkeypatch.setattr(market, 'alpaca', provider)
+    market.cached_market(provider, 'TEST', '5m', pd.Timestamp('2026-01-02T19:31Z'), live=True)
+    lock = market._market_cache_lock
+    class DelayedLock:
+        def __enter__(self):
+            lock.acquire()
+            now[0] = 16
+        def __exit__(self, *args):
+            lock.release()
+    monkeypatch.setattr(market, '_market_cache_lock', DelayedLock())
+    market.cached_market(provider, 'TEST', '5m', pd.Timestamp('2026-01-02T19:31:10Z'), live=True)
+    assert len(calls) == 2
+
+
 def test_cache_expires_and_failed_fetches_are_not_cached(monkeypatch):
     market._market_cache.clear()
     now = [0.0]

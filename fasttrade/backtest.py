@@ -11,9 +11,11 @@ from datetime import date, timedelta
 from pathlib import Path
 
 import pandas as pd
+import numpy as np
 from dotenv import load_dotenv
 
 from . import cli
+from .calibration import stationary_bootstrap_means
 from .market import validate_candles
 
 
@@ -130,6 +132,7 @@ def run(args):
     receivables = {s: 0.0 for s in [*symbols, 'SPY']}
     dividend_ledger = []
     first_execution = None
+    execution_values = []
     with tempfile.TemporaryDirectory(prefix='fasttrade-backtest-') as directory:
         paths = {}
         for symbol in symbols:
@@ -146,6 +149,9 @@ def run(args):
                     receivables[symbol] += held * amount
                     dividend_ledger.append({'symbol': symbol, 'ex_date': str(session.date), 'pay_date': str(pay_date), 'shares': held, 'amount_per_share': amount, 'receivable': held * amount})
             if pending:
+                portfolio_open = sum(cash[s] + shares[s] * float(frames[s].loc[session.open, 'open']) + receivables[s] for s in symbols)
+                spy_open = spy_shares * float(frames['SPY'].loc[session.open, 'open']) + receivables['SPY'] if first_execution is not None else initial
+                execution_values.append((session.date, portfolio_open, spy_open))
                 if first_execution is None:
                     first_execution = session.open
                     spy_price = float(frames['SPY'].loc[session.open, 'open']) * (1 + slip)
@@ -200,4 +206,13 @@ def run(args):
         peak = max(peak, point['equity'])
         drawdown = min(drawdown, point['equity'] / peak - 1)
     usage_complete = retries == 0 and all(d['usage'] is not None and d['usage']['output_tokens'] is not None for d in decisions)
-    return {'start': str(start), 'end': str(end), 'symbols': symbols, 'model_requested': model, 'model_resolved': resolved_model, 'model_retries': retries, 'mean_model_latency_ms': round(sum(d['latency_ms'] for d in decisions) / len(decisions), 2), 'input_tokens_successful': sum(d['usage']['input_tokens'] for d in decisions if d['usage'] is not None), 'usage_complete': usage_complete, 'dataset_manifest_sha256': hashlib.sha256(manifest_bytes).hexdigest(), 'fee_bps': args.fee_bps, 'slippage_bps': args.slippage_bps, 'initial_balance': initial, 'first_execution_time': first_execution.isoformat(), 'ending_balance': round(ending, 2), 'return_pct': round((ending / initial - 1) * 100, 2), 'spy_ending_balance': round(spy_ending, 2), 'spy_return_pct': round((spy_ending / initial - 1) * 100, 2), 'max_drawdown_pct': round(drawdown * 100, 2), 'total_fees': round(sum(t['fee'] for t in trades), 2), 'dividend_receivables': round(sum(receivables[s] for s in symbols), 2), 'spy_dividend_receivables': round(receivables['SPY'], 2), 'dividends': dividend_ledger, 'decisions': decisions, 'trades': trades, 'equity_curve': curve, 'limitations': 'The input manifest is an unverified attestation; corporate actions, model training knowledge, survivorship and hindsight selection are not verified. Only cash dividends payable after the test are supported; no split accounting. Fees and slippage are assumptions; no liquidity or market impact model.'}
+    excess = [b[1] / a[1] - b[2] / a[2] for a, b in zip(execution_values, execution_values[1:])]
+    consecutive = all((b[0] - timedelta(days=b[0].weekday()) - (a[0] - timedelta(days=a[0].weekday()))).days == 7 for a, b in zip(execution_values, execution_values[1:]))
+    significance = {'method': 'stationary bootstrap', 'observations': len(excess), 'mean_weekly_excess_return': float(np.mean(excess)) if excess and consecutive else None,
+                    'confidence_interval': None, 'p_value': None, 'variants_tested': None,
+                    'block_length': max(2, math.ceil(len(excess) ** (1 / 3))) if len(excess) >= 2 and consecutive else None,
+                    'draws': 2000, 'seed': 0, 'confidence_level': .95, 'final_partial_period_excluded': True,
+                    'reason': 'execution periods are not consecutive calendar weeks' if not consecutive else 'fewer than two complete periods' if len(excess) < 2 else None}
+    if len(excess) >= 2 and consecutive:
+        significance['confidence_interval'] = np.percentile(stationary_bootstrap_means(excess), [2.5, 97.5]).tolist()
+    return {'start': str(start), 'end': str(end), 'symbols': symbols, 'model_requested': model, 'model_resolved': resolved_model, 'model_retries': retries, 'mean_model_latency_ms': round(sum(d['latency_ms'] for d in decisions) / len(decisions), 2), 'input_tokens_successful': sum(d['usage']['input_tokens'] for d in decisions if d['usage'] is not None), 'usage_complete': usage_complete, 'dataset_manifest_sha256': hashlib.sha256(manifest_bytes).hexdigest(), 'fee_bps': args.fee_bps, 'slippage_bps': args.slippage_bps, 'initial_balance': initial, 'first_execution_time': first_execution.isoformat(), 'ending_balance': round(ending, 2), 'return_pct': round((ending / initial - 1) * 100, 2), 'spy_ending_balance': round(spy_ending, 2), 'spy_return_pct': round((spy_ending / initial - 1) * 100, 2), 'max_drawdown_pct': round(drawdown * 100, 2), 'total_fees': round(sum(t['fee'] for t in trades), 2), 'dividend_receivables': round(sum(receivables[s] for s in symbols), 2), 'spy_dividend_receivables': round(receivables['SPY'], 2), 'dividends': dividend_ledger, 'decisions': decisions, 'trades': trades, 'equity_curve': curve, 'significance': significance, 'limitations': 'The input manifest is an unverified attestation; corporate actions, model training knowledge, survivorship and hindsight selection are not verified. Only cash dividends payable after the test are supported; no split accounting. Fees and slippage are assumptions; no liquidity or market impact model.'}

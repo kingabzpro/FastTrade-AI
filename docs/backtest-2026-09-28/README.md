@@ -8,6 +8,8 @@ The snapshot contains September 22–October 27 hourly Yahoo Finance OHLCV fetch
 
 The included checksums verify the snapshot used for this report; they do not establish that Yahoo's history or corporate-action list is complete and point-in-time. Yahoo may revise or split-adjust historical prices. The model may know subsequent events, and the universe was selected with hindsight. This short retrospective result cannot establish live performance or guarantee that all leakage is absent. The simulation does not model market impact, partial fills, taxes, portfolio risk limits, or dividends payable during the test.
 
+Replaying the measured decisions on the frozen data produces three complete execution-to-execution weekly excess returns versus SPY. Their mean is 1.29 percentage points per week, with a seeded stationary-bootstrap 95% interval of 0.39 to 2.19 percentage points; the final partial period is excluded. **Three weeks are far too few for a dependable interval**, and this retrospective calculation does not adjust for tried variants, hindsight, or leakage. It is not evidence of an edge. Reproduce it without model requests using `uv run --locked pytest tests/test_backtest.py::test_recorded_backtest_significance_replays_without_model_calls -q`; the test checks the original ending balances, fees and manifest hash before checking the interval.
+
 To rerun using the frozen dataset, choose a new output filename:
 
 ```powershell

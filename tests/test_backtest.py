@@ -1,5 +1,6 @@
 import hashlib
 import json
+from pathlib import Path
 
 import pandas as pd
 import pytest
@@ -7,9 +8,9 @@ import pytest
 from fasttrade import cli
 
 
-def dataset(folder, future_price=100):
+def dataset(folder, future_price=100, periods=25):
     folder.mkdir()
-    dates = pd.bdate_range('2026-01-05', periods=25, tz='UTC')
+    dates = pd.bdate_range('2026-01-05', periods=periods, tz='UTC')
     sessions = pd.DataFrame({'open': dates + pd.Timedelta(hours=14, minutes=30),
                              'close': dates + pd.Timedelta(hours=21)})
     sessions.to_csv(folder / 'sessions.csv', index=False)
@@ -86,6 +87,80 @@ def test_backtest_sells_existing_shares_and_applies_both_sides(tmp_path, monkeyp
     assert [t['action'] for t in result['trades']] == ['BUY', 'SELL']
     assert result['ending_balance'] == pytest.approx(expected_shares * 120 * .999 * .9995, abs=.01)
     assert result['equity_curve'][-1]['equity'] == pytest.approx(result['ending_balance'], abs=.01)
+
+
+def test_backtest_compares_complete_execution_intervals_to_spy(tmp_path, monkeypatch):
+    from fasttrade import backtest
+    folder = tmp_path / 'data'
+    dataset(folder, future_price=110, periods=35)
+    spy = pd.read_csv(folder / 'SPY.csv')
+    spy.loc[:, ['open', 'high', 'low', 'close']] = 100
+    spy.to_csv(folder / 'SPY.csv', index=False)
+    manifest_path = folder / 'manifest.json'
+    manifest = json.loads(manifest_path.read_text())
+    manifest['sha256']['SPY.csv'] = hashlib.sha256((folder / 'SPY.csv').read_bytes()).hexdigest()
+    manifest_path.write_text(json.dumps(manifest))
+    monkeypatch.setattr(cli, 'predict', lambda *args: {'action': 'BUY', 'confidence': .8, 'probabilities': {'BUY': .8, 'HOLD': .1, 'SELL': .1}, 'model': 'test', 'latency_us': 1})
+    args = cli.parser().parse_args(['backtest', '--data-dir', str(folder), '--start', '2026-01-19', '--end', '2026-02-10', '--symbols', 'AAPL', '--model', 'test', '--fee-bps', '0', '--slippage-bps', '0', '--output', str(folder / 'report.json')])
+    result = backtest.run(args)
+    significance = result['significance']
+    assert significance['observations'] == 2
+    assert significance['mean_weekly_excess_return'] == pytest.approx(.05)
+    assert significance['confidence_interval'] == pytest.approx([0, .1])
+    assert significance['final_partial_period_excluded'] is True
+    assert significance['p_value'] is None
+
+
+def test_backtest_significance_includes_first_spy_entry_cost(tmp_path, monkeypatch):
+    from fasttrade import backtest
+    folder = tmp_path / 'data'
+    dataset(folder)
+    monkeypatch.setattr(cli, 'predict', lambda *args: {'action': 'HOLD', 'confidence': .8, 'probabilities': {'BUY': .1, 'HOLD': .8, 'SELL': .1}, 'model': 'test', 'latency_us': 1})
+    args = cli.parser().parse_args(['backtest', '--data-dir', str(folder), '--start', '2026-01-19', '--end', '2026-02-03', '--symbols', 'AAPL', '--model', 'test', '--output', str(folder / 'report.json')])
+    significance = backtest.run(args)['significance']
+    assert significance['observations'] == 1
+    assert significance['mean_weekly_excess_return'] == pytest.approx(1 - 1 / (1.001 * 1.0005))
+    assert significance['confidence_interval'] is None
+
+
+def test_recorded_backtest_significance_replays_without_model_calls(tmp_path, monkeypatch):
+    from fasttrade import backtest
+    root = Path(__file__).resolve().parents[1] / 'docs' / 'backtest-2026-09-28'
+    original = json.loads((root / 'report-measured.json').read_text(encoding='utf-8'))
+    rows = {(row['symbol'], row['decision_time']): row for row in original['decisions']}
+    def recorded(args):
+        row = rows[(args.symbol, args.as_of)]
+        return {'decision': dict(row, latency_us=row['latency_ms'] * 1000, confidence=0), 'market': {'candle_timestamp': row['candle_timestamp']}}
+    monkeypatch.setattr(cli, 'run', recorded)
+    args = cli.parser().parse_args(['backtest', '--data-dir', str(root), '--start', original['start'], '--end', original['end'], '--symbols', ','.join(original['symbols']), '--model', original['model_requested'], '--fee-bps', str(original['fee_bps']), '--slippage-bps', str(original['slippage_bps']), '--output', str(tmp_path / 'unused.json')])
+    result = backtest.run(args)
+    for key in ('ending_balance', 'spy_ending_balance', 'total_fees', 'dataset_manifest_sha256'):
+        assert result[key] == original[key]
+    assert result['significance']['observations'] == 3
+    assert result['significance']['mean_weekly_excess_return'] == pytest.approx(.0128976731)
+    assert result['significance']['confidence_interval'] == pytest.approx([.003917102, .021878244])
+
+
+def test_backtest_does_not_compress_missing_execution_weeks(tmp_path, monkeypatch):
+    from fasttrade import backtest
+    folder = tmp_path / 'data'
+    dataset(folder, periods=35)
+    for name, column in (('sessions.csv', 'open'), ('AAPL.csv', 'timestamp'), ('SPY.csv', 'timestamp')):
+        frame = pd.read_csv(folder / name)
+        times = pd.to_datetime(frame[column], utc=True)
+        frame = frame[(times < pd.Timestamp('2026-02-02', tz='UTC')) | (times >= pd.Timestamp('2026-02-07', tz='UTC'))]
+        frame.to_csv(folder / name, index=False)
+    manifest_path = folder / 'manifest.json'
+    manifest = json.loads(manifest_path.read_text())
+    for name in ('sessions.csv', 'AAPL.csv', 'SPY.csv'):
+        manifest['sha256'][name] = hashlib.sha256((folder / name).read_bytes()).hexdigest()
+    manifest_path.write_text(json.dumps(manifest))
+    monkeypatch.setattr(cli, 'predict', lambda *args: {'action': 'HOLD', 'confidence': .8, 'probabilities': {'BUY': .1, 'HOLD': .8, 'SELL': .1}, 'model': 'test', 'latency_us': 1})
+    args = cli.parser().parse_args(['backtest', '--data-dir', str(folder), '--start', '2026-01-19', '--end', '2026-02-10', '--symbols', 'AAPL', '--model', 'test', '--output', str(folder / 'report.json')])
+    significance = backtest.run(args)['significance']
+    assert significance['confidence_interval'] is None
+    assert significance['mean_weekly_excess_return'] is None
+    assert 'not consecutive' in significance['reason']
 
 
 def test_backtest_rejects_corporate_actions_and_missing_session(tmp_path, monkeypatch):
@@ -213,7 +288,8 @@ def test_dividend_receivable_survives_a_later_sale(tmp_path, monkeypatch):
     from fasttrade import backtest
     folder = tmp_path / 'data'
     dataset(folder)
-    pd.DataFrame([{'symbol': 'AAPL', 'ex_date': '2026-01-28', 'pay_date': '2026-02-10', 'amount': 2}]).to_csv(folder / 'dividends.csv', index=False)
+    pd.DataFrame([{'symbol': 'AAPL', 'ex_date': '2026-01-28', 'pay_date': '2026-02-10', 'amount': 2},
+                  {'symbol': 'SPY', 'ex_date': '2026-01-28', 'pay_date': '2026-02-10', 'amount': 1}]).to_csv(folder / 'dividends.csv', index=False)
     manifest_path = folder / 'manifest.json'
     manifest = json.loads(manifest_path.read_text())
     manifest['corporate_actions'] = 'cash_dividends_only'
@@ -227,3 +303,4 @@ def test_dividend_receivable_survives_a_later_sale(tmp_path, monkeypatch):
     assert result['dividend_receivables'] == pytest.approx(shares * 2, abs=.01)
     assert result['ending_balance'] == pytest.approx(shares * (100 * .999 * .9995 + 2), abs=.01)
     assert [trade['action'] for trade in result['trades']] == ['BUY', 'SELL']
+    assert result['significance']['mean_weekly_excess_return'] == pytest.approx(.01 / (1.001 * 1.0005))

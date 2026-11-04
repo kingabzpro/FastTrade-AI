@@ -19,6 +19,8 @@ IEX is one exchange, not the consolidated market. An hourly bar's first IEX trad
 
 The data may be revised, the model may know subsequent events, and the same historical sample was used for comparison. This is not evidence of a live trading edge or proof of future performance. The [Alpaca FAQ](https://docs.alpaca.markets/us/docs/market-data-faq) explains the difference between IEX and consolidated SIP data. Dividends, missing corporate actions, and model-training leakage remain limitations described in the original report.
 
+Replaying the recorded decisions yields three complete execution-to-execution weeks. The mean weekly portfolio-minus-SPY return is +1.201 percentage points; a seeded stationary-bootstrap 95% interval is +0.377 to +2.024 percentage points per week. The final partial period is excluded. **Three weeks are too few for a dependable interval**, and this calculation does not adjust for variant selection or leakage. It also inherits the two-minute IBM opening delay described above. Reproduce the replay without provider calls with `uv run --locked pytest tests/test_backtest.py::test_other_recorded_backtests_replay_significance_without_model_calls -q`; the test checks the original balances, fees and manifest hash.
+
 To rerun the frozen snapshot (model requests may be charged), choose a new output path:
 
 ```powershell

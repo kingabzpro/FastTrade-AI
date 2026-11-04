@@ -127,7 +127,7 @@ This command uses Yahoo through yfinance, an unofficial research tool; data can 
 
 The `significance` block reports a seeded 95% stationary-bootstrap interval for the mean return difference between the portfolio and SPY over matching execution-to-execution periods. The final partial period through the last close is excluded from this weekly statistic but remains in the total return. Returns are fractions, not percentages. The interval is unavailable with fewer than two periods; short samples can still be highly unreliable. It does not correct for selecting among model variants or historical leakage and is not evidence of a live edge.
 
-The [October 2026 example report](benchmark-2026-10.json) contains the individual decisions from a live run of this command on 28 October 2026.
+The [October 2026 example report](benchmark-2026-10.json) contains the individual decisions from a live run of this command on 28 October 2026. It predates the `significance` block, and its matching adjusted-hourly SPY execution series was not retained, so its weekly excess-return interval cannot be reproduced from the archived report.
 
 ## Validated-data backtest
 

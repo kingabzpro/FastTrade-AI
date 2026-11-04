@@ -143,6 +143,8 @@ The `significance` block compares portfolio and SPY returns over consecutive exe
 
 The `cost_sensitivity` block replays the recorded decisions at 0.5, 1 and 2 times the configured commission and slippage, recalculating holdings, cash, SPY and earned dividends for each scenario. It makes no additional model requests. Scenarios with a scaled per-side cost of 100% or more are unavailable. This is a fixed-decision comparison with flat assumed costs; it does not model spreads, liquidity, market impact, partial fills or decisions that might change under different portfolio conditions.
 
+A single backtest cannot establish how often a selected variant overfits a family of alternatives. Its `overfitting` fields are therefore unavailable until aligned returns from multiple variants are evaluated; null does not mean zero overfitting. The [controlled comparison](benchmark-2026-h1.md#controlled-two-variant-comparison) shows a separate retrospective analysis of two recorded variants and its limitations.
+
 The `market-data` folder must contain:
 
 - `sessions.csv`, with timezone-aware `open,close` timestamps for every exchange session covering the warmup and test, plus at least one session after the end date. Session times must come from a trustworthy point-in-time exchange calendar, including holidays and early closes.

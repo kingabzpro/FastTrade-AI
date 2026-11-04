@@ -50,6 +50,9 @@ def test_backtest_uses_only_past_data_and_charges_costs(tmp_path, monkeypatch):
     assert first['mean_model_latency_ms'] == 1
     assert first['input_tokens_successful'] == 500
     assert first['usage_complete'] is True
+    assert first['overfitting']['pbo'] is None
+    assert first['overfitting']['fold_distribution'] is None
+    assert 'multiple variants' in first['overfitting']['reason']
 
 
 def test_backtest_rejects_modified_data(tmp_path, monkeypatch):

@@ -23,6 +23,11 @@ dependencies = [
 [project.scripts]
 ft = "fasttrade.cli:dashboard"
 
+[project.optional-dependencies]
+forecast = [
+    "chronos-forecasting==2.3.2",
+]
+
 [dependency-groups]
 dev = ["pytest>=8"]
 

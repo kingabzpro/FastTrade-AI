@@ -196,6 +196,32 @@ def test_regime_context_cannot_use_unmatched_calibration(monkeypatch, tmp_path):
         cli.run(args)
 
 
+def test_opt_in_forecast_receives_only_completed_candles(monkeypatch, tmp_path):
+    from fasttrade import forecast
+
+    frame = candles()
+    future = frame.iloc[-1].copy()
+    future['timestamp'] += pd.Timedelta(minutes=5)
+    future[['open', 'high', 'low', 'close']] = [1000, 1001, 999, 1000]
+    path = tmp_path / 'candles.csv'
+    pd.concat([frame, future.to_frame().T], ignore_index=True).to_csv(path, index=False)
+    seen = []
+    monkeypatch.setattr(forecast, '_predict', lambda values: seen.append(values) or [157, 159, 161])
+    monkeypatch.setattr(cli, 'predict', lambda *args: decisions.normalize(answer(), 1))
+    args = cli.parser().parse_args(['analyze', 'TEST', '--csv', str(path), '--as-of', '2026-01-02T19:30Z', '--forecast'])
+    result = cli.run(args)
+    assert seen == [list(range(110, 160))]
+    assert result['market']['forecast']['quantiles']['p50'] == 159
+    assert result['market']['forecast']['status'] == 'unvalidated'
+
+
+def test_forecast_cannot_use_unmatched_calibration(monkeypatch):
+    monkeypatch.setattr(cli, 'predict', lambda *args: pytest.fail('Model must not be called'))
+    args = cli.parser().parse_args(['analyze', 'TEST', '--forecast', '--calibration', 'artifact.json'])
+    with pytest.raises(ValueError, match='calibration'):
+        cli.run(args)
+
+
 def test_live_analyses_reuse_snapshot_with_distinct_evaluation_times(monkeypatch):
     times = iter([pd.Timestamp('2026-01-02T19:31:00Z'), pd.Timestamp('2026-01-02T19:31:10Z')])
     class Clock:

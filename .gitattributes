@@ -5,3 +5,4 @@ docs/backtest-2026-09-28/*.json -text whitespace=cr-at-eol
 docs/benchmark-2026-h1-controlled-comparison/manifest.json -text whitespace=cr-at-eol
 docs/backtest-2026-10/*.csv -text whitespace=cr-at-eol
 docs/backtest-2026-10/*.json -text whitespace=cr-at-eol
+docs/tsfm-comparison/*.json -text whitespace=cr-at-eol

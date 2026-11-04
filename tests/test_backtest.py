@@ -55,6 +55,22 @@ def test_backtest_uses_only_past_data_and_charges_costs(tmp_path, monkeypatch):
     assert 'multiple variants' in first['overfitting']['reason']
 
 
+def test_backtest_records_forecast_used_in_each_decision(tmp_path, monkeypatch):
+    from fasttrade import backtest, forecast
+    folder = tmp_path / 'data'
+    dataset(folder)
+    monkeypatch.setattr(forecast, '_predict', lambda values: [99.0, 100.0, 101.0])
+    states = []
+    def predict(state, url, model, key):
+        states.append(state)
+        return {'action': 'BUY', 'confidence': .8, 'probabilities': {'BUY': .8, 'HOLD': .1, 'SELL': .1}, 'model': model, 'latency_us': 1000, 'usage': {'input_tokens': 500, 'output_tokens': 5}}
+    monkeypatch.setattr(cli, 'predict', predict)
+    args = cli.parser().parse_args(['backtest', '--data-dir', str(folder), '--start', '2026-01-19', '--end', '2026-01-27', '--symbols', 'AAPL', '--model', 'test', '--output', str(folder / 'report.json'), '--forecast'])
+    report = backtest.run(args)
+    assert all(item['forecast'] == state['forecast'] for item, state in zip(report['decisions'], states))
+    assert all(item['forecast']['status'] == 'unvalidated' for item in report['decisions'])
+
+
 def test_backtest_rejects_modified_data(tmp_path, monkeypatch):
     from fasttrade import backtest
     folder = tmp_path / 'data'
@@ -194,6 +210,27 @@ def test_other_recorded_backtests_replay_significance_without_model_calls(tmp_pa
         assert result['significance']['confidence_interval'] is None
     else:
         assert result['significance']['confidence_interval'] == pytest.approx(interval)
+
+
+@pytest.mark.parametrize('name', ['baseline', 'forecast'])
+def test_forecast_comparison_replays_recorded_decisions(tmp_path, monkeypatch, name):
+    from fasttrade import backtest
+    docs = Path(__file__).resolve().parents[1] / 'docs'
+    original = json.loads((docs / 'tsfm-comparison' / f'{name}.json').read_text(encoding='utf-8'))
+    other_name = 'forecast' if name == 'baseline' else 'baseline'
+    other = json.loads((docs / 'tsfm-comparison' / f'{other_name}.json').read_text(encoding='utf-8'))
+    assert original['dataset_manifest_sha256'] == other['dataset_manifest_sha256']
+    assert [(d['symbol'], d['decision_time']) for d in original['decisions']] == [(d['symbol'], d['decision_time']) for d in other['decisions']]
+    rows = {(d['symbol'], d['decision_time']): d for d in original['decisions']}
+    def recorded(args):
+        row = rows[(args.symbol, args.as_of)]
+        return {'decision': dict(row, latency_us=row['latency_ms'] * 1000),
+                'market': {'candle_timestamp': row['candle_timestamp'], 'forecast': row.get('forecast')}}
+    monkeypatch.setattr(cli, 'run', recorded)
+    args = cli.parser().parse_args(['backtest', '--data-dir', str(docs / 'backtest-2026-09-28-alpaca'), '--start', original['start'], '--end', original['end'], '--symbols', ','.join(original['symbols']), '--model', original['model_requested'], '--output', str(tmp_path / 'unused.json')])
+    result = backtest.run(args)
+    for key in ('ending_balance', 'spy_ending_balance', 'total_fees', 'dataset_manifest_sha256'):
+        assert result[key] == original[key]
 
 
 def test_backtest_does_not_compress_missing_execution_weeks(tmp_path, monkeypatch):

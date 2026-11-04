@@ -119,6 +119,8 @@ An explicit `--as-of` excludes current provider headlines and company metadata, 
 
 The CLI does not check exchange calendars or establish that a market is open. Historical simulations do not establish a validated live strategy.
 
+For research, add `--forecast` to `analyze` or `backtest` and use `uv run --locked --extra forecast ft ...`. This optional feature downloads pinned Chronos-Bolt Tiny weights and runs them on CPU. It adds unvalidated next-bar price quantiles based on the last 50 completed closes to the decision state; it does not place orders. Historical forecasts are retrospective: the weights' availability and training data are not verified against the evaluation time, so model knowledge can leak future information even when the candle input cannot. Forecast inputs cannot be combined with an existing calibration artifact. The [forecast comparison](tsfm-comparison/README.md) records one small retrospective experiment, compute observations and important limitations.
+
 ## Historical benchmark
 
 `uv run ft benchmark --start 2026-09-28 --end 2026-10-23 --symbols AAPL,MSFT,NVDA --model jev-latest` runs the same single-symbol decision engine once per stock at the last available hourly candle of each week. Change the dates, the comma-separated US ticker list, or the model; `--model` defaults to `SYSTEMONE_MODEL`. The end date is inclusive, in New York time. Add `> benchmark.json` to save the report. Each decision makes a paid model request. The endpoint and credentials use the normal configuration.

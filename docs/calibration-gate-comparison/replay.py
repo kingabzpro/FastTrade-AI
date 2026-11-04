@@ -1,4 +1,4 @@
-"""Replay recorded benchmark decisions with and without the calibration gate.
+"""Reproduce the historical, superseded calibration-gate comparison.
 
 v3 gate semantics: certification is model-level. When the artifact certifies
 aggregate net-of-cost edge on its test window, signals flow to the portfolio
@@ -9,8 +9,9 @@ re-running the model. Mirrors the benchmark engine's rules: per-symbol equal
 cash split, BUY invests all remaining cash at the execution price, SELL exits
 at it, final mark at the last valuation price.
 
-Caveat: an artifact fitted on data overlapping the replay window is a
-mechanism demonstration, not a walk-forward proof.
+The legacy gate split a review across train/test and treated correlated
+decisions as separate observations. This replay preserves that historical
+calculation; it does not represent the current gate or establish an edge.
 """
 import json
 import sys
@@ -45,7 +46,7 @@ def main(report_path, artifact_path):
     initial = report['initial_balance']
     ungated = replay(report['decisions'], report['symbols'], initial, artifact, gated=False)
     gated = replay(report['decisions'], report['symbols'], initial, artifact, gated=True)
-    print(json.dumps({'window': f"{report['start']} to {report['end']}", 'symbols': report['symbols'], 'decisions': len(report['decisions']), 'engine_return_pct': report['return_pct'], 'replay_ungated': ungated, 'replay_gated': gated, 'artifact_edge': {'certified': artifact.get('edge', {}).get('certified'), 'ci': artifact.get('edge', {}).get('ci')}, 'spy_return_pct': report['spy_return_pct'], 'directional_accuracy_pct': report['directional_accuracy_pct']}, indent=2))
+    print(json.dumps({'warning': 'Historical superseded gate; this is not the current calibration method or evidence of an edge.', 'window': f"{report['start']} to {report['end']}", 'symbols': report['symbols'], 'decisions': len(report['decisions']), 'engine_return_pct': report['return_pct'], 'replay_ungated': ungated, 'replay_gated': gated, 'artifact_edge': {'certified': artifact.get('edge', {}).get('certified'), 'ci': artifact.get('edge', {}).get('ci')}, 'spy_return_pct': report['spy_return_pct'], 'directional_accuracy_pct': report['directional_accuracy_pct']}, indent=2))
 
 
 if __name__ == '__main__':

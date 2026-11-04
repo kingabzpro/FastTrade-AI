@@ -7,12 +7,14 @@ import hashlib
 import json
 import math
 import re
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import numpy as np
 import pandas as pd
 
 SCHEMA = 'fasttrade-calibration-1'
+EDGE_METHOD = 'stationary-review-block-v1'
+MIN_EDGE_PERIODS = 10
 EPS = 1e-6
 TEMPERATURE_BOUNDS = (0.05, 20.0)
 
@@ -136,17 +138,19 @@ def conformal_quantile_from_residuals(residuals, alpha):
     return float(residuals[rank - 1])
 
 
-def stationary_bootstrap_means(values, draws=2000, seed=0):
+def stationary_bootstrap_means(values, draws=2000, seed=0, weights=None):
     """Politis-Romano stationary bootstrap: resample mean via geometric blocks.
 
-    Block length is ceil(n^(1/3)) per the small-sample default; decisions are
-    ordered chronologically so blocks carry same-week cross-symbol correlation
-    and adjacent-week serial correlation. Deterministic via the seed.
+    Block length is ceil(n^(1/3)) per the small-sample default. The caller
+    supplies chronological observations; optional weights preserve group sizes.
     """
     values = np.asarray(values, float)
     n = len(values)
     if n == 0:
         raise ValueError('Nothing to bootstrap')
+    weights = np.ones(n) if weights is None else np.asarray(weights, float)
+    if weights.shape != values.shape or not np.isfinite(values).all() or not np.isfinite(weights).all() or (weights < 0).any() or not weights.any():
+        raise ValueError('Invalid bootstrap observations or weights')
     block = max(2, math.ceil(n ** (1 / 3)))
     rng = np.random.default_rng(seed)
     probability = 1.0 / block
@@ -160,7 +164,10 @@ def stationary_bootstrap_means(values, draws=2000, seed=0):
                 position = int(rng.integers(n))
             else:
                 position = (position + 1) % n
-        means[draw] = values[indices].mean()
+        sampled_weights = weights[indices]
+        if not sampled_weights.any():
+            raise ValueError('Bootstrap sample contains no weighted observations')
+        means[draw] = np.average(values[indices], weights=sampled_weights)
     return means
 
 
@@ -170,12 +177,89 @@ def certify_edge(rows, round_trip, min_decisions=5):
     round-trip cost). Per-trade certainty does not exist in weekly equity
     markets; the mean edge is the certifiable object and its CI shrinks with
     the number of decisions."""
-    excess = np.array([r['move'] - r['spy_move'] - round_trip for r in rows if r['action'] == 'BUY'])
+    buys = [r for r in rows if r['action'] == 'BUY']
+    excess = np.array([r['move'] - r['spy_move'] - round_trip for r in buys])
+    periods = {_review_period(row['decision_time']): [] for row in rows}
+    for row, value in zip(buys, excess):
+        periods.setdefault(_review_period(row['decision_time']), []).append(value)
+    first = min(periods) if periods else None
+    last = max(periods) if periods else None
+    grouped = [periods.get(first + timedelta(weeks=i), []) for i in range((last - first).days // 7 + 1)] if periods else []
+    buy_periods = sum(bool(group) for group in grouped)
+    base = {'method': EDGE_METHOD, 'n': len(excess), 'periods': buy_periods, 'review_periods': len(grouped)}
     if len(excess) < min_decisions:
-        return {'certified': None, 'reason': f'fewer than {min_decisions} BUY decisions in the window', 'n': int(len(excess))}
-    means = stationary_bootstrap_means(excess)
+        return {**base, 'certified': None, 'reason': f'fewer than {min_decisions} BUY decisions in the window'}
+    # shortcut: ten review periods are a screening minimum, not a power guarantee; use longer independent samples when available.
+    if buy_periods < MIN_EDGE_PERIODS:
+        return {**base, 'certified': None, 'reason': f'fewer than {MIN_EDGE_PERIODS} distinct BUY review periods in the window'}
+    intervals = {}
+    try:
+        for row in buys:
+            review = _review_period(row['decision_time'])
+            decision, entry, next_decision, exit_, available = (_utc_timestamp(row[key]) for key in ('decision_time', 'execution_time', 'next_decision_time', 'exit_time', 'outcome_available_at'))
+            if (_review_period(next_decision) != review + timedelta(weeks=1) or not decision < entry < next_decision < exit_
+                    or available < exit_ + pd.Timedelta(hours=1) or intervals.setdefault(review, (entry, exit_)) != (entry, exit_)):
+                raise ValueError('Misaligned weekly reviews')
+        ordered = sorted(intervals)
+        if any(intervals[left][1] > intervals[right][0] for left, right in zip(ordered, ordered[1:])):
+            raise ValueError('Overlapping weekly intervals')
+    except (KeyError, TypeError, ValueError, OverflowError):
+        return {**base, 'certified': None, 'reason': 'missing or misaligned weekly review intervals'}
+    try:
+        means = stationary_bootstrap_means([np.mean(group) if group else 0 for group in grouped], weights=[len(group) for group in grouped])
+    except ValueError as exc:
+        if str(exc) != 'Bootstrap sample contains no weighted observations':
+            raise
+        return {**base, 'certified': None, 'reason': 'bootstrap resampling produced a period sample with no BUY decisions'}
     low, high = np.percentile(means, [2.5, 97.5])
-    return {'certified': bool(low > 0), 'n': int(len(excess)), 'mean': round(float(excess.mean()), 6), 'ci': [round(float(low), 6), round(float(high), 6)], 'round_trip_cost': round(round_trip, 8), 'block_length': max(2, math.ceil(len(excess) ** (1 / 3))), 'draws': 2000}
+    return {**base, 'certified': bool(low > 0), 'mean': round(float(excess.mean()), 6), 'ci': [round(float(low), 6), round(float(high), 6)], 'round_trip_cost': round(round_trip, 8), 'block_length': max(2, math.ceil(len(grouped) ** (1 / 3))), 'draws': 2000}
+
+
+def valid_edge_certification(edge):
+    if not isinstance(edge, dict) or edge.get('certified') is not True or edge.get('method') != EDGE_METHOD:
+        return False
+    periods, count, ci = edge.get('periods'), edge.get('n'), edge.get('ci')
+    return (type(periods) is int and type(count) is int and count >= periods >= MIN_EDGE_PERIODS
+            and isinstance(ci, list) and len(ci) == 2
+            and all(type(value) in (int, float) and math.isfinite(value) for value in ci)
+            and 0 < ci[0] <= ci[1])
+
+
+def valid_calibration_edge(artifact, model, timeframe, as_of, review_horizon=None, symbol=None):
+    if not valid_edge_certification(artifact.get('edge')) or artifact.get('model') != model:
+        return False
+    if (not isinstance(artifact.get('fit'), dict) or artifact['fit'].get('horizon') != timeframe
+            or artifact['fit'].get('target') != 'p_buy_vs_next_execution_open_up'
+            or review_horizon != 'weekly-next-execution' or artifact['fit'].get('review_horizon') != review_horizon):
+        return False
+    try:
+        validate_artifact_time(artifact, as_of)
+        local_time = _utc_timestamp(as_of).tz_convert('America/New_York')
+        scope = artifact['edge']['scope']
+        if not isinstance(scope['symbol_review_times'], list) or [symbol, local_time.strftime('%a %H:%M')] not in scope['symbol_review_times']:
+            return False
+        return True
+    except (KeyError, TypeError, ValueError, OverflowError):
+        return False
+
+
+def validate_artifact_time(artifact, as_of):
+    try:
+        created = _utc_timestamp(artifact['created_at'])
+    except (KeyError, TypeError, ValueError, OverflowError) as exc:
+        raise ValueError('Calibration artifact needs a timezone-aware creation time') from exc
+    if created > _utc_timestamp(as_of):
+        raise ValueError('Calibration artifact was created after the evaluation time')
+    try:
+        windows = [artifact[window] for window in ('train_window', 'test_window')]
+        starts = [_utc_timestamp(window['start']) for window in windows]
+        ends = [_utc_timestamp(window['end']) for window in windows]
+        outcomes = [_utc_timestamp(window['outcome_available_through']) for window in windows]
+    except (KeyError, TypeError, ValueError, OverflowError) as exc:
+        raise ValueError('Calibration artifact needs outcome availability times; regenerate it') from exc
+    if (any(start > end or end >= outcome or outcome > created for start, end, outcome in zip(starts, ends, outcomes))
+            or ends[0] >= starts[1] or outcomes[0] > starts[1]):
+        raise ValueError('Calibration artifact outcome windows overlap or were unavailable at creation time')
 
 
 def conformal_interval(probability, quantile):
@@ -184,6 +268,18 @@ def conformal_interval(probability, quantile):
 
 def interval_excludes_half(interval):
     return interval[0] > 0.5 or interval[1] < 0.5
+
+
+def _utc_timestamp(value):
+    stamp = pd.Timestamp(value)
+    if pd.isna(stamp) or stamp.tzinfo is None:
+        raise ValueError('Calibration timestamps must include timezones')
+    return stamp.tz_convert('UTC')
+
+
+def _review_period(value):
+    day = _utc_timestamp(value).tz_convert('America/New_York').date()
+    return day - timedelta(days=day.weekday())
 
 
 def build_ledger(report, data_dir):
@@ -199,12 +295,17 @@ def build_ledger(report, data_dir):
     rows, excluded = [], 0
     by_symbol = {}
     for decision in decisions:
+        if _utc_timestamp(decision['decision_time']) >= _utc_timestamp(decision['execution_time']):
+            raise ValueError('Decision must precede execution')
         by_symbol.setdefault(decision['symbol'], []).append(decision)
     spy_frame = None
     for symbol, group in by_symbol.items():
         if not re.fullmatch(r'[A-Z0-9.^=\-]{1,20}', symbol):
             raise ValueError(f'Invalid symbol in report: {symbol}')
-        group.sort(key=lambda d: d['decision_time'])
+        group.sort(key=lambda d: _utc_timestamp(d['decision_time']))
+        executions = [_utc_timestamp(d['execution_time']) for d in group]
+        if any(a >= b for a, b in zip(executions, executions[1:])):
+            raise ValueError('Execution times must be unique and ordered per symbol')
         if symbol not in frames:
             frame = pd.read_csv(f'{data_dir}/{symbol}.csv')
             frames[symbol] = frame.assign(timestamp=pd.to_datetime(frame.timestamp, utc=True)).set_index('timestamp').sort_index()
@@ -225,21 +326,33 @@ def build_ledger(report, data_dir):
             if spy_entry is None or spy_exit is None or spy_entry <= 0:
                 excluded += 1
                 continue
-            rows.append({'symbol': symbol, 'decision_time': decision['decision_time'], 'execution_time': decision['execution_time'], 'action': decision['action'], 'p_buy': float(decision['probabilities']['BUY']), 'outcome_up': bool(exit_ > entry), 'move': float(exit_ / entry - 1), 'spy_move': float(spy_exit / spy_entry - 1)})
+            exit_time = _utc_timestamp(group[index + 1]['execution_time'])
+            rows.append({'symbol': symbol, 'decision_time': decision['decision_time'], 'execution_time': decision['execution_time'], 'next_decision_time': group[index + 1]['decision_time'], 'exit_time': exit_time.isoformat(), 'outcome_available_at': (exit_time + pd.Timedelta(hours=1)).isoformat(), 'action': decision['action'], 'p_buy': float(decision['probabilities']['BUY']), 'outcome_up': bool(exit_ > entry), 'move': float(exit_ / entry - 1), 'spy_move': float(spy_exit / spy_entry - 1)})
     return rows, {'last_reviews_without_outcome': len(by_symbol), 'excluded_missing_price_bars': excluded}
 
 
 def _open_at(frame, iso_time):
-    later = frame.loc[frame.index >= pd.Timestamp(iso_time), 'open']
-    return float(later.iloc[0]) if len(later) else None
+    try:
+        value = float(frame.loc[pd.Timestamp(iso_time), 'open'])
+        return value if math.isfinite(value) and value > 0 else None
+    except (KeyError, TypeError, ValueError, OverflowError):
+        return None
 
 
 def split_temporal(rows, train_frac):
     if not 0 < train_frac < 1:
         raise ValueError('Train fraction must be between 0 and 1')
-    rows = sorted(rows, key=lambda r: r['decision_time'])
-    train_n = max(1, min(len(rows) - 1, int(len(rows) * train_frac)))
-    return rows[:train_n], rows[train_n:]
+    rows = sorted(rows, key=lambda r: _utc_timestamp(r['decision_time']))
+    reviews = sorted({_review_period(row['decision_time']) for row in rows})
+    if len(reviews) < 2:
+        raise ValueError('At least two distinct review periods are required')
+    split = max(1, min(len(reviews) - 1, int(len(reviews) * train_frac)))
+    test = [row for row in rows if _review_period(row['decision_time']) >= reviews[split]]
+    cutoff = min(_utc_timestamp(row['decision_time']) for row in test)
+    train = [row for row in rows if _review_period(row['decision_time']) < reviews[split] and _utc_timestamp(row['outcome_available_at']) <= cutoff]
+    if not train or not test:
+        raise ValueError('Not enough non-overlapping training and test outcomes')
+    return train, test
 
 
 def run_calibration(args):
@@ -249,6 +362,7 @@ def run_calibration(args):
     if len(rows) < 8:
         raise ValueError('Not enough decisions with outcomes to calibrate; need at least 8')
     train, test = split_temporal(rows, args.train_frac)
+    ledger_info['purged_overlapping_labels'] = len(rows) - len(train) - len(test)
 
     def values(group):
         return (np.array([r['p_buy'] for r in group]), np.array([1.0 if r['outcome_up'] else 0.0 for r in group]), np.array([r['move'] for r in group]))
@@ -275,6 +389,7 @@ def run_calibration(args):
     edge_in_sample = certify_edge(chronological, round_trip)
     edge['definition'] = 'mean net excess return per BUY decision: symbol move minus SPY move over the same interval, minus round-trip cost'
     edge['window'] = 'test'
+    edge['scope'] = {'symbol_review_times': [list(pair) for pair in sorted({(row['symbol'], _utc_timestamp(row['decision_time']).tz_convert('America/New_York').strftime('%a %H:%M')) for row in test if row['action'] == 'BUY'})]}
     edge['in_sample'] = edge_in_sample
 
     def metrics(p, y):
@@ -291,9 +406,9 @@ def run_calibration(args):
         'method': 'temperature',
         'temperature': round(temperature, 6),
         'at_bound': at_bound,
-        'fit': {'target': 'p_buy_vs_next_execution_open_up', 'horizon': '60m', 'note': 'Fitted on weekly backtest decisions; applying it to other horizons is an unlabeled extrapolation'},
-        'train_window': {'start': train[0]['decision_time'], 'end': train[-1]['decision_time'], 'n': len(train)},
-        'test_window': {'start': test[0]['decision_time'], 'end': test[-1]['decision_time'], 'n': len(test)},
+        'fit': {'target': 'p_buy_vs_next_execution_open_up', 'horizon': '60m', 'review_horizon': 'weekly-next-execution', 'note': 'Fitted on weekly backtest decisions; applying it to other horizons is an unlabeled extrapolation'},
+        'train_window': {'start': train[0]['decision_time'], 'end': train[-1]['decision_time'], 'outcome_available_through': max(_utc_timestamp(row['outcome_available_at']) for row in train).isoformat(), 'n': len(train)},
+        'test_window': {'start': test[0]['decision_time'], 'end': test[-1]['decision_time'], 'outcome_available_through': max(_utc_timestamp(row['outcome_available_at']) for row in test).isoformat(), 'n': len(test)},
         'isotonic_blocks': blocks,
         'conformal': {'alpha': args.alpha, 'quantile': (None if math.isinf(quantile) else round(quantile, 6)), 'applies_to': 'BUY decisions only'},
         'returns': {'blocks': return_blocks, 'alpha': args.alpha, 'quantile': (None if math.isinf(return_quantile) else round(return_quantile, 8)), 'round_trip_cost': round(round_trip, 8), 'round_trip_cost_bps': round(round_trip * 1e4, 2), 'note': 'Diagnostic only: expected return maps raw P(BUY) through isotonic blocks fitted on realized next-open moves'},
@@ -301,7 +416,7 @@ def run_calibration(args):
     }
     summary = {
         'notice': 'Research only; calibration is fitted on a retrospective backtest and is not advice.',
-        'ledger': {'decisions': len(rows), **ledger_info, 'up_rate': round(float(np.concatenate([train_y, test_y]).mean()), 4)},
+        'ledger': {'decisions': len(rows), **ledger_info, 'up_rate': round(sum(row['outcome_up'] for row in rows) / len(rows), 4)},
         'train': artifact['train_window'],
         'test': artifact['test_window'],
         'temperature': round(temperature, 6),

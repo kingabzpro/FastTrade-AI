@@ -4,6 +4,7 @@ User-facing changes are recorded under Unreleased. At release, move them under t
 
 ## Unreleased
 
+- Corrected calibration splits and edge intervals to preserve weekly dependence; legacy artifacts without outcome-availability times must be regenerated before use.
 - Added bounded Alpaca and decision-provider retries, `Retry-After` handling, and per-credential circuit breakers.
 - Added a bounded exact-cutoff market cache and a validated-candle indicator cache, both per process.
 - Added a non-root container, a loopback dashboard proxy, and a separate VPN-oriented HTTPS API proxy profile.

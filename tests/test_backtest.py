@@ -87,6 +87,14 @@ def test_backtest_sells_existing_shares_and_applies_both_sides(tmp_path, monkeyp
     assert [t['action'] for t in result['trades']] == ['BUY', 'SELL']
     assert result['ending_balance'] == pytest.approx(expected_shares * 120 * .999 * .9995, abs=.01)
     assert result['equity_curve'][-1]['equity'] == pytest.approx(result['ending_balance'], abs=.01)
+    scenarios = result['cost_sensitivity']['scenarios']
+    assert [scenario['multiplier'] for scenario in scenarios] == [.5, 1, 2]
+    for scenario in scenarios:
+        factor = scenario['multiplier']
+        expected = 10000 / (100 * (1 + .001 * factor) * (1 + .0005 * factor)) * 120 * (1 - .001 * factor) * (1 - .0005 * factor)
+        assert scenario['ending_balance'] == pytest.approx(expected, abs=.01)
+        expected_spy = 10000 / (100 * (1 + .001 * factor) * (1 + .0005 * factor)) * 120
+        assert scenario['spy_ending_balance'] == pytest.approx(expected_spy, abs=.01)
 
 
 def test_backtest_compares_complete_execution_intervals_to_spy(tmp_path, monkeypatch):
@@ -123,6 +131,19 @@ def test_backtest_significance_includes_first_spy_entry_cost(tmp_path, monkeypat
     assert significance['confidence_interval'] is None
 
 
+def test_cost_sensitivity_rejects_invalid_scaled_cost_without_rejecting_base_run(tmp_path, monkeypatch):
+    from fasttrade import backtest
+    folder = tmp_path / 'data'
+    dataset(folder)
+    monkeypatch.setattr(cli, 'predict', lambda *args: {'action': 'BUY', 'confidence': .8, 'probabilities': {'BUY': .8, 'HOLD': .1, 'SELL': .1}, 'model': 'test', 'latency_us': 1})
+    args = cli.parser().parse_args(['backtest', '--data-dir', str(folder), '--start', '2026-01-19', '--end', '2026-01-27', '--symbols', 'AAPL', '--model', 'test', '--slippage-bps', '6000', '--output', str(folder / 'report.json')])
+    result = backtest.run(args)
+    assert result['cost_sensitivity']['scenarios'][1]['ending_balance'] == result['ending_balance']
+    stressed = result['cost_sensitivity']['scenarios'][2]
+    assert stressed['ending_balance'] is None
+    assert '100%' in stressed['reason']
+
+
 def test_recorded_backtest_significance_replays_without_model_calls(tmp_path, monkeypatch):
     from fasttrade import backtest
     root = Path(__file__).resolve().parents[1] / 'docs' / 'backtest-2026-09-28'
@@ -136,6 +157,11 @@ def test_recorded_backtest_significance_replays_without_model_calls(tmp_path, mo
     result = backtest.run(args)
     for key in ('ending_balance', 'spy_ending_balance', 'total_fees', 'dataset_manifest_sha256'):
         assert result[key] == original[key]
+    base = result['cost_sensitivity']['scenarios'][1]
+    assert base['ending_balance'] == original['ending_balance']
+    assert base['spy_ending_balance'] == original['spy_ending_balance']
+    assert [scenario['ending_balance'] for scenario in result['cost_sensitivity']['scenarios']] == [10240.46, 10230.73, 10211.30]
+    assert [scenario['spy_ending_balance'] for scenario in result['cost_sensitivity']['scenarios']] == [9992.89, 9985.41, 9970.46]
     assert result['significance']['observations'] == 3
     assert result['significance']['mean_weekly_excess_return'] == pytest.approx(.0128976731)
     assert result['significance']['confidence_interval'] == pytest.approx([.003917102, .021878244])
@@ -304,3 +330,8 @@ def test_dividend_receivable_survives_a_later_sale(tmp_path, monkeypatch):
     assert result['ending_balance'] == pytest.approx(shares * (100 * .999 * .9995 + 2), abs=.01)
     assert [trade['action'] for trade in result['trades']] == ['BUY', 'SELL']
     assert result['significance']['mean_weekly_excess_return'] == pytest.approx(.01 / (1.001 * 1.0005))
+    for scenario in result['cost_sensitivity']['scenarios']:
+        factor = scenario['multiplier']
+        replay_shares = 10000 / (100 * (1 + .001 * factor) * (1 + .0005 * factor))
+        assert scenario['ending_balance'] == pytest.approx(replay_shares * (100 * (1 - .001 * factor) * (1 - .0005 * factor) + 2), abs=.01)
+        assert scenario['spy_ending_balance'] == pytest.approx(replay_shares * 101, abs=.01)

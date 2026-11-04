@@ -19,6 +19,44 @@ from .calibration import stationary_bootstrap_means
 from .market import validate_candles
 
 
+def replay_costs(sessions, frames, symbols, decisions, dividends, start, end, initial, fee, slip, multiplier):
+    fee, slip = fee * multiplier, slip * multiplier
+    if fee >= 1 or slip >= 1:
+        return {'multiplier': multiplier, 'ending_balance': None, 'spy_ending_balance': None, 'reason': 'scaled per-side costs must be below 100%'}
+    cash = {symbol: initial / len(symbols) for symbol in symbols}
+    shares = {symbol: 0.0 for symbol in symbols}
+    receivables = {symbol: 0.0 for symbol in [*symbols, 'SPY']}
+    executions = {}
+    for decision in decisions:
+        executions.setdefault(pd.Timestamp(decision['execution_time']), []).append(decision)
+    spy_shares = 0.0
+    for session in sessions.itertuples():
+        if not start <= session.date <= end:
+            continue
+        for symbol in [*symbols, 'SPY']:
+            event = dividends.get((symbol, session.date))
+            if event:
+                receivables[symbol] += (spy_shares if symbol == 'SPY' else shares[symbol]) * event[0]
+        actions = executions.get(session.open, [])
+        if actions and not spy_shares:
+            spy_shares = initial / (float(frames['SPY'].loc[session.open, 'open']) * (1 + slip) * (1 + fee))
+        for decision in actions:
+            symbol, action = decision['symbol'], decision['action']
+            price = float(frames[symbol].loc[session.open, 'open'])
+            if action == 'BUY' and cash[symbol] > 0:
+                shares[symbol] = cash[symbol] / (price * (1 + slip) * (1 + fee))
+                cash[symbol] = 0.0
+            elif action == 'SELL' and shares[symbol] > 0:
+                cash[symbol] = shares[symbol] * price * (1 - slip) * (1 - fee)
+                shares[symbol] = 0.0
+        last_bar = pd.date_range(session.open, session.close, freq='h', inclusive='left')[-1]
+    ending = sum(cash[s] + shares[s] * float(frames[s].loc[last_bar, 'close']) + receivables[s] for s in symbols)
+    spy_ending = spy_shares * float(frames['SPY'].loc[last_bar, 'close']) + receivables['SPY']
+    return {'multiplier': multiplier, 'fee_bps': fee * 10000, 'slippage_bps': slip * 10000,
+            'ending_balance': round(ending, 2), 'return_pct': round((ending / initial - 1) * 100, 2),
+            'spy_ending_balance': round(spy_ending, 2), 'spy_return_pct': round((spy_ending / initial - 1) * 100, 2)}
+
+
 def run(args):
     try:
         start, end = date.fromisoformat(args.start), date.fromisoformat(args.end)
@@ -215,4 +253,5 @@ def run(args):
                     'reason': 'execution periods are not consecutive calendar weeks' if not consecutive else 'fewer than two complete periods' if len(excess) < 2 else None}
     if len(excess) >= 2 and consecutive:
         significance['confidence_interval'] = np.percentile(stationary_bootstrap_means(excess), [2.5, 97.5]).tolist()
-    return {'start': str(start), 'end': str(end), 'symbols': symbols, 'model_requested': model, 'model_resolved': resolved_model, 'model_retries': retries, 'mean_model_latency_ms': round(sum(d['latency_ms'] for d in decisions) / len(decisions), 2), 'input_tokens_successful': sum(d['usage']['input_tokens'] for d in decisions if d['usage'] is not None), 'usage_complete': usage_complete, 'dataset_manifest_sha256': hashlib.sha256(manifest_bytes).hexdigest(), 'fee_bps': args.fee_bps, 'slippage_bps': args.slippage_bps, 'initial_balance': initial, 'first_execution_time': first_execution.isoformat(), 'ending_balance': round(ending, 2), 'return_pct': round((ending / initial - 1) * 100, 2), 'spy_ending_balance': round(spy_ending, 2), 'spy_return_pct': round((spy_ending / initial - 1) * 100, 2), 'max_drawdown_pct': round(drawdown * 100, 2), 'total_fees': round(sum(t['fee'] for t in trades), 2), 'dividend_receivables': round(sum(receivables[s] for s in symbols), 2), 'spy_dividend_receivables': round(receivables['SPY'], 2), 'dividends': dividend_ledger, 'decisions': decisions, 'trades': trades, 'equity_curve': curve, 'significance': significance, 'limitations': 'The input manifest is an unverified attestation; corporate actions, model training knowledge, survivorship and hindsight selection are not verified. Only cash dividends payable after the test are supported; no split accounting. Fees and slippage are assumptions; no liquidity or market impact model.'}
+    sensitivity = {'method': 'fixed-decision flat-cost replay', 'scenarios': [replay_costs(sessions, frames, symbols, decisions, dividends, start, end, initial, fee, slip, factor) for factor in (.5, 1, 2)]}
+    return {'start': str(start), 'end': str(end), 'symbols': symbols, 'model_requested': model, 'model_resolved': resolved_model, 'model_retries': retries, 'mean_model_latency_ms': round(sum(d['latency_ms'] for d in decisions) / len(decisions), 2), 'input_tokens_successful': sum(d['usage']['input_tokens'] for d in decisions if d['usage'] is not None), 'usage_complete': usage_complete, 'dataset_manifest_sha256': hashlib.sha256(manifest_bytes).hexdigest(), 'fee_bps': args.fee_bps, 'slippage_bps': args.slippage_bps, 'initial_balance': initial, 'first_execution_time': first_execution.isoformat(), 'ending_balance': round(ending, 2), 'return_pct': round((ending / initial - 1) * 100, 2), 'spy_ending_balance': round(spy_ending, 2), 'spy_return_pct': round((spy_ending / initial - 1) * 100, 2), 'max_drawdown_pct': round(drawdown * 100, 2), 'total_fees': round(sum(t['fee'] for t in trades), 2), 'dividend_receivables': round(sum(receivables[s] for s in symbols), 2), 'spy_dividend_receivables': round(receivables['SPY'], 2), 'dividends': dividend_ledger, 'decisions': decisions, 'trades': trades, 'equity_curve': curve, 'significance': significance, 'cost_sensitivity': sensitivity, 'limitations': 'The input manifest is an unverified attestation; corporate actions, model training knowledge, survivorship and hindsight selection are not verified. Only cash dividends payable after the test are supported; no split accounting. Fees and slippage are assumptions; no liquidity or market impact model.'}

@@ -67,6 +67,7 @@ def _db():
         results TEXT NOT NULL, UNIQUE(key_hash, idem))''')
     connection.execute('CREATE TABLE IF NOT EXISTS worker_leases (owner TEXT PRIMARY KEY, heartbeat REAL NOT NULL)')
     connection.execute('CREATE TABLE IF NOT EXISTS single_reservations (id TEXT PRIMARY KEY, key_hash TEXT NOT NULL, day TEXT NOT NULL, reserved_micro INTEGER NOT NULL)')
+    connection.execute('CREATE TABLE IF NOT EXISTS single_usage (reservation_id TEXT PRIMARY KEY, input_tokens INTEGER NOT NULL, output_tokens INTEGER)')
     connection.commit()
     return connection
 
@@ -182,8 +183,26 @@ def reserve_single(key_hash, limits):
         cost = limits['estimate_per_call']
         if cost > limits['request_cap'] or _spent(db, key_hash, today) + cost > limits['daily_budget']:
             raise HTTPException(403, 'Estimated cost exceeds budget')
-        db.execute('INSERT INTO single_reservations VALUES (?, ?, ?, ?)', (uuid.uuid4().hex, key_hash, today, cost))
+        reservation_id = uuid.uuid4().hex
+        db.execute('INSERT INTO single_reservations VALUES (?, ?, ?, ?)', (reservation_id, key_hash, today, cost))
         db.commit()
+    return reservation_id
+
+
+def record_single_usage(reservation_id, result):
+    if not isinstance(result, dict):
+        return
+    decision = result.get('decision')
+    usage = decision.get('usage') if isinstance(decision, dict) else None
+    if not isinstance(usage, dict):
+        return
+    input_tokens, output_tokens = usage.get('input_tokens'), usage.get('output_tokens')
+    if type(input_tokens) is not int or not 0 <= input_tokens < 2**63:
+        return
+    if output_tokens is not None and (type(output_tokens) is not int or not 0 <= output_tokens < 2**63):
+        return
+    with closing(_db()) as db, db:
+        db.execute('INSERT OR REPLACE INTO single_usage VALUES (?, ?, ?)', (reservation_id, input_tokens, output_tokens))
 
 
 def _create(body, idem, key_hash, limits):
@@ -350,13 +369,15 @@ def make_batch_router(analysis_request, analyze):
         key_hash, limits = _authenticate(x_api_key)
         today = datetime.now(timezone.utc).date().isoformat()
         with closing(_db()) as db:
+            db.execute('BEGIN')
             rows = db.execute('SELECT * FROM jobs WHERE key_hash = ? AND day = ?', (key_hash, today)).fetchall()
             total_reserved = _spent(db, key_hash, today)
-            singles = db.execute('SELECT COUNT(*) FROM single_reservations WHERE key_hash = ? AND day = ?', (key_hash, today)).fetchone()[0]
+            singles = db.execute('''SELECT u.input_tokens, u.output_tokens FROM single_reservations r
+                                    LEFT JOIN single_usage u ON u.reservation_id = r.id
+                                    WHERE r.key_hash = ? AND r.day = ?''', (key_hash, today)).fetchall()
         outcomes = [item for row in rows for item in json.loads(row['results'])]
+        outcomes.extend({'result': {'decision': {'usage': dict(row)}}} if row['input_tokens'] is not None else None for row in singles)
         usage = _usage(outcomes)
-        if singles:
-            usage.update(complete=False, status='Token information unavailable for individual analyses')
         return {'date_utc': today, 'estimated_reserved': _dollars(total_reserved),
                 'daily_budget': _dollars(limits['daily_budget']), 'currency': 'USD', 'usage': usage}
 

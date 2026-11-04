@@ -139,6 +139,8 @@ The command validates the entire input before making paid model requests and ref
 
 The `significance` block compares portfolio and SPY returns over consecutive execution-to-execution weeks, including simulated entry and earlier trade costs and earned dividend receivables. It excludes the final partial period and uses the seeded stationary bootstrap described above. The interval is unavailable with fewer than two complete periods or gaps between execution weeks; even an available interval can be unreliable with few weeks. No variant-family p-value is computed: `p_value` and `variants_tested` are null. This interval does not adjust for selection among strategies or for leakage and does not establish a live edge.
 
+The `cost_sensitivity` block replays the recorded decisions at 0.5, 1 and 2 times the configured commission and slippage, recalculating holdings, cash, SPY and earned dividends for each scenario. It makes no additional model requests. Scenarios with a scaled per-side cost of 100% or more are unavailable. This is a fixed-decision comparison with flat assumed costs; it does not model spreads, liquidity, market impact, partial fills or decisions that might change under different portfolio conditions.
+
 The `market-data` folder must contain:
 
 - `sessions.csv`, with timezone-aware `open,close` timestamps for every exchange session covering the warmup and test, plus at least one session after the end date. Session times must come from a trustworthy point-in-time exchange calendar, including holidays and early closes.

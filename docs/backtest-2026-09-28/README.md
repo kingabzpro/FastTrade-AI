@@ -10,6 +10,16 @@ The included checksums verify the snapshot used for this report; they do not est
 
 Replaying the measured decisions on the frozen data produces three complete execution-to-execution weekly excess returns versus SPY. Their mean is 1.29 percentage points per week, with a seeded stationary-bootstrap 95% interval of 0.39 to 2.19 percentage points; the final partial period is excluded. **Three weeks are far too few for a dependable interval**, and this retrospective calculation does not adjust for tried variants, hindsight, or leakage. It is not evidence of an edge. Reproduce it without model requests using `uv run --locked pytest tests/test_backtest.py::test_recorded_backtest_significance_replays_without_model_calls -q`; the test checks the original ending balances, fees and manifest hash before checking the interval.
 
+Replaying the same decisions with flat commission and slippage scaled together produces the following sensitivity, without new model calls. These are assumptions, not estimates of actual market impact; changed liquidity, fills, or portfolio-aware decisions could change the result.
+
+| Cost multiplier | Commission / slippage per side | Portfolio return | SPY return |
+| --- | --- | ---: | ---: |
+| 0.5× | 2.5 / 5 bps | +2.40% | −0.07% |
+| 1× | 5 / 10 bps | +2.31% | −0.15% |
+| 2× | 10 / 20 bps | +2.11% | −0.30% |
+
+The test command above reproduces the 1× balances and checks the replay; new `ft backtest` reports include all three scenarios in `cost_sensitivity`.
+
 To rerun using the frozen dataset, choose a new output filename:
 
 ```powershell

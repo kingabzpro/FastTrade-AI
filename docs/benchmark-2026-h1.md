@@ -13,4 +13,15 @@ Run on 28 October 2026 using `jev-1.14.0`: 25 retrospectively selected stocks, r
 
 The 650 recorded decisions have a median model-request latency of **858 ms** and a 95th percentile of **1,004 ms**. The recorded local CSV analysis timing was **914 ms** at the median and **1,072 ms** at the 95th percentile. These use the `model_ms` and `total_ms` columns in the linked ledger, the median and nearest-rank 95th percentile, respectively; the timing may exclude failed attempts before a retry. The run included network calls to the model and up to six concurrent workers; it excluded live market-data fetching and is not a production API load test. Provider conditions and hardware can change these numbers.
 
-The hypothetical results exclude commissions, spreads, slippage, taxes and financing. Decisions are model preferences, not the app's risk-checked actionable signals: the simulation applies its own allocation rule and does not feed positions into the model. Without portfolio and risk inputs, the app displays the model preference as signal only. News and company details were omitted. The model was evaluated after the test period, so prior knowledge or model changes may affect results. The limited retrospective sample does not establish live accuracy or profitability, and historical prices may be revised.
+Replaying the recorded decisions with flat simulated costs changes the hypothetical results as follows. Commission and slippage are each charged per executed side; SPY pays entry costs and neither strategy pays a hypothetical final liquidation cost. The adjusted-price approximation and all other limitations remain. Reproduce without model calls with `uv run --locked python docs/replay_h1_costs.py`.
+
+| Commission / slippage per side | Portfolio return | SPY return |
+| --- | ---: | ---: |
+| None (original) | +6.60% | +9.35% |
+| 2.5 / 5 bps | +6.02% | +9.27% |
+| 5 / 10 bps | +5.44% | +9.19% |
+| 10 / 20 bps | +4.28% | +9.02% |
+
+These are fixed-decision replays with flat assumptions, not market-impact estimates. They do not model spreads, liquidity, partial fills, taxes, or decisions changing with portfolio conditions.
+
+The original hypothetical results exclude commissions, spreads, slippage, taxes and financing. Decisions are model preferences, not the app's risk-checked actionable signals: the simulation applies its own allocation rule and does not feed positions into the model. Without portfolio and risk inputs, the app displays the model preference as signal only. News and company details were omitted. The model was evaluated after the test period, so prior knowledge or model changes may affect results. The limited retrospective sample does not establish live accuracy or profitability, and historical prices may be revised.

@@ -1,0 +1,6 @@
+:8080 {
+    reverse_proxy app:8765 {
+        header_up X-Forwarded-For 127.0.0.1
+        header_up X-Forwarded-Proto http
+    }
+}

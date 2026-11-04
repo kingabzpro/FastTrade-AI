@@ -438,9 +438,35 @@ def test_v1_cors_allowlist_and_preflight(batch_client, monkeypatch):
     response = client.get('/v1/usage', headers={'Origin': 'https://client.example', 'X-API-Key': 'test-key'})
     assert response.status_code == 200
     assert response.headers['access-control-allow-origin'] == 'https://client.example'
+    assert response.headers['access-control-expose-headers'] == 'X-Request-ID'
+    assert response.headers['x-request-id']
     assert client.get('/v1/usage', headers={'Origin': 'https://evil.example', 'X-API-Key': 'test-key'}).status_code == 403
     monkeypatch.setenv('FASTTRADE_CORS_ORIGINS', '*')
     assert client.get('/v1/usage', headers={'Origin': 'https://evil.example', 'X-API-Key': 'test-key'}).status_code == 503
+
+
+def test_allowlisted_origin_can_read_request_id_on_unhandled_error(batch_client, monkeypatch):
+    from fastapi.testclient import TestClient
+    from fasttrade import batch_api, web
+
+    calls = iter([('account', {'rate_per_minute': 60}), RuntimeError('private detail')])
+    def authenticate(*args, **kwargs):
+        value = next(calls)
+        if isinstance(value, Exception):
+            raise value
+        return value
+    monkeypatch.setattr(batch_api, '_authenticate', authenticate)
+    monkeypatch.setenv('FASTTRADE_CORS_ORIGINS', 'https://client.example')
+    client = TestClient(web.app, base_url='http://127.0.0.1:8765', client=('127.0.0.1', 50000), raise_server_exceptions=False)
+    response = client.post('/v1/analyze', json={'symbol': 'AAPL'}, headers={'Origin': 'https://client.example', 'X-API-Key': 'test-key'})
+    assert response.status_code == 500
+    assert response.headers['access-control-allow-origin'] == 'https://client.example'
+    assert response.headers['access-control-expose-headers'] == 'X-Request-ID'
+    assert response.headers['x-request-id']
+    assert response.headers['cache-control'] == 'no-store'
+    assert response.headers['x-content-type-options'] == 'nosniff'
+    assert response.headers['x-frame-options'] == 'DENY'
+    assert 'private detail' not in response.text
 
 
 def test_network_mode_allows_only_authenticated_v1_and_health(batch_client, monkeypatch):

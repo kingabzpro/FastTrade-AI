@@ -1,0 +1,57 @@
+services:
+  app:
+    build: .
+    command: ["uvicorn", "fasttrade.web:app", "--host", "0.0.0.0", "--port", "8765", "--proxy-headers", "--forwarded-allow-ips", "172.29.128.2", "--no-access-log", "--timeout-graceful-shutdown", "100"]
+    environment:
+      FASTTRADE_HOST: 0.0.0.0
+      FASTTRADE_REDIS_URL: redis://redis:6379/0
+      FASTTRADE_BATCH_KEY_HASHES: ${FASTTRADE_BATCH_KEY_HASHES:-{}}
+      FASTTRADE_CORS_ORIGINS: ${FASTTRADE_CORS_ORIGINS:-}
+      FASTTRADE_ENABLE_OPENAPI: ${FASTTRADE_ENABLE_OPENAPI:-true}
+      TYPESAFE_API_KEY: ${TYPESAFE_API_KEY:-}
+      SYSTEMONE_URL: ${SYSTEMONE_URL:-https://api.typesafe.ai/v1/systemone}
+      SYSTEMONE_MODEL: ${SYSTEMONE_MODEL:-jev-latest}
+      ALPACA_API_KEY: ${ALPACA_API_KEY:-}
+      ALPACA_SECRET_KEY: ${ALPACA_SECRET_KEY:-}
+      LIQUID_API_KEY: ${LIQUID_API_KEY:-}
+      VLLM_SR_API_KEY: ${VLLM_SR_API_KEY:-}
+      SUBQ_API_KEY: ${SUBQ_API_KEY:-}
+      BASETEN_API_KEY: ${BASETEN_API_KEY:-}
+    volumes:
+      - app_data:/home/fasttrade/.fasttrade
+    networks:
+      proxy:
+        ipv4_address: 172.29.128.3
+      backend: {}
+    depends_on:
+      - redis
+  proxy:
+    image: caddy:2
+    ports:
+      - "127.0.0.1:${FASTTRADE_PROXY_PORT:-8765}:8080"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+    networks:
+      proxy:
+        ipv4_address: 172.29.128.2
+    depends_on:
+      - app
+  redis:
+    image: redis:8-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    networks:
+      - backend
+
+networks:
+  proxy:
+    ipam:
+      config:
+        - subnet: 172.29.128.0/24
+  backend:
+    internal: true
+
+volumes:
+  app_data:
+  redis_data:

@@ -113,6 +113,37 @@ def test_repeated_historical_analysis_reuses_market_snapshot(monkeypatch):
     assert len(calls) == 1
 
 
+def test_historical_analysis_ignores_current_news_and_later_mutations(monkeypatch):
+    item = {'title': 'Original', 'source': 'News', 'published': '2026-01-01T00:00:00Z'}
+    states = []
+    monkeypatch.setattr(cli, 'yahoo', lambda *args: (candles(), {'exchangeTimezoneName': 'America/New_York', 'shortName': 'Current'}, [item.copy()]))
+    monkeypatch.setattr(cli, 'predict', lambda state, *args: states.append(state) or decisions.normalize(answer(), 1))
+    args = cli.parser().parse_args(['analyze', 'TEST', '--source', 'yahoo', '--as-of', '2026-01-02T19:30Z'])
+    market._market_cache.clear()
+    cli.run(args)
+    item['title'] = 'Later revised headline'
+    market._market_cache.clear()
+    cli.run(args)
+    assert states[0] == states[1]
+    assert states[0]['headlines'] == []
+    assert states[0]['ticker_details'] == {'exchangeTimezoneName': 'America/New_York'}
+
+
+def test_live_yahoo_analysis_still_includes_current_headlines(monkeypatch):
+    class Clock:
+        @staticmethod
+        def now(tz):
+            return pd.Timestamp('2026-01-02T19:30Z')
+    headline = {'title': 'Current', 'source': 'News', 'published': '2026-01-02T19:00:00Z'}
+    states = []
+    monkeypatch.setattr(cli, 'datetime', Clock)
+    monkeypatch.setattr(cli, 'yahoo', lambda *args: (candles(), {}, [headline]))
+    monkeypatch.setattr(cli, 'predict', lambda state, *args: states.append(state) or decisions.normalize(answer(), 1))
+    args = cli.parser().parse_args(['analyze', 'TEST', '--source', 'yahoo'])
+    cli.run(args)
+    assert states[0]['headlines'] == [headline]
+
+
 def test_opt_in_regime_evidence_reaches_model_only_after_availability(monkeypatch, tmp_path):
     path = tmp_path / 'candles.csv'
     candles().to_csv(path, index=False)

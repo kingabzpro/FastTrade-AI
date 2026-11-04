@@ -113,7 +113,7 @@ CSV columns are `timestamp,open,high,low,close,volume`. Timestamps mark candle s
 
 The latest completed candle must be no older than two intervals by default; override this with `--max-age-seconds`. Set the exchange timezone through `--session-timezone`; CSV defaults to America/New_York. VWAP resets at local midnight and approximates session VWAP from OHLCV data. Supply data covering the session you want to inspect.
 
-Historical evaluation excludes later headlines and current company metadata. Only supply `--spread` and `--liquidity` when you know their values; otherwise the analyzer reports them as unavailable. Output separates features, headlines, model preferences, indicator observations, risk rejections, and the final signal.
+An explicit `--as-of` excludes current provider headlines and company metadata, except the exchange timezone: publication dates alone do not establish when a headline or later edit became available. Live analyses may still include recent Yahoo headlines. Only supply `--spread` and `--liquidity` when you know their values; otherwise the analyzer reports them as unavailable. Output separates features, headlines, model preferences, indicator observations, risk rejections, and the final signal.
 
 The CLI does not check exchange calendars or establish that a market is open. Historical simulations do not establish a validated live strategy.
 

@@ -275,7 +275,7 @@ def test_risk_limits(overrides):
     assert evaluate(**args)
 
 
-CALIBRATION_ARTIFACT = {'schema': CALIBRATION_SCHEMA, 'method': 'temperature', 'temperature': 3.0, 'fit': {'target': 'p_buy_vs_next_execution_open_up', 'horizon': '60m'}, 'train_window': {'start': '2026-09-28T20:30:00+00:00', 'end': '2026-10-12T20:30:00+00:00', 'n': 75}, 'conformal': {'alpha': 0.1, 'quantile': 0.2, 'applies_to': 'BUY decisions only'}, 'edge': {'certified': True, 'n': 12, 'mean': 0.01, 'ci': [0.002, 0.02], 'round_trip_cost': 0.003}}
+CALIBRATION_ARTIFACT = {'schema': CALIBRATION_SCHEMA, 'created_at': '2025-12-31T00:00:00+00:00', 'model': 'jev', 'method': 'temperature', 'temperature': 3.0, 'fit': {'target': 'p_buy_vs_next_execution_open_up', 'horizon': '5m', 'review_horizon': 'weekly-next-execution'}, 'train_window': {'start': '2025-09-28T20:30:00+00:00', 'end': '2025-10-12T20:30:00+00:00', 'outcome_available_through': '2025-10-15T00:00:00+00:00', 'n': 75}, 'test_window': {'start': '2025-12-01T00:00:00+00:00', 'end': '2025-12-23T00:00:00+00:00', 'outcome_available_through': '2025-12-30T00:00:00+00:00'}, 'conformal': {'alpha': 0.1, 'quantile': 0.2, 'applies_to': 'BUY decisions only'}, 'edge': {'certified': True, 'method': 'stationary-review-block-v1', 'periods': 10, 'n': 12, 'mean': 0.01, 'ci': [0.002, 0.02], 'round_trip_cost': 0.003, 'scope': {'symbol_review_times': [['TEST', 'Fri 14:30']]}}}
 
 
 def full_risk_args():
@@ -295,7 +295,7 @@ def test_calibration_gating_uses_calibrated_confidence(monkeypatch, tmp_path):
     result = cli.run(analyze_args(path, '--calibration', str(artifact), *full_risk_args()))
     # Raw P(BUY)=0.7; temperature 3 maps it to sigmoid(logit(0.7)/3) ~= 0.5701, below the 0.6 threshold.
     assert result['decision']['calibrated_confidence'] == pytest.approx(0.570143, abs=1e-4)
-    assert result['decision']['calibration']['fit_horizon'] == '60m'
+    assert result['decision']['calibration']['fit_horizon'] == '5m'
     assert 'Confidence below threshold' in result['risk_rejections']
     assert result['actionable_signal'] == 'HOLD'
     uncalibrated = cli.run(analyze_args(path, *full_risk_args()))
@@ -324,7 +324,7 @@ def test_uncertified_edge_reason_surfaces(monkeypatch, tmp_path):
     path_artifact.write_text(json.dumps(artifact), encoding='utf-8')
     monkeypatch.setattr(cli, 'predict', lambda *args: decisions.normalize(answer(), 1))
     risk_args = full_risk_args()[:-2] + ['--min-confidence', '0.5']
-    result = cli.run(analyze_args(path, '--calibration', str(path_artifact), '--require-certified-edge', *risk_args))
+    result = cli.run(analyze_args(path, '--calibration', str(path_artifact), '--require-certified-edge', '--edge-horizon', 'weekly-next-execution', *risk_args))
     assert 'fewer than 5 BUY decisions' in result['risk_rejections'][0]
     assert result['actionable_signal'] == 'HOLD'
 
@@ -336,12 +336,112 @@ def test_certified_edge_allows_actionable(monkeypatch, tmp_path):
     artifact.write_text(json.dumps(CALIBRATION_ARTIFACT), encoding='utf-8')
     monkeypatch.setattr(cli, 'predict', lambda *args: decisions.normalize(answer(), 1))
     risk_args = full_risk_args()[:-2] + ['--min-confidence', '0.5']
-    result = cli.run(analyze_args(path, '--calibration', str(artifact), '--require-certified-edge', *risk_args))
+    result = cli.run(analyze_args(path, '--calibration', str(artifact), '--require-certified-edge', '--edge-horizon', 'weekly-next-execution', *risk_args))
     assert result['edge_certified'] is True
     assert result['risk_rejections'] == []
     assert result['actionable_signal'] == 'BUY'
     # Per-trade numbers ride along as diagnostics.
     assert result['conformal_interval'] == [0.370143, 0.770143]
+
+
+def test_edge_gate_requires_an_explicit_matching_holding_horizon(monkeypatch, tmp_path):
+    path = tmp_path / 'candles.csv'
+    candles().to_csv(path, index=False)
+    artifact = tmp_path / 'artifact.json'
+    artifact.write_text(json.dumps(CALIBRATION_ARTIFACT), encoding='utf-8')
+    monkeypatch.setattr(cli, 'predict', lambda *args: decisions.normalize(answer(), 1))
+    risk_args = full_risk_args()[:-2] + ['--min-confidence', '0.5']
+    result = cli.run(analyze_args(path, '--calibration', str(artifact), '--require-certified-edge', *risk_args))
+    assert result['edge_certified'] is False
+    assert result['actionable_signal'] == 'HOLD'
+
+
+@pytest.mark.parametrize('scope', [{'symbol_review_times': [['OTHER', 'Fri 14:30']]},
+                                   {'symbol_review_times': [['TEST', 'Fri 15:30']]},
+                                   {'symbol_review_times': [['TEST', 'Mon 14:30'], ['OTHER', 'Fri 14:30']]},
+                                   {'symbol_review_times': 'TEST'}])
+def test_edge_gate_rejects_out_of_scope_symbol_or_review_time(monkeypatch, tmp_path, scope):
+    path = tmp_path / 'candles.csv'
+    candles().to_csv(path, index=False)
+    artifact = tmp_path / 'artifact.json'
+    artifact.write_text(json.dumps(dict(CALIBRATION_ARTIFACT, edge=dict(CALIBRATION_ARTIFACT['edge'], scope=scope))), encoding='utf-8')
+    monkeypatch.setattr(cli, 'predict', lambda *args: decisions.normalize(answer(), 1))
+    result = cli.run(analyze_args(path, '--calibration', str(artifact), '--require-certified-edge', '--edge-horizon', 'weekly-next-execution', *full_risk_args()))
+    assert result['edge_certified'] is False
+
+
+@pytest.mark.parametrize('action', ['SELL', 'HOLD'])
+def test_buy_up_calibration_does_not_calibrate_or_authorize_other_actions(monkeypatch, tmp_path, action):
+    path = tmp_path / 'candles.csv'
+    candles().to_csv(path, index=False)
+    artifact = tmp_path / 'artifact.json'
+    artifact.write_text(json.dumps(CALIBRATION_ARTIFACT), encoding='utf-8')
+    monkeypatch.setattr(cli, 'predict', lambda *args: {'action': action, 'probabilities': {'BUY': .1, 'HOLD': .2, 'SELL': .7}, 'confidence': .8, 'model': 'jev', 'latency_us': 1})
+    risk_args = full_risk_args()[:-2] + ['--min-confidence', '0.5']
+    result = cli.run(analyze_args(path, '--calibration', str(artifact), *risk_args))
+    assert 'calibrated_confidence' not in result['decision']
+    assert any('only for BUY' in reason for reason in result['risk_rejections'])
+    assert result['actionable_signal'] == 'HOLD'
+
+
+def test_legacy_edge_certification_cannot_open_gate(monkeypatch, tmp_path):
+    path = tmp_path / 'candles.csv'
+    candles().to_csv(path, index=False)
+    artifact = dict(CALIBRATION_ARTIFACT, edge={'certified': True, 'n': 10, 'ci': [0.01, 0.04]})
+    path_artifact = tmp_path / 'artifact.json'
+    path_artifact.write_text(json.dumps(artifact), encoding='utf-8')
+    monkeypatch.setattr(cli, 'predict', lambda *args: decisions.normalize(answer(), 1))
+    risk_args = full_risk_args()[:-2] + ['--min-confidence', '0.5']
+    result = cli.run(analyze_args(path, '--calibration', str(path_artifact), '--require-certified-edge', *risk_args))
+    assert result['edge_certified'] is False
+    assert result['actionable_signal'] == 'HOLD'
+
+
+@pytest.mark.parametrize('change', [
+    {'model': 'another-model'},
+    {'fit': {'target': 'p_buy_vs_next_execution_open_up', 'horizon': '60m', 'review_horizon': 'weekly-next-execution'}},
+    {'fit': {'target': 'another-target', 'horizon': '5m', 'review_horizon': 'weekly-next-execution'}},
+    {'fit': {'target': 'p_buy_vs_next_execution_open_up', 'horizon': '5m', 'review_horizon': 'daily'}},
+])
+def test_edge_gate_rejects_mismatched_model_or_horizon(monkeypatch, tmp_path, change):
+    path = tmp_path / 'candles.csv'
+    candles().to_csv(path, index=False)
+    artifact = dict(CALIBRATION_ARTIFACT, **change)
+    path_artifact = tmp_path / 'artifact.json'
+    path_artifact.write_text(json.dumps(artifact), encoding='utf-8')
+    monkeypatch.setattr(cli, 'predict', lambda *args: decisions.normalize(answer(), 1))
+    risk_args = full_risk_args()[:-2] + ['--min-confidence', '0.5']
+    result = cli.run(analyze_args(path, '--calibration', str(path_artifact), '--require-certified-edge', '--edge-horizon', 'weekly-next-execution', *risk_args))
+    assert result['edge_certified'] is False
+    assert result['actionable_signal'] == 'HOLD'
+
+
+def test_future_calibration_artifact_is_rejected_before_model_call(monkeypatch, tmp_path):
+    path = tmp_path / 'candles.csv'
+    candles().to_csv(path, index=False)
+    artifact = dict(CALIBRATION_ARTIFACT, created_at='2026-01-03T00:00:00+00:00')
+    path_artifact = tmp_path / 'artifact.json'
+    path_artifact.write_text(json.dumps(artifact), encoding='utf-8')
+    monkeypatch.setattr(cli, 'predict', lambda *args: pytest.fail('model must not be called'))
+    with pytest.raises(ValueError, match='artifact.*evaluation'):
+        cli.run(analyze_args(path, '--calibration', str(path_artifact)))
+
+
+@pytest.mark.parametrize('change', [
+    {'train_window': {'start': '2025-09-01T00:00:00+00:00', 'end': '2025-10-01T00:00:00+00:00', 'outcome_available_through': '2026-01-03T00:00:00+00:00'}},
+    {'test_window': {'start': '2025-12-01T00:00:00+00:00', 'end': '2025-12-23T00:00:00+00:00', 'outcome_available_through': '2026-01-03T00:00:00+00:00'}},
+    {'train_window': {'start': '2025-01-01T00:00:00+00:00'}},
+    {'train_window': {'start': '2025-09-01T00:00:00+00:00', 'end': '2025-10-01T00:00:00+00:00', 'outcome_available_through': '2025-12-10T00:00:00+00:00'}},
+])
+def test_unavailable_calibration_outcomes_are_rejected_before_model_call(monkeypatch, tmp_path, change):
+    path = tmp_path / 'candles.csv'
+    candles().to_csv(path, index=False)
+    artifact = dict(CALIBRATION_ARTIFACT, **change)
+    path_artifact = tmp_path / 'artifact.json'
+    path_artifact.write_text(json.dumps(artifact), encoding='utf-8')
+    monkeypatch.setattr(cli, 'predict', lambda *args: pytest.fail('model must not be called'))
+    with pytest.raises(ValueError, match='artifact.*outcome'):
+        cli.run(analyze_args(path, '--calibration', str(path_artifact)))
 
 
 def test_per_trade_numbers_are_diagnostic_only(monkeypatch, tmp_path):
@@ -352,7 +452,7 @@ def test_per_trade_numbers_are_diagnostic_only(monkeypatch, tmp_path):
     path_artifact.write_text(json.dumps(artifact), encoding='utf-8')
     monkeypatch.setattr(cli, 'predict', lambda *args: decisions.normalize(answer(), 1))
     risk_args = full_risk_args()[:-2] + ['--min-confidence', '0.5']
-    result = cli.run(analyze_args(path, '--calibration', str(path_artifact), '--require-certified-edge', *risk_args))
+    result = cli.run(analyze_args(path, '--calibration', str(path_artifact), '--require-certified-edge', '--edge-horizon', 'weekly-next-execution', *risk_args))
     assert result['expected_return'] == -0.05
     assert result['return_interval_lower'] == -0.06
     assert 'Calibrated expected return does not clear round-trip costs' not in result['risk_rejections']

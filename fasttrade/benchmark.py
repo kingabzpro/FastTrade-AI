@@ -3,14 +3,17 @@ import os
 import re
 import sys
 import tempfile
+import math
 from datetime import date, timedelta
 from pathlib import Path
 
 import pandas as pd
+import numpy as np
 from dotenv import load_dotenv
 
 from . import cli
 from .market import validate_candles
+from .calibration import stationary_bootstrap_means
 
 
 def download(symbol, start, end):
@@ -68,6 +71,7 @@ def run(args):
     cash = {s: initial / len(symbols) for s in symbols}
     shares = {s: 0.0 for s in symbols}
     decisions = []
+    portfolio_values, spy_values = [], []
     with tempfile.TemporaryDirectory(prefix='fasttrade-benchmark-') as directory:
         paths = {}
         for symbol in symbols:
@@ -76,6 +80,8 @@ def run(args):
         for week, i in enumerate(schedule, 1):
             decision_time = common[i] + pd.Timedelta(hours=1)
             execution_time = common[i + 1]
+            portfolio_values.append(sum(cash[s] + shares[s] * float(frames[s].loc[execution_time, 'open']) for s in symbols))
+            spy_values.append(float(frames['SPY'].loc[execution_time, 'open']))
             print(f'Benchmark week {week}/{len(schedule)}: {decision_time.date()}', file=sys.stderr, flush=True)
             for symbol in symbols:
                 analysis = cli.parser().parse_args(['analyze', symbol, '--timeframe', '60m', '--csv', str(paths[symbol]), '--as-of', decision_time.isoformat()])
@@ -98,6 +104,15 @@ def run(args):
     ending = sum(cash[s] + shares[s] * float(frames[s].loc[final, 'close']) for s in symbols)
     spy_open = float(frames['SPY'].loc[first_open, 'open'])
     spy_close = float(frames['SPY'].loc[final, 'close'])
+    portfolio_values.append(ending)
+    spy_values.append(spy_close)
+    excess = np.diff(portfolio_values) / portfolio_values[:-1] - np.diff(spy_values) / spy_values[:-1]
+    significance = {'method': 'stationary bootstrap', 'observations': len(excess),
+                    'mean_weekly_excess_return': float(excess.mean()), 'confidence_interval': None,
+                    'block_length': max(2, math.ceil(len(excess) ** (1 / 3))), 'draws': 2000,
+                    'seed': 0, 'confidence_level': 0.95}
+    if len(excess) >= 2:
+        significance['confidence_interval'] = np.percentile(stationary_bootstrap_means(excess), [2.5, 97.5]).tolist()
     directional = []
     for symbol in symbols:
         rows = [row for row in decisions if row['symbol'] == symbol]
@@ -107,4 +122,4 @@ def run(args):
             if row['action'] in ('BUY', 'SELL'):
                 row['directional_correct'] = next_price > row['execution_price'] if row['action'] == 'BUY' else next_price < row['execution_price']
                 directional.append(row['directional_correct'])
-    return {'model_requested': model, 'start': args.start, 'end': args.end, 'symbols': symbols, 'initial_balance': initial, 'first_execution_time': first_open.isoformat(), 'valuation_time': (final + pd.Timedelta(hours=1)).isoformat(), 'ending_balance': round(ending, 2), 'return_pct': round((ending / initial - 1) * 100, 2), 'spy_ending_balance': round(initial * spy_close / spy_open, 2), 'spy_return_pct': round((spy_close / spy_open - 1) * 100, 2), 'directional_decisions': len(directional), 'directional_accuracy_pct': round(100 * sum(directional) / len(directional), 2) if directional else None, 'assumptions': 'Adjusted hourly Yahoo prices; weekly model preferences; next common hourly open; equal independent allocations; fractional shares; no fees, slippage, taxes, or risk checks. Historical model knowledge and revised data can bias results.', 'decisions': decisions}
+    return {'model_requested': model, 'start': args.start, 'end': args.end, 'symbols': symbols, 'initial_balance': initial, 'first_execution_time': first_open.isoformat(), 'valuation_time': (final + pd.Timedelta(hours=1)).isoformat(), 'ending_balance': round(ending, 2), 'return_pct': round((ending / initial - 1) * 100, 2), 'spy_ending_balance': round(initial * spy_close / spy_open, 2), 'spy_return_pct': round((spy_close / spy_open - 1) * 100, 2), 'directional_decisions': len(directional), 'directional_accuracy_pct': round(100 * sum(directional) / len(directional), 2) if directional else None, 'significance': significance, 'assumptions': 'Adjusted hourly Yahoo prices; weekly model preferences; next common hourly open; equal independent allocations; fractional shares; no fees, slippage, taxes, or risk checks. Historical model knowledge and revised data can bias results.', 'decisions': decisions}

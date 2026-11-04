@@ -37,6 +37,10 @@ def test_weekly_benchmark_uses_prior_candles_and_next_open(monkeypatch):
     assert report['ending_balance'] == pytest.approx(10000 * 99 / 101, abs=.01)
     assert report['directional_decisions'] == 2
     assert report['directional_accuracy_pct'] == 50.0
+    significance = report['significance']
+    assert significance['observations'] == 2
+    assert significance['mean_weekly_excess_return'] == pytest.approx(1 / 198)
+    assert significance['confidence_interval'] == pytest.approx([0, 1 / 99])
 
 
 def test_benchmark_rejects_invalid_period():

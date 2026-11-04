@@ -332,6 +332,52 @@ def test_security_headers_apply_to_normal_and_rejected_requests():
         assert response.headers['x-frame-options'] == 'DENY'
 
 
+def test_request_logs_correlate_success_and_rejection_without_secrets():
+    import json
+    import logging
+    from io import StringIO
+    from fasttrade.web import app
+
+    stream = StringIO()
+    handler = logging.StreamHandler(stream)
+    logger = logging.getLogger('fasttrade.requests')
+    logger.addHandler(handler)
+    try:
+        client = TestClient(app, base_url='http://127.0.0.1:8765', client=('127.0.0.1', 50000))
+        responses = [client.get('/api/health?token=secret', headers={'X-API-Key': 'secret'}),
+                     client.get('/api/health', headers={'Origin': 'https://evil.example'})]
+    finally:
+        logger.removeHandler(handler)
+    records = [json.loads(line) for line in stream.getvalue().splitlines()]
+    assert [r['status'] for r in records] == [200, 403]
+    assert [r['request_id'] for r in records] == [r.headers['x-request-id'] for r in responses]
+    assert len({r['request_id'] for r in records}) == 2
+    assert all(r['method'] == 'GET' and r['duration_ms'] >= 0 for r in records)
+    assert 'secret' not in stream.getvalue()
+
+
+def test_unhandled_request_failure_is_logged(monkeypatch):
+    import json
+    import logging
+    from io import StringIO
+    from fasttrade import web
+
+    stream = StringIO()
+    handler = logging.StreamHandler(stream)
+    logger = logging.getLogger('fasttrade.requests')
+    logger.addHandler(handler)
+    monkeypatch.setattr(web, '_cors_origins', lambda: (_ for _ in ()).throw(RuntimeError('private detail')))
+    try:
+        client = TestClient(web.app, base_url='http://127.0.0.1:8765', client=('127.0.0.1', 50000), raise_server_exceptions=False)
+        response = client.get('/v1/usage', headers={'Origin': 'https://client.example'})
+    finally:
+        logger.removeHandler(handler)
+    record = json.loads(stream.getvalue())
+    assert response.status_code == record['status'] == 500
+    assert response.headers['x-request-id'] == record['request_id']
+    assert record['request_id'] and 'private detail' not in stream.getvalue()
+
+
 def test_provider_error_has_safe_message(monkeypatch):
     from fasttrade import web
     def fail(args):

@@ -1,0 +1,7 @@
+{
+    acme_ca https://acme-v02.api.letsencrypt.org/directory
+}
+
+{$FASTTRADE_DOMAIN} {
+    reverse_proxy app:8765
+}

@@ -8,6 +8,8 @@ import ipaddress
 import json
 import asyncio
 import os
+import logging
+import uuid
 from threading import Lock
 from time import monotonic
 from typing import Any, Literal
@@ -15,7 +17,7 @@ from urllib.parse import urlsplit
 
 from fastapi import FastAPI, Request, Security, HTTPException
 from fastapi.security import APIKeyHeader
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from starlette.concurrency import run_in_threadpool
@@ -52,11 +54,34 @@ from dotenv import load_dotenv
 load_dotenv()
 _openapi_enabled = os.getenv('FASTTRADE_ENABLE_OPENAPI', 'true').lower() == 'true'
 app = FastAPI(title='FastTrade AI API', version='0.1.0', description='Local signal-only market research API. It never places orders.', lifespan=lifespan, openapi_url='/openapi.json' if _openapi_enabled else None, docs_url='/docs' if _openapi_enabled else None, redoc_url='/redoc' if _openapi_enabled else None)
+
+
+@app.exception_handler(Exception)
+async def unhandled_exception(request: Request, exc: Exception):
+    request_id = getattr(request.state, 'request_id', None)
+    response = PlainTextResponse('Internal Server Error', status_code=500,
+                                 headers={'X-Request-ID': request_id} if request_id else None)
+    response.headers['Cache-Control'] = 'no-store'
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'DENY'
+    origin = getattr(request.state, 'allowed_origin', None)
+    if origin:
+        response.headers['Access-Control-Allow-Origin'] = origin
+        response.headers['Access-Control-Expose-Headers'] = 'X-Request-ID'
+        response.headers.append('Vary', 'Origin')
+    return response
+
+
 app.mount('/static', StaticFiles(directory=ROOT / 'static'), name='static')
 _spy_cache = None
 _spy_lock = Lock()
 _spy_signals_cache = None
 _spy_signals_lock = Lock()
+request_logger = logging.getLogger('fasttrade.requests')
+if not request_logger.handlers:
+    request_logger.addHandler(logging.StreamHandler())
+request_logger.setLevel(logging.INFO)
+request_logger.propagate = False
 
 
 class AnalysisRequest(BaseModel):
@@ -233,6 +258,7 @@ async def local_only(request: Request, call_next):
         parsed = urlsplit(origin) if origin else None
         same_origin = bool(parsed and parsed.scheme == request.url.scheme and parsed.netloc == request.headers.get('host'))
         allowed_origin = bool(origin and is_v1 and origin in origins)
+        request.state.allowed_origin = origin if allowed_origin else None
         try:
             local_client = bool(request.client and ipaddress.ip_address(request.client.host).is_loopback)
         except ValueError:
@@ -271,6 +297,7 @@ async def local_only(request: Request, call_next):
             response = await call_next(request)
         if allowed_origin:
             response.headers['Access-Control-Allow-Origin'] = origin
+            response.headers['Access-Control-Expose-Headers'] = 'X-Request-ID'
             response.headers.append('Vary', 'Origin')
     except ValueError:
         response = JSONResponse({'error': 'Invalid origin configuration'}, status_code=503)
@@ -278,6 +305,22 @@ async def local_only(request: Request, call_next):
     response.headers['X-Content-Type-Options'] = 'nosniff'
     response.headers['X-Frame-Options'] = 'DENY'
     return response
+
+
+@app.middleware('http')
+async def log_request(request: Request, call_next):
+    request_id = uuid.uuid4().hex
+    request.state.request_id = request_id
+    start = monotonic()
+    status = 500
+    try:
+        response = await call_next(request)
+        status = response.status_code
+        response.headers['X-Request-ID'] = request_id
+        return response
+    finally:
+        request_logger.info(json.dumps({'request_id': request_id, 'method': request.method,
+                                        'status': status, 'duration_ms': round((monotonic() - start) * 1000, 2)}))
 
 
 @app.get('/')

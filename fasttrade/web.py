@@ -486,10 +486,15 @@ async def analyze(body: AnalysisRequest):
 
 @app.post('/v1/analyze', tags=['Analysis'])
 async def versioned_analyze(body: AnalysisRequest, x_api_key: str = Security(APIKeyHeader(name='X-API-Key', auto_error=False))):
-    from .batch_api import _authenticate, reserve_single
+    from .batch_api import _authenticate, reserve_single, record_single_usage
     identity, limits = _authenticate(x_api_key)
-    await run_in_threadpool(reserve_single, identity, limits)
-    return await analyze(body)
+    reservation_id = await run_in_threadpool(reserve_single, identity, limits)
+    result = await analyze(body)
+    try:
+        await run_in_threadpool(record_single_usage, reservation_id, result)
+    except Exception:
+        logging.getLogger(__name__).warning('Could not record individual analysis usage')
+    return result
 
 
 from .batch_api import make_batch_router

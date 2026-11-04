@@ -425,6 +425,20 @@ def test_single_and_batch_tokens_are_combined(batch_client):
     assert usage['complete'] is True
 
 
+def test_reported_tokens_from_retried_calls_are_counted_but_incomplete(batch_client, monkeypatch):
+    from fasttrade import web
+    client, _ = batch_client
+    monkeypatch.setattr(web, 'run_analysis', lambda args: {'decision': {'usage': {
+        'input_tokens': 10, 'output_tokens': None, 'output_tokens_last_attempt': 3}}, 'actionable_signal': None})
+    key = {'X-API-Key': 'test-key'}
+    assert client.post('/v1/analyze', json={'symbol': 'A'}, headers=key).status_code == 200
+    assert client.post('/v1/analyze:batch', json={'symbols': ['B']}, headers={**key, 'Idempotency-Key': 'batch'}).status_code == 200
+    usage = client.get('/v1/usage', headers=key).json()['usage']
+    assert usage['input_tokens_reported'] == 20
+    assert usage['output_tokens_reported'] == 6
+    assert usage['complete'] is False
+
+
 def test_usage_reads_reservations_and_tokens_from_same_snapshot(batch_client, monkeypatch):
     import os
     import sqlite3

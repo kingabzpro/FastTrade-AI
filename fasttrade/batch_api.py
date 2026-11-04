@@ -68,6 +68,7 @@ def _db():
     connection.execute('CREATE TABLE IF NOT EXISTS worker_leases (owner TEXT PRIMARY KEY, heartbeat REAL NOT NULL)')
     connection.execute('CREATE TABLE IF NOT EXISTS single_reservations (id TEXT PRIMARY KEY, key_hash TEXT NOT NULL, day TEXT NOT NULL, reserved_micro INTEGER NOT NULL)')
     connection.execute('CREATE TABLE IF NOT EXISTS single_usage (reservation_id TEXT PRIMARY KEY, input_tokens INTEGER NOT NULL, output_tokens INTEGER)')
+    connection.execute('CREATE TABLE IF NOT EXISTS single_usage_last_output (reservation_id TEXT PRIMARY KEY, output_tokens INTEGER NOT NULL)')
     connection.commit()
     return connection
 
@@ -145,7 +146,7 @@ def _usage(results):
     values = [item.get('result', {}).get('decision', {}).get('usage') for item in results if item]
     complete = len(values) == len(results) and all(item is not None and item.get('output_tokens') is not None for item in values)
     return {'input_tokens_reported': sum(item['input_tokens'] for item in values if item is not None),
-            'output_tokens_reported': sum(item['output_tokens'] for item in values if item is not None and item.get('output_tokens') is not None),
+            'output_tokens_reported': sum(item.get('output_tokens') if item.get('output_tokens') is not None else item.get('output_tokens_last_attempt', 0) or 0 for item in values if item is not None),
             'complete': complete, 'status': 'Token information available' if complete else 'Token information unavailable'}
 
 
@@ -201,8 +202,14 @@ def record_single_usage(reservation_id, result):
         return
     if output_tokens is not None and (type(output_tokens) is not int or not 0 <= output_tokens < 2**63):
         return
+    last_output = usage.get('output_tokens_last_attempt')
+    if last_output is not None and (output_tokens is not None or type(last_output) is not int or not 0 <= last_output < 2**63):
+        return
     with closing(_db()) as db, db:
         db.execute('INSERT OR REPLACE INTO single_usage VALUES (?, ?, ?)', (reservation_id, input_tokens, output_tokens))
+        db.execute('DELETE FROM single_usage_last_output WHERE reservation_id = ?', (reservation_id,))
+        if last_output is not None:
+            db.execute('INSERT INTO single_usage_last_output VALUES (?, ?)', (reservation_id, last_output))
 
 
 def _create(body, idem, key_hash, limits):
@@ -372,8 +379,9 @@ def make_batch_router(analysis_request, analyze):
             db.execute('BEGIN')
             rows = db.execute('SELECT * FROM jobs WHERE key_hash = ? AND day = ?', (key_hash, today)).fetchall()
             total_reserved = _spent(db, key_hash, today)
-            singles = db.execute('''SELECT u.input_tokens, u.output_tokens FROM single_reservations r
+            singles = db.execute('''SELECT u.input_tokens, u.output_tokens, o.output_tokens AS output_tokens_last_attempt FROM single_reservations r
                                     LEFT JOIN single_usage u ON u.reservation_id = r.id
+                                    LEFT JOIN single_usage_last_output o ON o.reservation_id = r.id
                                     WHERE r.key_hash = ? AND r.day = ?''', (key_hash, today)).fetchall()
         outcomes = [item for row in rows for item in json.loads(row['results'])]
         outcomes.extend({'result': {'decision': {'usage': dict(row)}}} if row['input_tokens'] is not None else None for row in singles)

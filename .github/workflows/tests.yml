@@ -20,3 +20,9 @@ jobs:
       - run: uv sync --locked --python 3.10
       - run: uv run --locked --python 3.10 pytest
       - run: node --test tests/chart.test.cjs
+
+  containers:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 .github/scripts/docker-smoke.py

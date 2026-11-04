@@ -69,6 +69,7 @@ def _db():
     connection.execute('CREATE TABLE IF NOT EXISTS single_reservations (id TEXT PRIMARY KEY, key_hash TEXT NOT NULL, day TEXT NOT NULL, reserved_micro INTEGER NOT NULL)')
     connection.execute('CREATE TABLE IF NOT EXISTS single_usage (reservation_id TEXT PRIMARY KEY, input_tokens INTEGER NOT NULL, output_tokens INTEGER)')
     connection.execute('CREATE TABLE IF NOT EXISTS single_usage_last_output (reservation_id TEXT PRIMARY KEY, output_tokens INTEGER NOT NULL)')
+    connection.execute('CREATE TABLE IF NOT EXISTS single_usage_prices (reservation_id TEXT PRIMARY KEY, pricing TEXT NOT NULL)')
     connection.commit()
     return connection
 
@@ -150,6 +151,65 @@ def _usage(results):
             'complete': complete, 'status': 'Token information available' if complete else 'Token information unavailable'}
 
 
+def _price_snapshot(result):
+    try:
+        decision = result['decision']
+        provider, model = decision['provider'], decision['model']
+        if not isinstance(provider, str) or not isinstance(model, str):
+            return None
+        prices = json.loads(os.environ.get('FASTTRADE_MODEL_PRICES', '{}'))[provider][model]
+        rates = {}
+        for field in ('input_per_million', 'output_per_million'):
+            value = prices[field]
+            if not isinstance(value, str) or len(value) > 32:
+                return None
+            number = Decimal(value)
+            if not number.is_finite() or not 0 <= number <= 1000000 or number.as_tuple().exponent < -12:
+                return None
+            rates[field] = format(number, 'f')
+        return {'provider': provider, 'model': model, **rates}
+    except (KeyError, TypeError, ValueError, InvalidOperation):
+        return None
+
+
+def _token_cost(outcomes):
+    from decimal import localcontext
+    total, priced, unpriced, pending, complete = Decimal(0), 0, 0, 0, True
+    with localcontext() as context:
+        context.prec = 64
+        for item in outcomes:
+            if item is None or (isinstance(item, dict) and item.get('status') == 'started'):
+                pending += 1
+                complete = False
+                continue
+            try:
+                usage = item['result']['decision']['usage']
+                pricing = item['pricing']
+                input_tokens = usage['input_tokens']
+                output_tokens = usage.get('output_tokens')
+                if type(input_tokens) is not int or not 0 <= input_tokens < 2**63:
+                    raise ValueError()
+                if output_tokens is None:
+                    complete = False
+                    output_tokens = usage.get('output_tokens_last_attempt') or 0
+                if type(output_tokens) is not int or not 0 <= output_tokens < 2**63:
+                    raise ValueError()
+                input_rate = Decimal(pricing['input_per_million'])
+                output_rate = Decimal(pricing['output_per_million'])
+                if not input_rate.is_finite() or not output_rate.is_finite() or min(input_rate, output_rate) < 0:
+                    raise ValueError()
+                total += (input_tokens * input_rate + output_tokens * output_rate) / 1000000
+                priced += 1
+            except (KeyError, TypeError, ValueError, InvalidOperation):
+                complete = False
+                unpriced += 1
+    amount = format(total, 'f')
+    if '.' in amount:
+        amount = amount.rstrip('0').rstrip('.')
+    return {'estimated_usd': amount if priced or not outcomes else None, 'priced_calls': priced,
+            'unpriced_outcomes': unpriced, 'pending_or_unknown_outcomes': pending, 'complete': complete}
+
+
 def _view(row):
     results = json.loads(row['results'])
     state = row['state']
@@ -210,6 +270,9 @@ def record_single_usage(reservation_id, result):
         db.execute('DELETE FROM single_usage_last_output WHERE reservation_id = ?', (reservation_id,))
         if last_output is not None:
             db.execute('INSERT INTO single_usage_last_output VALUES (?, ?)', (reservation_id, last_output))
+        pricing = _price_snapshot(result)
+        if pricing is not None:
+            db.execute('INSERT OR IGNORE INTO single_usage_prices VALUES (?, ?)', (reservation_id, json.dumps(pricing)))
 
 
 def _create(body, idem, key_hash, limits):
@@ -266,7 +329,7 @@ def _process(job_id, key_hash, body, analysis_request, analyze):
                 response = asyncio.run(analyze(analysis_request(symbol=symbol, timeframe=body.timeframe, source=body.source, decision_provider=body.decision_provider)))
                 if isinstance(response, JSONResponse):
                     return {'symbol': symbol, 'error': json.loads(response.body)['error'], 'actionable_signal': None}
-                return {'symbol': symbol, 'result': response}
+                return {'symbol': symbol, 'result': response, 'pricing': _price_snapshot(response)}
             except Exception:
                 return {'symbol': symbol, 'error': 'Analysis unavailable', 'actionable_signal': None}
         finally:
@@ -379,14 +442,15 @@ def make_batch_router(analysis_request, analyze):
             db.execute('BEGIN')
             rows = db.execute('SELECT * FROM jobs WHERE key_hash = ? AND day = ?', (key_hash, today)).fetchall()
             total_reserved = _spent(db, key_hash, today)
-            singles = db.execute('''SELECT u.input_tokens, u.output_tokens, o.output_tokens AS output_tokens_last_attempt FROM single_reservations r
+            singles = db.execute('''SELECT u.input_tokens, u.output_tokens, o.output_tokens AS output_tokens_last_attempt, p.pricing FROM single_reservations r
                                     LEFT JOIN single_usage u ON u.reservation_id = r.id
                                     LEFT JOIN single_usage_last_output o ON o.reservation_id = r.id
+                                    LEFT JOIN single_usage_prices p ON p.reservation_id = r.id
                                     WHERE r.key_hash = ? AND r.day = ?''', (key_hash, today)).fetchall()
         outcomes = [item for row in rows for item in json.loads(row['results'])]
-        outcomes.extend({'result': {'decision': {'usage': dict(row)}}} if row['input_tokens'] is not None else None for row in singles)
+        outcomes.extend({'result': {'decision': {'usage': dict(row)}}, 'pricing': json.loads(row['pricing']) if row['pricing'] else None} if row['input_tokens'] is not None else None for row in singles)
         usage = _usage(outcomes)
         return {'date_utc': today, 'estimated_reserved': _dollars(total_reserved),
-                'daily_budget': _dollars(limits['daily_budget']), 'currency': 'USD', 'usage': usage}
+                'daily_budget': _dollars(limits['daily_budget']), 'currency': 'USD', 'usage': usage, 'token_cost': _token_cost(outcomes)}
 
     return router

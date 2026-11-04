@@ -165,24 +165,58 @@ def alpaca_news(symbol, as_of):
     return result
 
 
+def _yahoo_request(operation):
+    from curl_cffi.requests.exceptions import ConnectionError as CurlConnectionError, Timeout
+    from yfinance.exceptions import YFDataException, YFRateLimitError
+
+    def attempt(url):
+        try:
+            result = operation()
+        except YFRateLimitError:
+            # yfinance does not expose Retry-After; this is our local cooldown.
+            return httpx.Response(429, headers={'Retry-After': '30'})
+        except Timeout as exc:
+            raise httpx.ReadTimeout('Yahoo timed out') from exc
+        except CurlConnectionError as exc:
+            raise httpx.ConnectError('Yahoo connection failed') from exc
+        except YFDataException as exc:
+            return httpx.Response(503 if str(exc) == '*** YAHOO! FINANCE IS CURRENTLY DOWN! ***' else 400)
+        except Exception:
+            return httpx.Response(400)
+        return httpx.Response(200, extensions={'yahoo_result': result})
+
+    try:
+        response = request(attempt, 'https://query1.finance.yahoo.com', service='yahoo', credentials=None, retry_transport=True)
+    except httpx.TimeoutException as exc:
+        raise ValueError('Market data provider timed out') from exc
+    except CircuitOpen as exc:
+        raise ValueError('Market data provider rate limited' if 'rate limit' in str(exc).lower() else 'Market data provider failed') from exc
+    except httpx.TransportError as exc:
+        raise ValueError('Market data provider failed') from exc
+    if response.status_code == 429:
+        raise ValueError('Market data provider rate limited')
+    if response.status_code != 200:
+        raise ValueError('Market data provider failed')
+    return response.extensions['yahoo_result']
+
+
 def yahoo(symbol, timeframe, as_of):
     if timeframe not in ('1m', '2m', '5m', '15m', '30m', '60m', '90m'):
         raise ValueError('Unsupported Yahoo Finance timeframe')
     import yfinance as yf
-    from curl_cffi.requests.exceptions import Timeout
-    ticker = yf.Ticker(symbol)
-    try:
-        frame = ticker.history(period='7d' if timeframe == '1m' else '1mo', interval=timeframe, auto_adjust=False, prepost=False, raise_errors=True)
-    except Timeout as exc:
-        raise ValueError('Market data provider timed out') from exc
-    except Exception as exc:
-        raise ValueError('Market data provider failed') from exc
+    ticker = None
+    def history():
+        nonlocal ticker
+        if ticker is None:
+            ticker = yf.Ticker(symbol)
+        return ticker.history(period='7d' if timeframe == '1m' else '1mo', interval=timeframe, auto_adjust=False, prepost=False, raise_errors=True)
+    frame = _yahoo_request(history)
     if frame.empty:
         raise ValueError('Market data provider returned no candles')
     frame = frame.reset_index().rename(columns={'Datetime':'timestamp', 'Date':'timestamp', 'Open':'open', 'High':'high', 'Low':'low', 'Close':'close', 'Volume':'volume'})
     with ThreadPoolExecutor(max_workers=2) as pool:
-        info_future = pool.submit(lambda: ticker.info)
-        news_future = pool.submit(lambda: ticker.news)
+        info_future = pool.submit(_yahoo_request, lambda: ticker.info)
+        news_future = pool.submit(_yahoo_request, lambda: ticker.news)
         try:
             info = info_future.result()
             details = {k: info.get(k) for k in ('shortName', 'currency', 'exchange', 'exchangeTimezoneName') if info.get(k) is not None}

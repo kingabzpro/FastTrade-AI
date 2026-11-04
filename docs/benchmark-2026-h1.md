@@ -13,6 +13,8 @@ Run on 28 October 2026 using `jev-1.14.0`: 25 retrospectively selected stocks, r
 
 The 650 recorded decisions have a median model-request latency of **858 ms** and a 95th percentile of **1,004 ms**. The recorded local CSV analysis timing was **914 ms** at the median and **1,072 ms** at the 95th percentile. These use the `model_ms` and `total_ms` columns in the linked ledger, the median and nearest-rank 95th percentile, respectively; the timing may exclude failed attempts before a retry. The run included network calls to the model and up to six concurrent workers; it excluded live market-data fetching and is not a production API load test. Provider conditions and hardware can change these numbers.
 
+A weekly excess-return interval for this original daily-price benchmark is unavailable: its ledger does not contain the intermediate SPY prices used at each execution date, and a matching frozen SPY series was not retained. The separately frozen adjusted-hourly comparison below uses different prices and cannot reconstruct that interval.
+
 Replaying the recorded decisions with flat simulated costs changes the hypothetical results as follows. Commission and slippage are each charged per executed side; SPY pays entry costs and neither strategy pays a hypothetical final liquidation cost. The adjusted-price approximation and all other limitations remain. Reproduce without model calls with `uv run --locked python docs/replay_h1_costs.py`.
 
 | Commission / slippage per side | Portfolio return | SPY return |

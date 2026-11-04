@@ -13,7 +13,8 @@ base = ['docker', 'compose', '-p', project, '-f', 'compose.yaml']
 private = base + ['-f', 'compose.private.yaml']
 env = dict(os.environ, FASTTRADE_PRIVATE_IP='127.0.0.1', FASTTRADE_DOMAIN='localhost',
            FASTTRADE_ACME_IP='127.0.0.1', FASTTRADE_PROXY_PORT='8765',
-           FASTTRADE_BATCH_KEY_HASHES='', SYSTEMONE_URL='http://127.0.0.1:1/systemone')
+           FASTTRADE_BATCH_KEY_HASHES='', SYSTEMONE_URL='http://127.0.0.1:1/systemone',
+           FASTTRADE_MODEL_PRICES=json.dumps({'jev': {'test': {'input_per_million': '1', 'output_per_million': '2'}}}))
 for name in ('TYPESAFE_API_KEY', 'ALPACA_API_KEY', 'ALPACA_SECRET_KEY', 'LIQUID_API_KEY',
              'VLLM_SR_API_KEY', 'SUBQ_API_KEY', 'BASETEN_API_KEY'):
     env[name] = ''
@@ -37,6 +38,8 @@ try:
         assert response.status == 200
     uid = subprocess.check_output(base + ['exec', '-T', 'app', 'id', '-u'], env=env, text=True).strip()
     assert uid == '10001'
+    prices = subprocess.check_output(base + ['exec', '-T', 'app', 'python', '-c', 'import os; print(os.environ["FASTTRADE_MODEL_PRICES"])'], env=env, text=True)
+    assert json.loads(prices) == json.loads(env['FASTTRADE_MODEL_PRICES'])
     container = subprocess.check_output(base + ['ps', '-q', 'app'], env=env, text=True).strip()
     grace = subprocess.check_output(['docker', 'inspect', '--format', '{{.Config.StopTimeout}}', container], env=env, text=True).strip()
     assert int(grace) > 100

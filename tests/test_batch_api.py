@@ -428,6 +428,105 @@ def test_single_and_batch_tokens_are_combined(batch_client):
     assert usage['complete'] is True
 
 
+def test_per_key_token_cost_uses_rates_recorded_for_each_call(batch_client, monkeypatch):
+    from fasttrade import web
+    client, _ = batch_client
+    prices = {'jev': {'test-model': {'input_per_million': '0.5', 'output_per_million': '1.5'}}}
+    monkeypatch.setenv('FASTTRADE_MODEL_PRICES', json.dumps(prices))
+    monkeypatch.setattr(web, 'run_analysis', lambda args: {'decision': {'provider': 'jev', 'model': 'test-model', 'usage': {'input_tokens': 1000000, 'output_tokens': 2000000}}, 'actionable_signal': None})
+    key = {'X-API-Key': 'test-key'}
+    assert client.post('/v1/analyze', json={'symbol': 'A'}, headers=key).status_code == 200
+    assert client.post('/v1/analyze:batch', json={'symbols': ['B']}, headers={**key, 'Idempotency-Key': 'cost'}).status_code == 200
+    prices['jev']['test-model']['input_per_million'] = '9'
+    monkeypatch.setenv('FASTTRADE_MODEL_PRICES', json.dumps(prices))
+    result = client.get('/v1/usage', headers=key).json()
+    assert result['estimated_reserved'] == '0.02'
+    assert result['token_cost']['estimated_usd'] == '7'
+    assert result['token_cost']['priced_calls'] == 2
+    assert result['token_cost']['complete'] is True
+
+
+def test_token_cost_keeps_partial_usage_and_unknown_prices_explicit(batch_client, monkeypatch):
+    from fasttrade import web
+    client, _ = batch_client
+    monkeypatch.setenv('FASTTRADE_MODEL_PRICES', json.dumps({'jev': {'test-model': {'input_per_million': '1', 'output_per_million': '2'}}}))
+    monkeypatch.setattr(web, 'run_analysis', lambda args: {'decision': {'provider': 'jev', 'model': 'test-model', 'usage': {'input_tokens': 100, 'output_tokens': None}}, 'actionable_signal': None})
+    key = {'X-API-Key': 'test-key'}
+    assert client.post('/v1/analyze', json={'symbol': 'A'}, headers=key).status_code == 200
+    result = client.get('/v1/usage', headers=key).json()['token_cost']
+    assert result['estimated_usd'] == '0.0001'
+    assert result['complete'] is False
+    monkeypatch.setenv('FASTTRADE_MODEL_PRICES', '{}')
+    assert client.post('/v1/analyze', json={'symbol': 'B'}, headers=key).status_code == 200
+    result = client.get('/v1/usage', headers=key).json()['token_cost']
+    assert result['estimated_usd'] == '0.0001'
+    assert result['unpriced_outcomes'] == 1
+    assert result['complete'] is False
+
+
+def test_token_cost_formats_whole_dollar_values_without_losing_zeros(batch_client, monkeypatch):
+    from fasttrade import web
+    client, _ = batch_client
+    monkeypatch.setenv('FASTTRADE_MODEL_PRICES', json.dumps({'jev': {'test-model': {'input_per_million': '10', 'output_per_million': '0'}}}))
+    monkeypatch.setattr(web, 'run_analysis', lambda args: {'decision': {'provider': 'jev', 'model': 'test-model', 'usage': {'input_tokens': 1000000, 'output_tokens': 0}}, 'actionable_signal': None})
+    key = {'X-API-Key': 'test-key'}
+    assert client.post('/v1/analyze', json={'symbol': 'A'}, headers=key).status_code == 200
+    assert client.get('/v1/usage', headers=key).json()['token_cost']['estimated_usd'] == '10'
+
+
+@pytest.mark.parametrize('config', ['not json', '{"jev":{"test-model":{"input_per_million":"NaN","output_per_million":"1"}}}'])
+def test_missing_or_invalid_price_never_implies_free_usage(batch_client, monkeypatch, config):
+    from fasttrade import web
+    client, _ = batch_client
+    monkeypatch.setenv('FASTTRADE_MODEL_PRICES', config)
+    monkeypatch.setattr(web, 'run_analysis', lambda args: {'decision': {'provider': 'jev', 'model': 'test-model', 'usage': {'input_tokens': 10, 'output_tokens': 2}}, 'actionable_signal': None})
+    key = {'X-API-Key': 'test-key'}
+    assert client.post('/v1/analyze', json={'symbol': 'A'}, headers=key).status_code == 200
+    result = client.get('/v1/usage', headers=key).json()['token_cost']
+    assert result['estimated_usd'] is None
+    assert result['unpriced_outcomes'] == 1 and result['complete'] is False
+
+
+def test_token_cost_is_isolated_by_account(batch_client, monkeypatch):
+    from fasttrade import web
+    client, _ = batch_client
+    limits = {'estimate_per_call': '0.01', 'request_cap': '0.10', 'daily_budget': '0.20'}
+    monkeypatch.setenv('FASTTRADE_BATCH_KEY_HASHES', hashed_keys({'test-key': limits, 'other-key': limits}))
+    monkeypatch.setenv('FASTTRADE_MODEL_PRICES', json.dumps({'jev': {'test-model': {'input_per_million': '1', 'output_per_million': '0'}}}))
+    monkeypatch.setattr(web, 'run_analysis', lambda args: {'decision': {'provider': 'jev', 'model': 'test-model', 'usage': {'input_tokens': 1000000, 'output_tokens': 0}}, 'actionable_signal': None})
+    assert client.post('/v1/analyze', json={'symbol': 'A'}, headers={'X-API-Key': 'test-key'}).status_code == 200
+    other = client.get('/v1/usage', headers={'X-API-Key': 'other-key'}).json()['token_cost']
+    assert other['estimated_usd'] == '0' and other['priced_calls'] == 0
+
+
+def test_pending_batch_slots_are_not_reported_as_unpriced_calls(batch_client, monkeypatch):
+    import threading
+    from fasttrade import web
+    client, _ = batch_client
+    entered, release = threading.Event(), threading.Event()
+    def slow(args):
+        entered.set()
+        release.wait(5)
+        return {'decision': {'usage': None}, 'actionable_signal': None}
+    monkeypatch.setattr(web, 'run_analysis', slow)
+    key = {'X-API-Key': 'test-key', 'Idempotency-Key': 'pending-cost'}
+    try:
+        response = client.post('/v1/analyze:batch', json={'symbols': [f'A{i}' for i in range(10)]}, headers=key)
+        assert response.status_code == 202 and entered.wait(3)
+        cost = client.get('/v1/usage', headers=key).json()['token_cost']
+        assert cost['pending_or_unknown_outcomes'] == 10
+        assert cost['unpriced_outcomes'] == 0 and cost['priced_calls'] == 0
+        assert cost['estimated_usd'] is None and cost['complete'] is False
+    finally:
+        release.set()
+    for _ in range(200):
+        job = client.get('/v1/jobs/' + response.json()['id'], headers=key).json()
+        if job['status'] == 'completed':
+            break
+        time.sleep(.02)
+    assert job['status'] == 'completed'
+
+
 def test_reported_tokens_from_retried_calls_are_counted_but_incomplete(batch_client, monkeypatch):
     from fasttrade import web
     client, _ = batch_client

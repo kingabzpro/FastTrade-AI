@@ -30,6 +30,8 @@ Analysis history is kept for the current session by default. Enable “Save hist
 
 Dashboard analysis supports 1m, 2m, 5m, 15m, 30m, and 60m. Alpaca and CSV CLI analysis and automatic SPY signals also support 10m; Yahoo does not. The CLI supports 90m with Yahoo or CSV. Both providers return the most recent bars available at the requested time; timestamps and freshness are validated before use. Credentials stay server-side; never put them in a request or share them.
 
+Market snapshots and indicator calculations are cached per process for at most the candle timeframe or 10 minutes, whichever is shorter. The market cache key includes the exact evaluation cutoff, symbol, timeframe, provider and a credential fingerprint; candle validation and the freshness limit still run for every analysis. A cache hit can contain provider data revised since the snapshot was fetched. Live requests normally have distinct cutoffs and therefore do not share market-data cache entries; repeated historical evaluations can reuse them.
+
 ## Portfolio and risk inputs
 
 Without complete portfolio and risk inputs, you can inspect the model preference as a signal only; the risk-checked action is unavailable (`null` in JSON). Supply your own values and limits through the dashboard or CLI:

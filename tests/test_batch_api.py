@@ -355,6 +355,104 @@ def test_versioned_analysis_requires_authentication_and_reserves_budget(batch_cl
     assert seen == ['AAPL']
     usage = client.get('/v1/usage', headers={'X-API-Key': 'test-key'}).json()
     assert usage['estimated_reserved'] == '0.01'
+    assert usage['usage']['input_tokens_reported'] == 10
+    assert usage['usage']['output_tokens_reported'] == 2
+    assert usage['usage']['complete'] is True
+
+
+def test_legacy_single_reservation_stays_incomplete_and_preserves_budget(batch_client, monkeypatch):
+    import os
+    import sqlite3
+    from datetime import datetime, timezone
+
+    client, _ = batch_client
+    day = datetime.now(timezone.utc).date().isoformat()
+    identity = hashlib.sha256(b'test-key').hexdigest()
+    with sqlite3.connect(os.environ['FASTTRADE_BATCH_DATABASE']) as db:
+        db.execute('CREATE TABLE single_reservations (id TEXT PRIMARY KEY, key_hash TEXT NOT NULL, day TEXT NOT NULL, reserved_micro INTEGER NOT NULL)')
+        db.execute('INSERT INTO single_reservations VALUES (?, ?, ?, ?)', ('legacy', identity, day, 10000))
+    assert client.post('/v1/analyze', json={'symbol': 'A'}, headers={'X-API-Key': 'test-key'}).status_code == 200
+    result = client.get('/v1/usage', headers={'X-API-Key': 'test-key'}).json()
+    assert result['estimated_reserved'] == '0.02'
+    assert result['usage']['input_tokens_reported'] == 10
+    assert result['usage']['output_tokens_reported'] == 2
+    assert result['usage']['complete'] is False
+    with sqlite3.connect(os.environ['FASTTRADE_BATCH_DATABASE']) as db:
+        assert db.execute("SELECT reserved_micro FROM single_reservations WHERE id = 'legacy'").fetchone() == (10000,)
+
+
+def test_single_analysis_preserves_partial_reported_usage(batch_client, monkeypatch):
+    from fasttrade import web
+    client, _ = batch_client
+    monkeypatch.setattr(web, 'run_analysis', lambda args: {'decision': {'usage': {'input_tokens': 7, 'output_tokens': None}}, 'actionable_signal': None})
+    assert client.post('/v1/analyze', json={'symbol': 'A'}, headers={'X-API-Key': 'test-key'}).status_code == 200
+    usage = client.get('/v1/usage', headers={'X-API-Key': 'test-key'}).json()['usage']
+    assert usage['input_tokens_reported'] == 7
+    assert usage['output_tokens_reported'] == 0
+    assert usage['complete'] is False
+
+
+def test_single_usage_storage_failure_keeps_result_and_reservation(batch_client, monkeypatch):
+    from fasttrade import batch_api
+    client, _ = batch_client
+    monkeypatch.setattr(batch_api, 'record_single_usage', lambda *args: (_ for _ in ()).throw(OSError('storage failed')))
+    response = client.post('/v1/analyze', json={'symbol': 'A'}, headers={'X-API-Key': 'test-key'})
+    assert response.status_code == 200
+    result = client.get('/v1/usage', headers={'X-API-Key': 'test-key'}).json()
+    assert result['estimated_reserved'] == '0.01'
+    assert result['usage']['complete'] is False
+
+
+def test_single_usage_is_isolated_by_api_key(batch_client, monkeypatch):
+    client, _ = batch_client
+    limits = {'estimate_per_call': '0.01', 'request_cap': '0.10', 'daily_budget': '0.20'}
+    monkeypatch.setenv('FASTTRADE_BATCH_KEY_HASHES', hashed_keys({'test-key': limits, 'other-key': limits}))
+    assert client.post('/v1/analyze', json={'symbol': 'A'}, headers={'X-API-Key': 'test-key'}).status_code == 200
+    usage = client.get('/v1/usage', headers={'X-API-Key': 'other-key'}).json()
+    assert usage['estimated_reserved'] == '0'
+    assert usage['usage']['input_tokens_reported'] == 0
+    assert usage['usage']['output_tokens_reported'] == 0
+
+
+def test_single_and_batch_tokens_are_combined(batch_client):
+    client, _ = batch_client
+    key = {'X-API-Key': 'test-key'}
+    assert client.post('/v1/analyze', json={'symbol': 'A'}, headers=key).status_code == 200
+    assert client.post('/v1/analyze:batch', json={'symbols': ['B']}, headers={**key, 'Idempotency-Key': 'batch'}).status_code == 200
+    usage = client.get('/v1/usage', headers=key).json()['usage']
+    assert usage['input_tokens_reported'] == 20
+    assert usage['output_tokens_reported'] == 4
+    assert usage['complete'] is True
+
+
+def test_usage_reads_reservations_and_tokens_from_same_snapshot(batch_client, monkeypatch):
+    import os
+    import sqlite3
+    from contextlib import closing
+    from datetime import datetime, timezone
+    from fasttrade import batch_api
+
+    client, _ = batch_client
+    path = os.environ['FASTTRADE_BATCH_DATABASE']
+    with closing(batch_api._db()) as db:
+        db.execute('PRAGMA journal_mode=WAL')
+    original = batch_api._spent
+    identity = hashlib.sha256(b'test-key').hexdigest()
+    day = datetime.now(timezone.utc).date().isoformat()
+    def interleaved_spent(db, key_hash, date):
+        reserved = original(db, key_hash, date)
+        with sqlite3.connect(path) as writer:
+            writer.execute('INSERT INTO single_reservations VALUES (?, ?, ?, ?)', ('concurrent', identity, day, 10000))
+            writer.execute('INSERT INTO single_usage VALUES (?, ?, ?)', ('concurrent', 42, 7))
+        return reserved
+    monkeypatch.setattr(batch_api, '_spent', interleaved_spent)
+    before = client.get('/v1/usage', headers={'X-API-Key': 'test-key'}).json()
+    assert before['estimated_reserved'] == '0'
+    assert before['usage']['input_tokens_reported'] == 0
+    monkeypatch.setattr(batch_api, '_spent', original)
+    after = client.get('/v1/usage', headers={'X-API-Key': 'test-key'}).json()
+    assert after['estimated_reserved'] == '0.01'
+    assert after['usage']['input_tokens_reported'] == 42
 
 
 def test_v1_authenticates_before_body_validation_and_limits_requests(batch_client, monkeypatch):
@@ -396,7 +494,7 @@ def test_versioned_analysis_shares_budget_with_batch(batch_client, monkeypatch):
     batch = client.post('/v1/analyze:batch', json={'symbols': ['B']}, headers={'X-API-Key': 'test-key', 'Idempotency-Key': 'test'})
     assert batch.status_code == 403
     assert seen == ['A']
-    assert client.get('/v1/usage', headers={'X-API-Key': 'test-key'}).json()['usage']['complete'] is False
+    assert client.get('/v1/usage', headers={'X-API-Key': 'test-key'}).json()['usage']['complete'] is True
 
 
 def test_recovery_does_not_steal_jobs_from_live_worker(batch_client, monkeypatch):

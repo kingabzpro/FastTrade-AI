@@ -10,8 +10,8 @@ from concurrent.futures import ThreadPoolExecutor
 
 import pandas as pd
 from dotenv import load_dotenv
-from .market import alpaca, yahoo, validate_candles, INTERVALS
-from .indicators import features, rule_signal
+from .market import alpaca, yahoo, cached_market, validate_candles, INTERVALS
+from .indicators import features, cached_features, rule_signal
 from .decisions import predict, provider_config
 from .risk import evaluate
 
@@ -85,7 +85,7 @@ def run(args):
         frame, details, news = pd.read_csv(args.csv), {}, []
     else:
         provider = yahoo if args.source == 'yahoo' else alpaca
-        frame, details, news = provider(args.symbol, args.timeframe, as_of)
+        frame, details, news = cached_market(provider, args.symbol, args.timeframe, as_of, max_age=max_age)
         if args.as_of:
             # Current company details do not have historical availability timestamps.
             details = {k: v for k, v in details.items() if k == 'exchangeTimezoneName'}
@@ -102,7 +102,7 @@ def run(args):
         stale_preview = True
     zone = args.session_timezone or details.get('exchangeTimezoneName') or 'America/New_York'
     indicator_start = time.perf_counter_ns()
-    snapshot = features(frame, zone)
+    snapshot = cached_features(features, frame, zone, INTERVALS[args.timeframe])
     indicator_ms = (time.perf_counter_ns() - indicator_start) / 1e6
     for name in ('spread', 'liquidity'):
         val = getattr(args, name)

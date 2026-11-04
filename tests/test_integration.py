@@ -67,6 +67,51 @@ def test_cli_selects_yahoo_and_validates_candles(monkeypatch):
         cli.run(args)
 
 
+def test_repeated_historical_analysis_reuses_market_snapshot(monkeypatch):
+    calls = []
+    def provider(*args):
+        calls.append(args)
+        return candles(), {}, []
+    monkeypatch.setattr(cli, 'yahoo', provider)
+    monkeypatch.setattr(cli, 'predict', lambda *args: decisions.normalize(answer(), 1))
+    args = cli.parser().parse_args(['analyze', 'TEST', '--source', 'yahoo', '--as-of', '2026-01-02T19:30:00Z'])
+    cli.run(args)
+    cli.run(args)
+    assert len(calls) == 1
+
+
+def test_cached_candles_still_obey_each_request_freshness_limit(monkeypatch):
+    calls = []
+    def provider(*args):
+        calls.append(args)
+        return candles(), {}, []
+    monkeypatch.setattr(cli, 'yahoo', provider)
+    monkeypatch.setattr(cli, 'predict', lambda *args: decisions.normalize(answer(), 1))
+    args = cli.parser().parse_args(['analyze', 'TEST', '--source', 'yahoo', '--as-of', '2026-01-02T19:31:00Z', '--max-age-seconds', '120'])
+    cli.run(args)
+    args.max_age_seconds = 0
+    with pytest.raises(ValueError, match='stale'):
+        cli.run(args)
+    assert len(calls) == 2
+
+
+def test_stale_rejected_snapshot_does_not_hide_later_fresh_fetch(monkeypatch):
+    calls = []
+    def provider(*args):
+        calls.append(args)
+        frame = candles()
+        if len(calls) > 1:
+            frame['timestamp'] += pd.Timedelta(minutes=1)
+        return frame, {}, []
+    monkeypatch.setattr(cli, 'yahoo', provider)
+    monkeypatch.setattr(cli, 'predict', lambda *args: decisions.normalize(answer(), 1))
+    args = cli.parser().parse_args(['analyze', 'TEST', '--source', 'yahoo', '--as-of', '2026-01-02T19:31:00Z', '--max-age-seconds', '30'])
+    with pytest.raises(ValueError, match='stale'):
+        cli.run(args)
+    cli.run(args)
+    assert len(calls) == 2
+
+
 def test_yahoo_rejects_unsupported_interval_without_request(monkeypatch):
     import yfinance
     monkeypatch.setattr(yfinance, 'Ticker', lambda *args: pytest.fail('request must not start'))

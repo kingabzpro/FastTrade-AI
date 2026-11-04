@@ -170,6 +170,32 @@ def test_recorded_backtest_significance_replays_without_model_calls(tmp_path, mo
     assert result['significance']['confidence_interval'] == pytest.approx([.003917102, .021878244])
 
 
+@pytest.mark.parametrize(('folder_name', 'observations', 'mean', 'interval'), [
+    ('backtest-2026-09-28-alpaca', 3, .012007806862188533, [.0037734611748741673, .0202421525495029]),
+    ('backtest-2026-10', 1, .010036297729023813, None),
+])
+def test_other_recorded_backtests_replay_significance_without_model_calls(tmp_path, monkeypatch, folder_name, observations, mean, interval):
+    from fasttrade import backtest
+    root = Path(__file__).resolve().parents[1] / 'docs' / folder_name
+    original = json.loads((root / 'report.json').read_text(encoding='utf-8'))
+    rows = {(row['symbol'], row['decision_time']): row for row in original['decisions']}
+    def recorded(args):
+        row = rows[(args.symbol, args.as_of)]
+        return {'decision': dict(row, latency_us=row.get('latency_ms', 0) * 1000, confidence=row.get('confidence', 0)),
+                'market': {'candle_timestamp': row['candle_timestamp']}}
+    monkeypatch.setattr(cli, 'run', recorded)
+    args = cli.parser().parse_args(['backtest', '--data-dir', str(root), '--start', original['start'], '--end', original['end'], '--symbols', ','.join(original['symbols']), '--model', original['model_requested'], '--fee-bps', str(original['fee_bps']), '--slippage-bps', str(original['slippage_bps']), '--output', str(tmp_path / 'unused.json')])
+    result = backtest.run(args)
+    for key in ('ending_balance', 'spy_ending_balance', 'total_fees', 'dataset_manifest_sha256'):
+        assert result[key] == original[key]
+    assert result['significance']['observations'] == observations
+    assert result['significance']['mean_weekly_excess_return'] == pytest.approx(mean)
+    if interval is None:
+        assert result['significance']['confidence_interval'] is None
+    else:
+        assert result['significance']['confidence_interval'] == pytest.approx(interval)
+
+
 def test_backtest_does_not_compress_missing_execution_weeks(tmp_path, monkeypatch):
     from fasttrade import backtest
     folder = tmp_path / 'data'

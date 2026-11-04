@@ -1,5 +1,7 @@
 # Usage reference
 
+For the container and private HTTPS API setup, see [deployment](deployment.md).
+
 ## Configuration
 
 Set `TYPESAFE_API_KEY` in `.env` or your environment. Alpaca data additionally requires `ALPACA_API_KEY` and `ALPACA_SECRET_KEY`; Yahoo Finance does not. The defaults are `SYSTEMONE_URL=https://api.typesafe.ai/v1/systemone` and `SYSTEMONE_MODEL=jev-latest`; override them in `.env` to use a compatible provider. Only send credentials to an endpoint you trust. Git ignores `.env`.

@@ -1,0 +1,15 @@
+services:
+  proxy:
+    ports: !override
+      - "${FASTTRADE_PRIVATE_IP:?Set the VPN interface address}:443:443"
+      - "${FASTTRADE_ACME_IP:-127.0.0.1}:80:80"
+    environment:
+      FASTTRADE_DOMAIN: ${FASTTRADE_DOMAIN:?Set a DNS name for HTTPS}
+    volumes: !override
+      - ./Caddyfile.private:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  caddy_data:
+  caddy_config:

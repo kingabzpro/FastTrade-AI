@@ -96,8 +96,9 @@ def run(args):
         provider = yahoo if args.source == 'yahoo' else alpaca
         frame, details, news, snapshot_cutoff = cached_market(provider, args.symbol, args.timeframe, as_of, max_age=max_age, live=args.as_of is None, report_cutoff=True)
         if args.as_of:
-            # Current company details do not have historical availability timestamps.
+            # Current provider metadata and headlines lack verifiable historical availability.
             details = {k: v for k, v in details.items() if k == 'exchangeTimezoneName'}
+            news = []
     stale_preview = False
     try:
         frame = validate_candles(frame, args.timeframe, as_of, max_age)

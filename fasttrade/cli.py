@@ -66,6 +66,7 @@ def add_analysis_arguments(a):
     a.add_argument('--decision-provider', choices=('jev', 'liquid', 'vllm', 'subq', 'baseten'), default='jev')
     a.add_argument('--calibration', help='Calibration artifact JSON from ft calibrate; confidence is then reported and gated calibrated')
     a.add_argument('--require-certified-edge', action='store_true', help='Block actionable signals unless the artifact certifies aggregate net-of-cost edge on its test window')
+    a.add_argument('--edge-horizon', choices=('weekly-next-execution',), help='Declare the holding horizon used by the edge gate')
     for name in ('position', 'equity', 'exposure', 'daily-loss', 'quantity', 'max-position', 'max-exposure', 'max-daily-loss', 'min-confidence'):
         a.add_argument('--' + name, type=float)
     for name in ('trade-count', 'max-trades'):
@@ -123,12 +124,14 @@ def run(args):
         raise ValueError('TYPESAFE_API_KEY is missing')
     if getattr(args, 'require_certified_edge', False) and not getattr(args, 'calibration', None):
         raise ValueError('--require-certified-edge requires --calibration')
-    decision = predict(state, url, model, key)
-    decision['provider'] = provider
     calibration = None
     if getattr(args, 'calibration', None):
-        from .calibration import apply_isotonic, apply_temperature, conformal_interval, load_artifact
+        from .calibration import apply_isotonic, apply_temperature, conformal_interval, load_artifact, valid_calibration_edge, validate_artifact_time
         calibration = load_artifact(args.calibration)
+        validate_artifact_time(calibration, as_of)
+    decision = predict(state, url, model, key)
+    decision['provider'] = provider
+    if calibration is not None and decision['action'] == 'BUY':
         calibrated = float(apply_temperature(decision['probabilities'][decision['action']], calibration['temperature']))
         decision['calibrated_confidence'] = round(calibrated, 6)
         decision['calibration'] = {'method': 'temperature', 'temperature': calibration['temperature'], 'at_bound': calibration.get('at_bound', False), 'fit_target': calibration['fit']['target'], 'fit_horizon': calibration['fit']['horizon'], 'train_end': calibration['train_window']['end'], 'note': 'Fitted on backtest outcomes; research label, not advice'}
@@ -137,7 +140,7 @@ def run(args):
     risk_start = time.perf_counter_ns()
     risk_complete = all(value is not None for value in risk_args.values())
     reasons = evaluate(decision['action'], confidence, snapshot['price'], **risk_args) if any(value is not None for value in risk_args.values()) else []
-    if calibration is not None:
+    if calibration is not None and decision['action'] == 'BUY':
         # Per-trade direction and expected-return numbers are diagnostics; the
         # certifiable object is the aggregate net-of-cost edge on the test window.
         result_extra = {}
@@ -152,12 +155,16 @@ def run(args):
             result_extra['return_interval_lower'] = (round(lower, 8) if lower is not None else None)
         if getattr(args, 'require_certified_edge', False):
             edge = calibration.get('edge') or {}
-            result_extra['edge_certified'] = edge.get('certified') is True
+            result_extra['edge_certified'] = valid_calibration_edge(calibration, decision['model'], args.timeframe, as_of, getattr(args, 'edge_horizon', None), state['symbol'])
             if not result_extra['edge_certified']:
                 suffix = f" ({edge['reason']})" if edge.get('reason') else ''
                 reasons.append('Model edge is not certified by the calibration artifact' + suffix)
     else:
         result_extra = {}
+        if calibration is not None:
+            reasons.append('Calibration is only for BUY decisions')
+            if getattr(args, 'require_certified_edge', False):
+                result_extra['edge_certified'] = False
     if stale_preview:
         reasons.append('Stale market data: research preview only')
     rule = rule_signal(snapshot)

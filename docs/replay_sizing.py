@@ -23,7 +23,7 @@ def replay(*, max_drawdown=None):
                 'market': {'candle_timestamp': row['candle_timestamp']}}
 
     with tempfile.TemporaryDirectory(prefix='fasttrade-sizing-') as directory:
-        arguments = ['backtest', '--data-dir', str(root), '--start', original['start'],
+        arguments = ['backtest', '--slippage-model', 'flat', '--data-dir', str(root), '--start', original['start'],
             '--end', original['end'], '--symbols', ','.join(original['symbols']), '--model', original['model_requested'],
             '--fee-bps', str(original['fee_bps']), '--slippage-bps', str(original['slippage_bps']),
             '--sizing-vol-target', '.1', '--sizing-max-position', '400', '--sizing-max-exposure', '10000',

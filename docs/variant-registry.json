@@ -1,0 +1,81 @@
+{
+  "purpose": "Honest trial count for multiple-testing statistics (reality check, PBO, deflated Sharpe). Lists every benchmarked decision variant with a recorded, reproducible result. Variants tried but never recorded cannot be enumerated, so any trial count from this file is a lower bound.",
+  "updated": "2026-11-07",
+  "decision_variants": [
+    {
+      "id": "h1-controlled-baseline",
+      "dataset": "docs/benchmark-2026-h1-controlled-comparison (sha256-pinned manifest.json, adjusted hourly Yahoo prices)",
+      "period": "2026-01-02 to 2026-06-30, 25 US large caps, weekly reviews",
+      "model": "jev-1.14.0",
+      "config": "Baseline feature set; next hourly open fills; no fees, slippage, or risk checks",
+      "report": "docs/benchmark-2026-h1-controlled-comparison/baseline-report.json",
+      "reproduce": "uv run --locked python docs/benchmark-2026-h1-controlled-comparison/reality_check.py"
+    },
+    {
+      "id": "h1-controlled-new",
+      "dataset": "docs/benchmark-2026-h1-controlled-comparison (same frozen snapshot as h1-controlled-baseline)",
+      "period": "2026-01-02 to 2026-06-30, same dates, symbols, model and execution rules",
+      "model": "jev-1.14.0",
+      "config": "Baseline feature set plus two additional market features",
+      "report": "docs/benchmark-2026-h1-controlled-comparison/new-report.json",
+      "reproduce": "uv run --locked python docs/benchmark-2026-h1-controlled-comparison/reality_check.py"
+    },
+    {
+      "id": "flagship-single-call",
+      "dataset": "docs/backtest-2026-09-28 (Yahoo snapshot, 5 bps commission, 10 bps slippage)",
+      "period": "2026-09-28 warmup, weekly decisions to 2026-10-27, 25 US large caps",
+      "model": "jev-1.14.0",
+      "config": "Single model call per decision; the original published flagship run",
+      "report": "docs/backtest-2026-09-28/report-measured.json",
+      "reproduce": "uv run --locked pytest tests/test_backtest.py::test_other_recorded_backtests_replay_significance_without_model_calls -q"
+    },
+    {
+      "id": "flagship-samples5",
+      "dataset": "docs/backtest-2026-09-28 (same frozen flagship snapshot and rules)",
+      "period": "Same as flagship-single-call",
+      "model": "jev-1.14.0",
+      "config": "--samples 5 self-consistency sampling per decision",
+      "report": "docs/self-consistency-comparison/report-samples5.json",
+      "verdict": "Rejected: identical results at 5x cost on a near-deterministic provider (issue #7); the flag is not on master"
+    },
+    {
+      "id": "alpaca-baseline",
+      "dataset": "docs/backtest-2026-09-28-alpaca (Alpaca IEX hourly snapshot, 5 bps commission, 10 bps slippage)",
+      "period": "2026-09-28 warmup, weekly decisions to 2026-10-27, same 25-stock universe",
+      "model": "jev-1.14.0",
+      "config": "Single model call per decision",
+      "report": "docs/backtest-2026-09-28-alpaca/report.json",
+      "reproduce": "uv run --locked pytest tests/test_backtest.py::test_other_recorded_backtests_replay_significance_without_model_calls -q"
+    },
+    {
+      "id": "tsfm-baseline",
+      "dataset": "docs/backtest-2026-09-28-alpaca (frozen Alpaca snapshot, manifest cf939200...)",
+      "period": "Same as alpaca-baseline",
+      "model": "jev-1.14.0",
+      "config": "Fresh nondeterministic re-run for the forecast pairing, flat-cost execution",
+      "report": "docs/tsfm-comparison/baseline.json",
+      "reproduce": "uv run --locked --extra forecast ft backtest --slippage-model flat --data-dir docs/backtest-2026-09-28-alpaca --start 2026-09-28 --end 2026-10-27 --symbols $(cat docs/backtest-2026-09-28-alpaca/symbols.txt) --model jev-1.14.0 --output baseline-new.json (incurs provider charges)"
+    },
+    {
+      "id": "tsfm-forecast",
+      "dataset": "docs/backtest-2026-09-28-alpaca (same frozen Alpaca snapshot as tsfm-baseline)",
+      "period": "Same as tsfm-baseline",
+      "model": "jev-1.14.0 with Chronos-Bolt Tiny next-bar quantiles supplied (revision a0e552de...)",
+      "config": "Optional local forecast feature enabled; forecast is nondeterministic and unvalidated",
+      "report": "docs/tsfm-comparison/forecast.json",
+      "verdict": "Unvalidated research feature (issue #13): 2.10% versus the paired 2.30% baseline, 16 of 100 actions differ, not equal-cost; a single run per condition cannot separate forecast effects from run-to-run noise"
+    }
+  ],
+  "replay_overlays": [
+    {
+      "note": "These replay the recorded alpaca-baseline decisions under different simulated sizing or execution; they add no decision trials and are excluded from the trial count.",
+      "ids": ["alpaca-sizing-fixed", "alpaca-sizing-volatility", "alpaca-sizing-drawdown", "flat-and-impact-cost-replays"],
+      "reproduce": "uv run --locked python docs/replay_sizing.py [--drawdown .02]; uv run --locked python docs/replay_impact_costs.py"
+    }
+  ],
+  "sharpe_deflation_family": {
+    "ids": ["baseline", "new"],
+    "entries": ["h1-controlled-baseline", "h1-controlled-new"],
+    "note": "IDs are the report comparison_mode values. Only these two recorded variants share one frozen snapshot with complete aligned excess returns, so they are the only family that can be jointly deflated, reality-checked, or CSCV-scored. N=2 is a lower bound on the trials actually run."
+  }
+}

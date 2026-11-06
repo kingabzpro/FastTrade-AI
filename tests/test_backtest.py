@@ -69,6 +69,7 @@ def test_backtest_records_forecast_used_in_each_decision(tmp_path, monkeypatch):
     report = backtest.run(args)
     assert all(item['forecast'] == state['forecast'] for item, state in zip(report['decisions'], states))
     assert all(item['forecast']['status'] == 'unvalidated' for item in report['decisions'])
+    assert all(item['forecast_disagreement']['direction'] == 'flat' for item in report['decisions'])
 
 
 def test_backtest_rejects_modified_data(tmp_path, monkeypatch):

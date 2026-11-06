@@ -53,6 +53,27 @@ def test_backtest_uses_only_past_data_and_charges_costs(tmp_path, monkeypatch):
     assert first['overfitting']['pbo'] is None
     assert first['overfitting']['fold_distribution'] is None
     assert 'multiple variants' in first['overfitting']['reason']
+    assert 'sizing_ablation' not in first
+
+
+def test_opt_in_sizing_compares_fixed_and_targeted_with_explicit_limits(tmp_path, monkeypatch):
+    from fasttrade import backtest
+    folder = tmp_path / 'data'
+    dataset(folder)
+    monkeypatch.setattr(cli, 'predict', lambda *args: {'action': 'BUY', 'confidence': .8, 'probabilities': {'BUY': .8, 'HOLD': .1, 'SELL': .1}, 'model': 'test', 'latency_us': 1, 'usage': None})
+    args = cli.parser().parse_args(['backtest', '--data-dir', str(folder), '--start', '2026-01-19', '--end', '2026-01-27', '--symbols', 'AAPL', '--model', 'test', '--output', str(folder / 'report.json'), '--sizing-vol-target', '.1', '--sizing-max-position', '1000', '--sizing-max-exposure', '1000', '--sizing-max-daily-loss', '10000', '--sizing-max-trades', '2', '--sizing-min-confidence', '.5'])
+    result = backtest.run(args)['sizing_ablation']
+    assert result['fixed']['ending_balance'] == result['volatility_targeted']['ending_balance']
+    assert result['fixed']['evaluations'][0]['executed'] is True
+    assert result['volatility_targeted']['evaluations'][0]['weight'] == 1
+
+
+def test_sizing_requires_explicit_limits_before_model_requests(tmp_path, monkeypatch):
+    from fasttrade import backtest
+    monkeypatch.setattr(cli, 'predict', lambda *args: pytest.fail('Model must not be called'))
+    args = cli.parser().parse_args(['backtest', '--data-dir', str(tmp_path), '--start', '2026-01-19', '--end', '2026-01-27', '--symbols', 'AAPL', '--output', str(tmp_path / 'report.json'), '--sizing-vol-target', '.1'])
+    with pytest.raises(ValueError, match='sizing risk limits'):
+        backtest.run(args)
 
 
 def test_backtest_records_forecast_used_in_each_decision(tmp_path, monkeypatch):

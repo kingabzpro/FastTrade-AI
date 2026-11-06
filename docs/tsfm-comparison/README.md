@@ -22,6 +22,6 @@ Re-running incurs model-provider charges and can yield different results. In Pow
 
 ```powershell
 $symbols = (Get-Content docs/backtest-2026-09-28-alpaca/symbols.txt -Raw).Trim()
-uv run --locked --extra forecast ft backtest --data-dir docs/backtest-2026-09-28-alpaca --start 2026-09-28 --end 2026-10-27 --symbols $symbols --model jev-1.14.0 --output baseline-new.json
-uv run --locked --extra forecast ft backtest --data-dir docs/backtest-2026-09-28-alpaca --start 2026-09-28 --end 2026-10-27 --symbols $symbols --model jev-1.14.0 --forecast --output forecast-new.json
+uv run --locked --extra forecast ft backtest --slippage-model flat --data-dir docs/backtest-2026-09-28-alpaca --start 2026-09-28 --end 2026-10-27 --symbols $symbols --model jev-1.14.0 --output baseline-new.json
+uv run --locked --extra forecast ft backtest --slippage-model flat --data-dir docs/backtest-2026-09-28-alpaca --start 2026-09-28 --end 2026-10-27 --symbols $symbols --model jev-1.14.0 --forecast --output forecast-new.json
 ```

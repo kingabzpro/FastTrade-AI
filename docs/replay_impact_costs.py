@@ -22,7 +22,7 @@ def h1_sessions(start, end):
     return schedule.reset_index(drop=True)
 
 
-def replay():
+def replay(*, slippage_model='flat'):
     root = Path(__file__).resolve().parent / 'backtest-2026-09-28'
     report_bytes = (root / 'report-measured.json').read_bytes()
     original = json.loads(report_bytes)
@@ -34,18 +34,25 @@ def replay():
                 'market': {'candle_timestamp': row['candle_timestamp']}}
 
     with tempfile.TemporaryDirectory(prefix='fasttrade-impact-') as directory:
-        args = cli.parser().parse_args(['backtest', '--data-dir', str(root), '--start', original['start'],
+        args = cli.parser().parse_args(['backtest', '--slippage-model', slippage_model, '--data-dir', str(root), '--start', original['start'],
             '--end', original['end'], '--symbols', ','.join(original['symbols']), '--model', original['model_requested'],
             '--fee-bps', str(original['fee_bps']), '--slippage-bps', str(original['slippage_bps']),
             '--output', str(Path(directory) / 'unused.json')])
         with patch.object(cli, 'run', recorded):
             result = backtest.run(args)
-    for name in ('ending_balance', 'spy_ending_balance', 'total_fees', 'dataset_manifest_sha256'):
+    checks = ('ending_balance', 'spy_ending_balance', 'total_fees', 'dataset_manifest_sha256') if slippage_model == 'flat' else ('dataset_manifest_sha256',)
+    for name in checks:
         if result[name] != original[name]:
             raise ValueError(f'Recorded backtest does not replay: {name}')
+    if slippage_model == 'impact':
+        scenario = result['impact_sensitivity']['scenarios'][1]
+        if result['ending_balance'] != scenario['ending_balance'] or result['spy_ending_balance'] != scenario['spy_ending_balance']:
+            raise ValueError('Primary impact and replay do not match')
     return {'report_sha256': hashlib.sha256(report_bytes).hexdigest(),
             'dataset_manifest_sha256': result['dataset_manifest_sha256'],
-            'flat_1x_ending_balance': result['ending_balance'],
+            'flat_1x_ending_balance': original['ending_balance'],
+            'primary_ending_balance': result['ending_balance'], 'primary_return_pct': result['return_pct'],
+            'primary_spy_return_pct': result['spy_return_pct'], 'slippage_model': slippage_model,
             'impact_sensitivity': result['impact_sensitivity']}
 
 
@@ -83,6 +90,7 @@ def replay_h1():
 
 
 if __name__ == '__main__':
-    if sys.argv[1:] not in ([], ['--h1']):
-        raise SystemExit('Usage: replay_impact_costs.py [--h1]')
-    print(json.dumps(replay_h1() if sys.argv[1:] else replay(), indent=2))
+    if sys.argv[1:] not in ([], ['--h1'], ['--primary-impact']):
+        raise SystemExit('Usage: replay_impact_costs.py [--h1 | --primary-impact]')
+    result = replay_h1() if sys.argv[1:] == ['--h1'] else replay(slippage_model='impact' if sys.argv[1:] else 'flat')
+    print(json.dumps(result, indent=2))

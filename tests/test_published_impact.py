@@ -15,6 +15,17 @@ def test_published_impact_replay_matches_flat_reference_and_reports_scenarios():
     assert all(row['trades'] for row in scenarios)
 
 
+def test_recorded_flagship_uses_primary_impact_without_provider_calls():
+    path = Path(__file__).resolve().parents[1] / 'docs' / 'replay_impact_costs.py'
+    spec = importlib.util.spec_from_file_location('replay_impact_costs', path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    result = module.replay(slippage_model='impact')
+    assert result['primary_return_pct'] == 2.42
+    assert result['primary_spy_return_pct'] == -.06
+    assert result['primary_ending_balance'] == result['impact_sensitivity']['scenarios'][1]['ending_balance']
+
+
 def test_controlled_h1_impact_replay_matches_recorded_no_cost_result():
     path = Path(__file__).resolve().parents[1] / 'docs' / 'replay_impact_costs.py'
     spec = importlib.util.spec_from_file_location('replay_impact_costs', path)

@@ -39,7 +39,8 @@ def parser():
     t.add_argument('--symbols', required=True, help='Comma-separated US ticker symbols')
     t.add_argument('--model', default=None, help='SystemOne model; defaults to SYSTEMONE_MODEL')
     t.add_argument('--fee-bps', type=float, default=5, help='Commission in basis points per side (default 5)')
-    t.add_argument('--slippage-bps', type=float, default=10, help='Slippage in basis points per side (default 10)')
+    t.add_argument('--slippage-bps', type=float, default=10, help='Flat slippage in basis points per side for flat mode and comparisons (default 10)')
+    t.add_argument('--slippage-model', choices=('impact', 'flat'), default='impact', help='Primary execution model (default impact; flat preserves legacy behavior)')
     t.add_argument('--forecast', action='store_true', help='Include an unvalidated local next-bar forecast')
     t.add_argument('--sizing-vol-target', type=float, help='Opt in to a risk-checked annual volatility-target sizing comparison')
     for name in ('max-position', 'max-exposure', 'max-daily-loss', 'min-confidence'):

@@ -17,7 +17,7 @@ from dotenv import load_dotenv
 from . import cli
 from .calibration import stationary_bootstrap_means
 from .market import validate_candles
-from .impact import impact_bps, liquidity
+from .impact import impact_fill, liquidity
 
 
 def replay_costs(sessions, frames, symbols, decisions, dividends, start, end, initial, fee, slip, multiplier, *, impact=False):
@@ -50,20 +50,7 @@ def replay_costs(sessions, frames, symbols, decisions, dividends, start, end, in
         info = liquidity(sessions, frames[symbol], pd.Timestamp(cutoff), dividends=symbol_dividends)
         if info is None:
             raise ValueError(f'Insufficient prior liquidity history for {symbol} at {cutoff}')
-        def rate(quantity):
-            return impact_bps(quantity, info['daily_volatility'], info['daily_volume']) * multiplier / 10000
-        if action == 'BUY':
-            low, high = 0.0, amount / (price * (1 + fee))
-            for _ in range(50):
-                middle = (low + high) / 2
-                if middle * price * (1 + rate(middle)) * (1 + fee) <= amount:
-                    low = middle
-                else:
-                    high = middle
-            quantity = low
-        else:
-            quantity = amount
-        slippage = rate(quantity)
+        quantity, slippage = impact_fill(action, amount, price, info, fee, multiplier)
         impact_trades.append({'symbol': symbol, 'action': action, 'decision_time': cutoff,
                               'quantity': quantity, 'impact_bps': slippage * 10000, **info})
         return quantity, slippage
@@ -114,6 +101,9 @@ def replay_costs(sessions, frames, symbols, decisions, dividends, start, end, in
 
 
 def run(args):
+    slippage_model = getattr(args, 'slippage_model', 'impact')
+    if slippage_model not in ('impact', 'flat'):
+        raise ValueError('Unsupported slippage model')
     sizing_names = ('max_position', 'max_exposure', 'max_daily_loss', 'max_trades', 'min_confidence')
     sizing_target = getattr(args, 'sizing_vol_target', None)
     sizing_drawdown = getattr(args, 'sizing_max_drawdown', None)
@@ -219,6 +209,7 @@ def run(args):
     review = {i for i in weeks.values() if start <= sessions.date.iloc[i] <= end and i + 1 < len(sessions) and sessions.date.iloc[i+1] <= end}
     if not review:
         raise ValueError('No completed weekly review with an execution session in the date range')
+    impact_windows = {}
     for i in review:
         last_bar = pd.date_range(sessions.open.iloc[i], sessions.close.iloc[i], freq='h', inclusive='left')[-1]
         decision_time = last_bar + pd.Timedelta(hours=1)
@@ -226,6 +217,13 @@ def run(args):
             raise ValueError('Execution must occur after the completed decision candle')
         if any(len(frame.loc[:last_bar]) < 50 for frame in frames.values()):
             raise ValueError('At least 50 completed warmup candles are required')
+        if slippage_model == 'impact':
+            for symbol, frame in frames.items():
+                events = {day: event[0] for (name, day), event in dividends.items() if name == symbol}
+                info = liquidity(sessions, frame, decision_time, dividends=events)
+                if info is None:
+                    raise ValueError(f'Insufficient prior liquidity history for {symbol} at {decision_time.isoformat()}')
+                impact_windows[(decision_time, symbol)] = info
     load_dotenv()
     model = args.model or os.getenv('SYSTEMONE_MODEL', 'jev-latest')
     fee, slip = args.fee_bps / 10000, args.slippage_bps / 10000
@@ -240,6 +238,8 @@ def run(args):
     receivables = {s: 0.0 for s in [*symbols, 'SPY']}
     dividend_ledger = []
     first_execution = None
+    pending_cutoff = None
+    spy_entry_impact = None
     execution_values = []
     with tempfile.TemporaryDirectory(prefix='fasttrade-backtest-') as directory:
         paths = {}
@@ -262,29 +262,48 @@ def run(args):
                 execution_values.append((session.date, portfolio_open, spy_open))
                 if first_execution is None:
                     first_execution = session.open
-                    spy_price = float(frames['SPY'].loc[session.open, 'open']) * (1 + slip)
-                    spy_shares = initial / (spy_price * (1 + fee))
+                    spy_open_price = float(frames['SPY'].loc[session.open, 'open'])
+                    if slippage_model == 'impact':
+                        info = impact_windows[(pending_cutoff, 'SPY')]
+                        spy_shares, spy_slip = impact_fill('BUY', initial, spy_open_price, info, fee)
+                        spy_entry_impact = {'decision_time': pending_cutoff.isoformat(), 'impact_bps': spy_slip * 10000, **info}
+                    else:
+                        spy_shares = initial / (spy_open_price * (1 + slip) * (1 + fee))
                 for symbol, action in pending.items():
                     open_price = float(frames[symbol].loc[session.open, 'open'])
                     if action == 'BUY' and cash[symbol] > 0:
-                        price = open_price * (1 + slip)
-                        quantity = cash[symbol] / (price * (1 + fee))
+                        if slippage_model == 'impact':
+                            info = impact_windows[(pending_cutoff, symbol)]
+                            quantity, execution_slip = impact_fill(action, cash[symbol], open_price, info, fee)
+                        else:
+                            execution_slip = slip
+                            quantity = cash[symbol] / (open_price * (1 + slip) * (1 + fee))
+                        price = open_price * (1 + execution_slip)
                         commission = quantity * price * fee
                         shares[symbol], cash[symbol] = quantity, 0.0
                     elif action == 'SELL' and shares[symbol] > 0:
-                        price = open_price * (1 - slip)
                         quantity = shares[symbol]
+                        if slippage_model == 'impact':
+                            info = impact_windows[(pending_cutoff, symbol)]
+                            _, execution_slip = impact_fill(action, quantity, open_price, info, fee)
+                        else:
+                            execution_slip = slip
+                        price = open_price * (1 - execution_slip)
                         commission = quantity * price * fee
                         cash[symbol], shares[symbol] = quantity * price - commission, 0.0
                     else:
                         continue
                     trades.append({'symbol': symbol, 'time': session.open.isoformat(), 'action': action, 'reference_open': open_price, 'fill_price': price, 'shares': quantity, 'fee': commission})
+                    if slippage_model == 'impact':
+                        trades[-1]['impact'] = {'decision_time': pending_cutoff.isoformat(), 'impact_bps': execution_slip * 10000, **info}
+                        trades[-1]['impact_bps'] = execution_slip * 10000
                 pending = {}
             last_bar = pd.date_range(session.open, session.close, freq='h', inclusive='left')[-1]
             equity = sum(cash[s] + shares[s] * float(frames[s].loc[last_bar, 'close']) + receivables[s] for s in symbols)
             curve.append({'date': str(session.date), 'equity': equity})
             if i in review:
                 decision_time = last_bar + pd.Timedelta(hours=1)
+                pending_cutoff = decision_time
                 print(f'Backtest review {session.date}: {len(symbols)} model decisions', file=sys.stderr, flush=True)
                 for symbol in symbols:
                     analysis = cli.parser().parse_args(['analyze', symbol, '--timeframe', '60m', '--csv', str(paths[symbol]), '--as-of', decision_time.isoformat()])
@@ -342,4 +361,4 @@ def run(args):
             sizing_ablation['sizing_ablation']['drawdown'] = replay_sizing(*common, max_drawdown=sizing_drawdown)
         if sizing_drawdown is not None:
             sizing_ablation['sizing_ablation']['max_drawdown'] = sizing_drawdown
-    return {'start': str(start), 'end': str(end), 'symbols': symbols, 'model_requested': model, 'model_resolved': resolved_model, 'model_retries': retries, 'mean_model_latency_ms': round(sum(d['latency_ms'] for d in decisions) / len(decisions), 2), 'input_tokens_successful': sum(d['usage']['input_tokens'] for d in decisions if d['usage'] is not None), 'usage_complete': usage_complete, 'dataset_manifest_sha256': hashlib.sha256(manifest_bytes).hexdigest(), 'fee_bps': args.fee_bps, 'slippage_bps': args.slippage_bps, 'initial_balance': initial, 'first_execution_time': first_execution.isoformat(), 'ending_balance': round(ending, 2), 'return_pct': round((ending / initial - 1) * 100, 2), 'spy_ending_balance': round(spy_ending, 2), 'spy_return_pct': round((spy_ending / initial - 1) * 100, 2), 'max_drawdown_pct': round(drawdown * 100, 2), 'total_fees': round(sum(t['fee'] for t in trades), 2), 'dividend_receivables': round(sum(receivables[s] for s in symbols), 2), 'spy_dividend_receivables': round(receivables['SPY'], 2), 'dividends': dividend_ledger, 'decisions': decisions, 'trades': trades, 'equity_curve': curve, 'significance': significance, 'cost_sensitivity': sensitivity, 'impact_sensitivity': impact_sensitivity, **sizing_ablation, 'overfitting': {'pbo': None, 'fold_distribution': None, 'reason': 'requires aligned returns from multiple variants'}, 'limitations': 'The input manifest is an unverified attestation; corporate actions, model training knowledge, survivorship and hindsight selection are not verified. Only cash dividends payable after the test are supported; no split accounting. Primary fees and slippage are flat assumptions; the separate impact replay uses uncalibrated liquidity and cost assumptions and does not model spread or partial fills.'}
+    return {'start': str(start), 'end': str(end), 'symbols': symbols, 'model_requested': model, 'model_resolved': resolved_model, 'model_retries': retries, 'mean_model_latency_ms': round(sum(d['latency_ms'] for d in decisions) / len(decisions), 2), 'input_tokens_successful': sum(d['usage']['input_tokens'] for d in decisions if d['usage'] is not None), 'usage_complete': usage_complete, 'dataset_manifest_sha256': hashlib.sha256(manifest_bytes).hexdigest(), 'fee_bps': args.fee_bps, 'slippage_model': slippage_model, 'slippage_bps': args.slippage_bps if slippage_model == 'flat' else None, 'flat_slippage_bps': args.slippage_bps, 'spy_entry_impact': spy_entry_impact, 'initial_balance': initial, 'first_execution_time': first_execution.isoformat(), 'ending_balance': round(ending, 2), 'return_pct': round((ending / initial - 1) * 100, 2), 'spy_ending_balance': round(spy_ending, 2), 'spy_return_pct': round((spy_ending / initial - 1) * 100, 2), 'max_drawdown_pct': round(drawdown * 100, 2), 'total_fees': round(sum(t['fee'] for t in trades), 2), 'dividend_receivables': round(sum(receivables[s] for s in symbols), 2), 'spy_dividend_receivables': round(receivables['SPY'], 2), 'dividends': dividend_ledger, 'decisions': decisions, 'trades': trades, 'equity_curve': curve, 'significance': significance, 'cost_sensitivity': sensitivity, 'impact_sensitivity': impact_sensitivity, **sizing_ablation, 'overfitting': {'pbo': None, 'fold_distribution': None, 'reason': 'requires aligned returns from multiple variants'}, 'limitations': 'The input manifest is an unverified attestation; corporate actions, model training knowledge, survivorship and hindsight selection are not verified. Only cash dividends payable after the test are supported; no split accounting. Fees, flat slippage, and square-root impact are assumptions; the impact model is uncalibrated and does not model spread or partial fills.'}

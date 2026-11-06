@@ -28,10 +28,10 @@ The same recorded decisions can also be replayed with a hypothetical square-root
 | 1× | +2.42% | −0.06% |
 | 2× | +2.35% | −0.12% |
 
-All 33 simulated fills, including SPY, hit the 1 bps floor before scaling; the shortest history had nine completed sessions. The coefficient and floor are assumptions, not calibrated estimates, and the cap can understate large orders. This model omits bid-ask spread, partial fills and other costs. Yahoo volume and history may be revised and are not verified point-in-time. Consequently the apparently lower cost than the flat 10 bps assumption is not evidence that real executions would be cheaper. Reproduce the calculations and per-fill inputs with `uv run --locked python docs/replay_impact_costs.py`; it checks the original report balances and dataset manifest without provider calls. New backtests include this replay in `impact_sensitivity`, with an unavailable reason if required volume or history is missing.
+All 33 simulated fills, including SPY, hit the 1 bps floor before scaling; the shortest history had nine completed sessions. The coefficient and floor are assumptions, not calibrated estimates, and the cap can understate large orders. This model omits bid-ask spread, partial fills and other costs. Yahoo volume and history may be revised and are not verified point-in-time. Consequently the apparently lower cost than the flat 10 bps assumption is not evidence that real executions would be cheaper. Reproduce the calculations and per-fill inputs with `uv run --locked python docs/replay_impact_costs.py`; it checks the original flat report balances and dataset manifest without provider calls. Add `--primary-impact` to run the same recorded decisions through the primary impact execution path and verify it matches the 1× impact replay. New backtests default to impact execution and include both sensitivity models; use `--slippage-model flat` for the historical primary assumptions.
 
 To rerun using the frozen dataset, choose a new output filename:
 
 ```powershell
-$symbols = (Get-Content docs/backtest-2026-09-28/symbols.txt -Raw).Trim(); uv run ft backtest --data-dir docs/backtest-2026-09-28 --start 2026-09-28 --end 2026-10-27 --symbols $symbols --model jev-1.14.0 --output .\backtest-report.json
+$symbols = (Get-Content docs/backtest-2026-09-28/symbols.txt -Raw).Trim(); uv run ft backtest --slippage-model flat --data-dir docs/backtest-2026-09-28 --start 2026-09-28 --end 2026-10-27 --symbols $symbols --model jev-1.14.0 --output .\backtest-report.json
 ```

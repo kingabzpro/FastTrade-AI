@@ -32,7 +32,7 @@ def run_fixture(folder, monkeypatch):
         states.append(state)
         return {'action': 'BUY', 'confidence': .8, 'probabilities': {'BUY': .8, 'HOLD': .1, 'SELL': .1}, 'model': model, 'latency_us': 1000, 'usage': {'input_tokens': 500, 'output_tokens': 5}}
     monkeypatch.setattr(cli, 'predict', predict)
-    args = cli.parser().parse_args(['backtest', '--data-dir', str(folder), '--start', '2026-01-19', '--end', '2026-01-27', '--symbols', 'AAPL', '--model', 'test', '--output', str(folder / 'report.json')])
+    args = cli.parser().parse_args(['backtest', '--slippage-model', 'flat', '--data-dir', str(folder), '--start', '2026-01-19', '--end', '2026-01-27', '--symbols', 'AAPL', '--model', 'test', '--output', str(folder / 'report.json')])
     return backtest.run(args), states
 
 
@@ -61,7 +61,7 @@ def test_opt_in_sizing_compares_fixed_and_targeted_with_explicit_limits(tmp_path
     folder = tmp_path / 'data'
     dataset(folder)
     monkeypatch.setattr(cli, 'predict', lambda *args: {'action': 'BUY', 'confidence': .8, 'probabilities': {'BUY': .8, 'HOLD': .1, 'SELL': .1}, 'model': 'test', 'latency_us': 1, 'usage': None})
-    args = cli.parser().parse_args(['backtest', '--data-dir', str(folder), '--start', '2026-01-19', '--end', '2026-01-27', '--symbols', 'AAPL', '--model', 'test', '--output', str(folder / 'report.json'), '--sizing-vol-target', '.1', '--sizing-max-position', '1000', '--sizing-max-exposure', '1000', '--sizing-max-daily-loss', '10000', '--sizing-max-trades', '2', '--sizing-min-confidence', '.5'])
+    args = cli.parser().parse_args(['backtest', '--slippage-model', 'flat', '--data-dir', str(folder), '--start', '2026-01-19', '--end', '2026-01-27', '--symbols', 'AAPL', '--model', 'test', '--output', str(folder / 'report.json'), '--sizing-vol-target', '.1', '--sizing-max-position', '1000', '--sizing-max-exposure', '1000', '--sizing-max-daily-loss', '10000', '--sizing-max-trades', '2', '--sizing-min-confidence', '.5'])
     result = backtest.run(args)['sizing_ablation']
     assert result['fixed']['ending_balance'] == result['volatility_targeted']['ending_balance']
     assert result['fixed']['evaluations'][0]['executed'] is True
@@ -73,7 +73,7 @@ def test_drawdown_option_is_recorded_in_both_sizing_replays(tmp_path, monkeypatc
     folder = tmp_path / 'data'
     dataset(folder)
     monkeypatch.setattr(cli, 'predict', lambda *args: {'action': 'BUY', 'confidence': .8, 'probabilities': {'BUY': .8, 'HOLD': .1, 'SELL': .1}, 'model': 'test', 'latency_us': 1, 'usage': None})
-    args = cli.parser().parse_args(['backtest', '--data-dir', str(folder), '--start', '2026-01-19', '--end', '2026-01-27', '--symbols', 'AAPL', '--model', 'test', '--output', str(folder / 'report.json'), '--sizing-vol-target', '.1', '--sizing-max-position', '1000', '--sizing-max-exposure', '1000', '--sizing-max-daily-loss', '10000', '--sizing-max-trades', '2', '--sizing-min-confidence', '0', '--sizing-max-drawdown', '.2'])
+    args = cli.parser().parse_args(['backtest', '--slippage-model', 'flat', '--data-dir', str(folder), '--start', '2026-01-19', '--end', '2026-01-27', '--symbols', 'AAPL', '--model', 'test', '--output', str(folder / 'report.json'), '--sizing-vol-target', '.1', '--sizing-max-position', '1000', '--sizing-max-exposure', '1000', '--sizing-max-daily-loss', '10000', '--sizing-max-trades', '2', '--sizing-min-confidence', '0', '--sizing-max-drawdown', '.2'])
     result = backtest.run(args)['sizing_ablation']
     assert result['max_drawdown'] == .2
     assert result['fixed']['drawdown_checks']
@@ -83,7 +83,7 @@ def test_drawdown_option_is_recorded_in_both_sizing_replays(tmp_path, monkeypatc
 def test_sizing_requires_explicit_limits_before_model_requests(tmp_path, monkeypatch):
     from fasttrade import backtest
     monkeypatch.setattr(cli, 'predict', lambda *args: pytest.fail('Model must not be called'))
-    args = cli.parser().parse_args(['backtest', '--data-dir', str(tmp_path), '--start', '2026-01-19', '--end', '2026-01-27', '--symbols', 'AAPL', '--output', str(tmp_path / 'report.json'), '--sizing-vol-target', '.1'])
+    args = cli.parser().parse_args(['backtest', '--slippage-model', 'flat', '--data-dir', str(tmp_path), '--start', '2026-01-19', '--end', '2026-01-27', '--symbols', 'AAPL', '--output', str(tmp_path / 'report.json'), '--sizing-vol-target', '.1'])
     with pytest.raises(ValueError, match='sizing risk limits'):
         backtest.run(args)
 
@@ -91,7 +91,7 @@ def test_sizing_requires_explicit_limits_before_model_requests(tmp_path, monkeyp
 def test_drawdown_option_requires_explicit_limits_and_is_validated_before_model_requests(tmp_path, monkeypatch):
     from fasttrade import backtest
     monkeypatch.setattr(cli, 'predict', lambda *args: pytest.fail('Model must not be called'))
-    common = ['backtest', '--data-dir', str(tmp_path), '--start', '2026-01-19', '--end', '2026-01-27', '--symbols', 'AAPL', '--output', str(tmp_path / 'report.json')]
+    common = ['backtest', '--slippage-model', 'flat', '--data-dir', str(tmp_path), '--start', '2026-01-19', '--end', '2026-01-27', '--symbols', 'AAPL', '--output', str(tmp_path / 'report.json')]
     args = cli.parser().parse_args([*common, '--sizing-max-drawdown', '.2'])
     with pytest.raises(ValueError, match='sizing risk limits'):
         backtest.run(args)
@@ -105,7 +105,7 @@ def test_drawdown_overlay_can_be_used_without_volatility_target(tmp_path, monkey
     folder = tmp_path / 'data'
     dataset(folder)
     monkeypatch.setattr(cli, 'predict', lambda *args: {'action': 'BUY', 'confidence': .8, 'probabilities': {'BUY': .8, 'HOLD': .1, 'SELL': .1}, 'model': 'test', 'latency_us': 1, 'usage': None})
-    args = cli.parser().parse_args(['backtest', '--data-dir', str(folder), '--start', '2026-01-19', '--end', '2026-01-27', '--symbols', 'AAPL', '--model', 'test', '--output', str(folder / 'report.json'), '--sizing-max-position', '1000', '--sizing-max-exposure', '1000', '--sizing-max-daily-loss', '10000', '--sizing-max-trades', '2', '--sizing-min-confidence', '0', '--sizing-max-drawdown', '.2'])
+    args = cli.parser().parse_args(['backtest', '--slippage-model', 'flat', '--data-dir', str(folder), '--start', '2026-01-19', '--end', '2026-01-27', '--symbols', 'AAPL', '--model', 'test', '--output', str(folder / 'report.json'), '--sizing-max-position', '1000', '--sizing-max-exposure', '1000', '--sizing-max-daily-loss', '10000', '--sizing-max-trades', '2', '--sizing-min-confidence', '0', '--sizing-max-drawdown', '.2'])
     result = backtest.run(args)['sizing_ablation']
     assert result['max_drawdown'] == .2
     assert result['drawdown']['drawdown_checks']
@@ -122,7 +122,7 @@ def test_backtest_records_forecast_used_in_each_decision(tmp_path, monkeypatch):
         states.append(state)
         return {'action': 'BUY', 'confidence': .8, 'probabilities': {'BUY': .8, 'HOLD': .1, 'SELL': .1}, 'model': model, 'latency_us': 1000, 'usage': {'input_tokens': 500, 'output_tokens': 5}}
     monkeypatch.setattr(cli, 'predict', predict)
-    args = cli.parser().parse_args(['backtest', '--data-dir', str(folder), '--start', '2026-01-19', '--end', '2026-01-27', '--symbols', 'AAPL', '--model', 'test', '--output', str(folder / 'report.json'), '--forecast'])
+    args = cli.parser().parse_args(['backtest', '--slippage-model', 'flat', '--data-dir', str(folder), '--start', '2026-01-19', '--end', '2026-01-27', '--symbols', 'AAPL', '--model', 'test', '--output', str(folder / 'report.json'), '--forecast'])
     report = backtest.run(args)
     assert all(item['forecast'] == state['forecast'] for item, state in zip(report['decisions'], states))
     assert all(item['forecast']['status'] == 'unvalidated' for item in report['decisions'])
@@ -135,7 +135,7 @@ def test_backtest_rejects_modified_data(tmp_path, monkeypatch):
     dataset(folder)
     with (folder / 'AAPL.csv').open('a') as f:
         f.write('\n')
-    args = cli.parser().parse_args(['backtest', '--data-dir', str(folder), '--start', '2026-01-19', '--end', '2026-01-27', '--symbols', 'AAPL', '--output', str(folder / 'report.json')])
+    args = cli.parser().parse_args(['backtest', '--slippage-model', 'flat', '--data-dir', str(folder), '--start', '2026-01-19', '--end', '2026-01-27', '--symbols', 'AAPL', '--output', str(folder / 'report.json')])
     with pytest.raises(ValueError, match='checksum'):
         backtest.run(args)
 
@@ -158,7 +158,7 @@ def test_backtest_sells_existing_shares_and_applies_both_sides(tmp_path, monkeyp
     manifest_path.write_text(json.dumps(manifest))
     actions = iter(['BUY', 'SELL'])
     monkeypatch.setattr(cli, 'predict', lambda *args: {'action': next(actions), 'confidence': .8, 'probabilities': {'BUY': .8, 'HOLD': .1, 'SELL': .1}, 'model': 'test', 'latency_us': 1})
-    args = cli.parser().parse_args(['backtest', '--data-dir', str(folder), '--start', '2026-01-19', '--end', '2026-02-03', '--symbols', 'AAPL', '--model', 'test', '--output', str(folder / 'report.json')])
+    args = cli.parser().parse_args(['backtest', '--slippage-model', 'flat', '--data-dir', str(folder), '--start', '2026-01-19', '--end', '2026-02-03', '--symbols', 'AAPL', '--model', 'test', '--output', str(folder / 'report.json')])
     result = backtest.run(args)
     expected_shares = 10000 / (100 * 1.001 * 1.0005)
     assert [t['action'] for t in result['trades']] == ['BUY', 'SELL']
@@ -186,7 +186,7 @@ def test_backtest_compares_complete_execution_intervals_to_spy(tmp_path, monkeyp
     manifest['sha256']['SPY.csv'] = hashlib.sha256((folder / 'SPY.csv').read_bytes()).hexdigest()
     manifest_path.write_text(json.dumps(manifest))
     monkeypatch.setattr(cli, 'predict', lambda *args: {'action': 'BUY', 'confidence': .8, 'probabilities': {'BUY': .8, 'HOLD': .1, 'SELL': .1}, 'model': 'test', 'latency_us': 1})
-    args = cli.parser().parse_args(['backtest', '--data-dir', str(folder), '--start', '2026-01-19', '--end', '2026-02-10', '--symbols', 'AAPL', '--model', 'test', '--fee-bps', '0', '--slippage-bps', '0', '--output', str(folder / 'report.json')])
+    args = cli.parser().parse_args(['backtest', '--slippage-model', 'flat', '--data-dir', str(folder), '--start', '2026-01-19', '--end', '2026-02-10', '--symbols', 'AAPL', '--model', 'test', '--fee-bps', '0', '--slippage-bps', '0', '--output', str(folder / 'report.json')])
     result = backtest.run(args)
     significance = result['significance']
     assert significance['observations'] == 2
@@ -201,7 +201,7 @@ def test_backtest_significance_includes_first_spy_entry_cost(tmp_path, monkeypat
     folder = tmp_path / 'data'
     dataset(folder)
     monkeypatch.setattr(cli, 'predict', lambda *args: {'action': 'HOLD', 'confidence': .8, 'probabilities': {'BUY': .1, 'HOLD': .8, 'SELL': .1}, 'model': 'test', 'latency_us': 1})
-    args = cli.parser().parse_args(['backtest', '--data-dir', str(folder), '--start', '2026-01-19', '--end', '2026-02-03', '--symbols', 'AAPL', '--model', 'test', '--output', str(folder / 'report.json')])
+    args = cli.parser().parse_args(['backtest', '--slippage-model', 'flat', '--data-dir', str(folder), '--start', '2026-01-19', '--end', '2026-02-03', '--symbols', 'AAPL', '--model', 'test', '--output', str(folder / 'report.json')])
     significance = backtest.run(args)['significance']
     assert significance['observations'] == 1
     assert significance['mean_weekly_excess_return'] == pytest.approx(1 - 1 / (1.001 * 1.0005))
@@ -213,7 +213,7 @@ def test_cost_sensitivity_rejects_invalid_scaled_cost_without_rejecting_base_run
     folder = tmp_path / 'data'
     dataset(folder)
     monkeypatch.setattr(cli, 'predict', lambda *args: {'action': 'BUY', 'confidence': .8, 'probabilities': {'BUY': .8, 'HOLD': .1, 'SELL': .1}, 'model': 'test', 'latency_us': 1})
-    args = cli.parser().parse_args(['backtest', '--data-dir', str(folder), '--start', '2026-01-19', '--end', '2026-01-27', '--symbols', 'AAPL', '--model', 'test', '--slippage-bps', '6000', '--output', str(folder / 'report.json')])
+    args = cli.parser().parse_args(['backtest', '--slippage-model', 'flat', '--data-dir', str(folder), '--start', '2026-01-19', '--end', '2026-01-27', '--symbols', 'AAPL', '--model', 'test', '--slippage-bps', '6000', '--output', str(folder / 'report.json')])
     result = backtest.run(args)
     assert result['cost_sensitivity']['scenarios'][1]['ending_balance'] == result['ending_balance']
     stressed = result['cost_sensitivity']['scenarios'][2]
@@ -259,7 +259,7 @@ def test_recorded_backtest_significance_replays_without_model_calls(tmp_path, mo
         row = rows[(args.symbol, args.as_of)]
         return {'decision': dict(row, latency_us=row['latency_ms'] * 1000, confidence=0), 'market': {'candle_timestamp': row['candle_timestamp']}}
     monkeypatch.setattr(cli, 'run', recorded)
-    args = cli.parser().parse_args(['backtest', '--data-dir', str(root), '--start', original['start'], '--end', original['end'], '--symbols', ','.join(original['symbols']), '--model', original['model_requested'], '--fee-bps', str(original['fee_bps']), '--slippage-bps', str(original['slippage_bps']), '--output', str(tmp_path / 'unused.json')])
+    args = cli.parser().parse_args(['backtest', '--slippage-model', 'flat', '--data-dir', str(root), '--start', original['start'], '--end', original['end'], '--symbols', ','.join(original['symbols']), '--model', original['model_requested'], '--fee-bps', str(original['fee_bps']), '--slippage-bps', str(original['slippage_bps']), '--output', str(tmp_path / 'unused.json')])
     result = backtest.run(args)
     for key in ('ending_balance', 'spy_ending_balance', 'total_fees', 'dataset_manifest_sha256'):
         assert result[key] == original[key]
@@ -287,7 +287,7 @@ def test_other_recorded_backtests_replay_significance_without_model_calls(tmp_pa
         return {'decision': dict(row, latency_us=row.get('latency_ms', 0) * 1000, confidence=row.get('confidence', 0)),
                 'market': {'candle_timestamp': row['candle_timestamp']}}
     monkeypatch.setattr(cli, 'run', recorded)
-    args = cli.parser().parse_args(['backtest', '--data-dir', str(root), '--start', original['start'], '--end', original['end'], '--symbols', ','.join(original['symbols']), '--model', original['model_requested'], '--fee-bps', str(original['fee_bps']), '--slippage-bps', str(original['slippage_bps']), '--output', str(tmp_path / 'unused.json')])
+    args = cli.parser().parse_args(['backtest', '--slippage-model', 'flat', '--data-dir', str(root), '--start', original['start'], '--end', original['end'], '--symbols', ','.join(original['symbols']), '--model', original['model_requested'], '--fee-bps', str(original['fee_bps']), '--slippage-bps', str(original['slippage_bps']), '--output', str(tmp_path / 'unused.json')])
     result = backtest.run(args)
     for key in ('ending_balance', 'spy_ending_balance', 'total_fees', 'dataset_manifest_sha256'):
         assert result[key] == original[key]
@@ -314,7 +314,7 @@ def test_forecast_comparison_replays_recorded_decisions(tmp_path, monkeypatch, n
         return {'decision': dict(row, latency_us=row['latency_ms'] * 1000),
                 'market': {'candle_timestamp': row['candle_timestamp'], 'forecast': row.get('forecast')}}
     monkeypatch.setattr(cli, 'run', recorded)
-    args = cli.parser().parse_args(['backtest', '--data-dir', str(docs / 'backtest-2026-09-28-alpaca'), '--start', original['start'], '--end', original['end'], '--symbols', ','.join(original['symbols']), '--model', original['model_requested'], '--output', str(tmp_path / 'unused.json')])
+    args = cli.parser().parse_args(['backtest', '--slippage-model', 'flat', '--data-dir', str(docs / 'backtest-2026-09-28-alpaca'), '--start', original['start'], '--end', original['end'], '--symbols', ','.join(original['symbols']), '--model', original['model_requested'], '--output', str(tmp_path / 'unused.json')])
     result = backtest.run(args)
     for key in ('ending_balance', 'spy_ending_balance', 'total_fees', 'dataset_manifest_sha256'):
         assert result[key] == original[key]
@@ -335,7 +335,7 @@ def test_backtest_does_not_compress_missing_execution_weeks(tmp_path, monkeypatc
         manifest['sha256'][name] = hashlib.sha256((folder / name).read_bytes()).hexdigest()
     manifest_path.write_text(json.dumps(manifest))
     monkeypatch.setattr(cli, 'predict', lambda *args: {'action': 'HOLD', 'confidence': .8, 'probabilities': {'BUY': .1, 'HOLD': .8, 'SELL': .1}, 'model': 'test', 'latency_us': 1})
-    args = cli.parser().parse_args(['backtest', '--data-dir', str(folder), '--start', '2026-01-19', '--end', '2026-02-10', '--symbols', 'AAPL', '--model', 'test', '--output', str(folder / 'report.json')])
+    args = cli.parser().parse_args(['backtest', '--slippage-model', 'flat', '--data-dir', str(folder), '--start', '2026-01-19', '--end', '2026-02-10', '--symbols', 'AAPL', '--model', 'test', '--output', str(folder / 'report.json')])
     significance = backtest.run(args)['significance']
     assert significance['confidence_interval'] is None
     assert significance['mean_weekly_excess_return'] is None
@@ -350,7 +350,7 @@ def test_backtest_rejects_corporate_actions_and_missing_session(tmp_path, monkey
     manifest = json.loads(manifest_path.read_text())
     manifest['corporate_actions'] = 'present'
     manifest_path.write_text(json.dumps(manifest))
-    args = cli.parser().parse_args(['backtest', '--data-dir', str(folder), '--start', '2026-01-19', '--end', '2026-01-27', '--symbols', 'AAPL', '--output', str(folder / 'report.json')])
+    args = cli.parser().parse_args(['backtest', '--slippage-model', 'flat', '--data-dir', str(folder), '--start', '2026-01-19', '--end', '2026-01-27', '--symbols', 'AAPL', '--output', str(folder / 'report.json')])
     with pytest.raises(ValueError, match='corporate actions'):
         backtest.run(args)
     manifest['corporate_actions'] = 'none'
@@ -368,7 +368,7 @@ def test_cli_saves_report_and_refuses_overwrite(tmp_path, monkeypatch, capsys):
     folder = tmp_path / 'data'
     dataset(folder)
     monkeypatch.setattr(cli, 'predict', lambda *args: {'action': 'HOLD', 'confidence': .8, 'probabilities': {'BUY': .1, 'HOLD': .8, 'SELL': .1}, 'model': 'test', 'latency_us': 1})
-    argv = ['ft', 'backtest', '--data-dir', str(folder), '--start', '2026-01-19', '--end', '2026-01-27', '--symbols', 'AAPL', '--model', 'test', '--output', str(folder / 'report.json')]
+    argv = ['ft', 'backtest', '--slippage-model', 'flat', '--data-dir', str(folder), '--start', '2026-01-19', '--end', '2026-01-27', '--symbols', 'AAPL', '--model', 'test', '--output', str(folder / 'report.json')]
     monkeypatch.setattr(cli.sys, 'argv', argv)
     assert cli.main() == 0
     saved = (folder / 'report.json').read_text()
@@ -389,7 +389,7 @@ def test_invalid_response_retries_without_inventing_decisions(tmp_path, monkeypa
             raise ValueError('Invalid SystemOne response')
         return {'action': 'HOLD', 'confidence': .8, 'probabilities': {'BUY': .1, 'HOLD': .8, 'SELL': .1}, 'model': 'test', 'latency_us': 1}
     monkeypatch.setattr(cli, 'predict', predict)
-    args = cli.parser().parse_args(['backtest', '--data-dir', str(folder), '--start', '2026-01-19', '--end', '2026-01-27', '--symbols', 'AAPL', '--model', 'test', '--output', str(folder / 'report.json')])
+    args = cli.parser().parse_args(['backtest', '--slippage-model', 'flat', '--data-dir', str(folder), '--start', '2026-01-19', '--end', '2026-01-27', '--symbols', 'AAPL', '--model', 'test', '--output', str(folder / 'report.json')])
     result = backtest.run(args)
     assert len(result['decisions']) == 1 and result['model_retries'] == 1
     assert result['trades'] == [] and result['ending_balance'] == 10000
@@ -405,7 +405,7 @@ def test_backtest_averages_request_latency_and_sums_usage(tmp_path, monkeypatch)
         latency, tokens = next(metrics)
         return {'action': 'HOLD', 'confidence': .8, 'probabilities': {'BUY': .1, 'HOLD': .8, 'SELL': .1}, 'model': 'test', 'latency_us': latency, 'usage': {'input_tokens': tokens, 'output_tokens': 0}}
     monkeypatch.setattr(cli, 'predict', predict)
-    args = cli.parser().parse_args(['backtest', '--data-dir', str(folder), '--start', '2026-01-19', '--end', '2026-02-03', '--symbols', 'AAPL', '--model', 'test', '--output', str(folder / 'report.json')])
+    args = cli.parser().parse_args(['backtest', '--slippage-model', 'flat', '--data-dir', str(folder), '--start', '2026-01-19', '--end', '2026-02-03', '--symbols', 'AAPL', '--model', 'test', '--output', str(folder / 'report.json')])
     result = backtest.run(args)
     assert result['mean_model_latency_ms'] == 2
     assert result['input_tokens_successful'] == 1500
@@ -417,7 +417,7 @@ def test_partial_usage_is_not_reported_as_complete(tmp_path, monkeypatch):
     folder = tmp_path / 'data'
     dataset(folder)
     monkeypatch.setattr(cli, 'predict', lambda *args: {'action': 'HOLD', 'confidence': .8, 'probabilities': {'BUY': .1, 'HOLD': .8, 'SELL': .1}, 'model': 'test', 'latency_us': 1000, 'usage': {'input_tokens': 500, 'output_tokens': None}})
-    args = cli.parser().parse_args(['backtest', '--data-dir', str(folder), '--start', '2026-01-19', '--end', '2026-01-27', '--symbols', 'AAPL', '--model', 'test', '--output', str(folder / 'report.json')])
+    args = cli.parser().parse_args(['backtest', '--slippage-model', 'flat', '--data-dir', str(folder), '--start', '2026-01-19', '--end', '2026-01-27', '--symbols', 'AAPL', '--model', 'test', '--output', str(folder / 'report.json')])
     result = backtest.run(args)
     assert result['input_tokens_successful'] == 500
     assert result['usage_complete'] is False
@@ -438,7 +438,7 @@ def test_unpaid_dividends_are_earned_only_on_shares_held_before_ex_date(tmp_path
     manifest['sha256']['dividends.csv'] = hashlib.sha256((folder / 'dividends.csv').read_bytes()).hexdigest()
     manifest_path.write_text(json.dumps(manifest))
     monkeypatch.setattr(cli, 'predict', lambda *args: {'action': 'BUY', 'confidence': .8, 'probabilities': {'BUY': .8, 'HOLD': .1, 'SELL': .1}, 'model': 'test', 'latency_us': 1})
-    args = cli.parser().parse_args(['backtest', '--data-dir', str(folder), '--start', '2026-01-19', '--end', '2026-01-27', '--symbols', 'AAPL', '--model', 'test', '--output', str(folder / 'report.json')])
+    args = cli.parser().parse_args(['backtest', '--slippage-model', 'flat', '--data-dir', str(folder), '--start', '2026-01-19', '--end', '2026-01-27', '--symbols', 'AAPL', '--model', 'test', '--output', str(folder / 'report.json')])
     result = backtest.run(args)
     shares = 10000 / (100 * 1.001 * 1.0005)
     assert result['dividend_receivables'] == pytest.approx(shares * 2, abs=.01)
@@ -458,7 +458,7 @@ def test_dividends_payable_during_test_are_rejected(tmp_path, monkeypatch):
     manifest['sha256']['dividends.csv'] = hashlib.sha256((folder / 'dividends.csv').read_bytes()).hexdigest()
     manifest_path.write_text(json.dumps(manifest))
     monkeypatch.setattr(cli, 'predict', lambda *args: pytest.fail('Model must not be called'))
-    args = cli.parser().parse_args(['backtest', '--data-dir', str(folder), '--start', '2026-01-19', '--end', '2026-01-27', '--symbols', 'AAPL', '--output', str(folder / 'report.json')])
+    args = cli.parser().parse_args(['backtest', '--slippage-model', 'flat', '--data-dir', str(folder), '--start', '2026-01-19', '--end', '2026-01-27', '--symbols', 'AAPL', '--output', str(folder / 'report.json')])
     with pytest.raises(ValueError, match='payment'):
         backtest.run(args)
 
@@ -476,7 +476,7 @@ def test_dividend_receivable_survives_a_later_sale(tmp_path, monkeypatch):
     manifest_path.write_text(json.dumps(manifest))
     actions = iter(['BUY', 'SELL'])
     monkeypatch.setattr(cli, 'predict', lambda *args: {'action': next(actions), 'confidence': .8, 'probabilities': {'BUY': .8, 'HOLD': .1, 'SELL': .1}, 'model': 'test', 'latency_us': 1})
-    args = cli.parser().parse_args(['backtest', '--data-dir', str(folder), '--start', '2026-01-19', '--end', '2026-02-03', '--symbols', 'AAPL', '--model', 'test', '--output', str(folder / 'report.json')])
+    args = cli.parser().parse_args(['backtest', '--slippage-model', 'flat', '--data-dir', str(folder), '--start', '2026-01-19', '--end', '2026-02-03', '--symbols', 'AAPL', '--model', 'test', '--output', str(folder / 'report.json')])
     result = backtest.run(args)
     shares = 10000 / (100 * 1.001 * 1.0005)
     assert result['dividend_receivables'] == pytest.approx(shares * 2, abs=.01)

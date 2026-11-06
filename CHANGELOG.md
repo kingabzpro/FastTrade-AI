@@ -4,6 +4,7 @@ User-facing changes are recorded under Unreleased. At release, move them under t
 
 ## Unreleased
 
+- **Incompatible:** backtests now use estimated square-root impact for primary fills. Use `--slippage-model flat` to retain the previous flat model. Impact reports set `slippage_bps` to null and expose the flat comparison rate as `flat_slippage_bps`; consumers should inspect `slippage_model` and per-fill impact details. Impact mode requires prior liquidity history before model calls.
 - Corrected calibration splits and edge intervals to preserve weekly dependence; legacy artifacts without outcome-availability times must be regenerated before use.
 - Added bounded Alpaca and decision-provider retries, `Retry-After` handling, and per-credential circuit breakers.
 - Added a bounded exact-cutoff market cache and a validated-candle indicator cache, both per process.

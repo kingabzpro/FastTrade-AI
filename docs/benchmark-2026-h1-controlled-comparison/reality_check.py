@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 
 from fasttrade.significance import reality_check
-from fasttrade.overfitting import cscv, evaluate_folds, purged_splits
+from fasttrade.overfitting import cscv, deflated_sharpe, evaluate_folds, min_track_record_length, purged_splits
 
 
 def run(folder):
@@ -98,6 +98,18 @@ def run(folder):
     result['overfitting'] = {'cscv': cscv(matrix), 'purged_folds': {'groups': 6, 'test_groups': 2, 'embargo_days': 7,
                               'label_intervals': [{'start': a.isoformat(), 'end': b.isoformat()} for a, b in zip(starts, ends)],
                               'folds': evaluate_folds(matrix, splits)}}
+    registry = json.loads((folder.parent / 'variant-registry.json').read_text(encoding='utf-8'))
+    family = registry['sharpe_deflation_family']['ids']
+    if family != result['variants'] or len(family) != matrix.shape[1]:
+        raise ValueError('Registry deflation family does not match the recorded variants')
+    result['overfitting']['registry'] = str(folder.parent / 'variant-registry.json')
+    result['overfitting']['deflated_sharpe'] = deflated_sharpe(matrix)
+    expected_max = result['overfitting']['deflated_sharpe']['expected_max_sharpe']
+    track_records = []
+    for name, item in zip(result['variants'], result['overfitting']['deflated_sharpe']['variants']):
+        length, reason = min_track_record_length(item['sharpe'], item['skewness'], item['kurtosis'], expected_max)
+        track_records.append({'variant': name, 'length_weeks': length, 'reason': reason, 'confidence': 0.95})
+    result['overfitting']['min_track_record_length_weeks'] = track_records
     return result
 
 

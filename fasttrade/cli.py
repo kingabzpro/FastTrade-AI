@@ -41,6 +41,10 @@ def parser():
     t.add_argument('--fee-bps', type=float, default=5, help='Commission in basis points per side (default 5)')
     t.add_argument('--slippage-bps', type=float, default=10, help='Slippage in basis points per side (default 10)')
     t.add_argument('--forecast', action='store_true', help='Include an unvalidated local next-bar forecast')
+    t.add_argument('--sizing-vol-target', type=float, help='Opt in to a risk-checked annual volatility-target sizing comparison')
+    for name in ('max-position', 'max-exposure', 'max-daily-loss', 'min-confidence'):
+        t.add_argument('--sizing-' + name, type=float)
+    t.add_argument('--sizing-max-trades', type=int)
     t.add_argument('--output', required=True, help='New JSON report path')
     c = sub.add_parser('calibrate', help='Fit decision-probability calibration from a frozen backtest report (research only)')
     c.add_argument('--report', required=True, help='Backtest report JSON with per-decision probabilities')

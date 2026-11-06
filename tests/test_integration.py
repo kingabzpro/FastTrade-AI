@@ -213,6 +213,8 @@ def test_opt_in_forecast_receives_only_completed_candles(monkeypatch, tmp_path):
     assert seen == [list(range(110, 160))]
     assert result['market']['forecast']['quantiles']['p50'] == 159
     assert result['market']['forecast']['status'] == 'unvalidated'
+    assert result['forecast_disagreement']['direction'] == 'flat'
+    assert 'forecast_disagreement' not in result['market']
 
 
 def test_forecast_cannot_use_unmatched_calibration(monkeypatch):

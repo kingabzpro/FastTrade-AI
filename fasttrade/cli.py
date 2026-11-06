@@ -197,6 +197,9 @@ def run(args):
     interpretations = [f"Price {'above' if snapshot['price'] > snapshot['vwap'] else 'at or below'} session VWAP", f"MACD {'above' if snapshot['macd'] > snapshot['macd_signal'] else 'at or below'} its signal", f"Volume {'above' if snapshot['volume_ratio'] > 1 else 'at or below'} 20-bar average"]
     risk_ms = (time.perf_counter_ns() - risk_start) / 1e6
     result = {'market': state, 'model_signal': decision['action'], 'decision': decision, 'rule_comparison': comparison, 'indicator_interpretations': interpretations, 'risk_rejections': reasons, 'actionable_signal': (decision['action'] if not reasons else 'HOLD') if risk_complete else None, 'stale_preview': stale_preview, **result_extra}
+    if getattr(args, 'forecast', False):
+        from .forecast import disagreement
+        result['forecast_disagreement'] = disagreement(frame.close.iloc[-2], frame.close.iloc[-1], state['forecast']['quantiles']['p50'])
     result['source'] = 'CSV' if args.csv else 'Yahoo Finance' if args.source == 'yahoo' else 'Alpaca IEX'
     if getattr(args, 'include_chart', False):
         chart = frame.copy()

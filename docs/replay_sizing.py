@@ -2,13 +2,14 @@
 import hashlib
 import json
 import tempfile
+import argparse
 from pathlib import Path
 from unittest.mock import patch
 
 from fasttrade import backtest, cli
 
 
-def replay():
+def replay(*, max_drawdown=None):
     root = Path(__file__).resolve().parent / 'backtest-2026-09-28-alpaca'
     report_bytes = (root / 'report.json').read_bytes()
     original = json.loads(report_bytes)
@@ -22,12 +23,15 @@ def replay():
                 'market': {'candle_timestamp': row['candle_timestamp']}}
 
     with tempfile.TemporaryDirectory(prefix='fasttrade-sizing-') as directory:
-        args = cli.parser().parse_args(['backtest', '--data-dir', str(root), '--start', original['start'],
+        arguments = ['backtest', '--data-dir', str(root), '--start', original['start'],
             '--end', original['end'], '--symbols', ','.join(original['symbols']), '--model', original['model_requested'],
             '--fee-bps', str(original['fee_bps']), '--slippage-bps', str(original['slippage_bps']),
             '--sizing-vol-target', '.1', '--sizing-max-position', '400', '--sizing-max-exposure', '10000',
             '--sizing-max-daily-loss', '10000', '--sizing-max-trades', '25', '--sizing-min-confidence', '0',
-            '--output', str(Path(directory) / 'unused.json')])
+            '--output', str(Path(directory) / 'unused.json')]
+        if max_drawdown is not None:
+            arguments.extend(['--sizing-max-drawdown', str(max_drawdown)])
+        args = cli.parser().parse_args(arguments)
         with patch.object(cli, 'run', recorded):
             result = backtest.run(args)
     for name in ('ending_balance', 'spy_ending_balance', 'total_fees', 'dataset_manifest_sha256'):
@@ -39,4 +43,7 @@ def replay():
 
 
 if __name__ == '__main__':
-    print(json.dumps(replay(), indent=2))
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--drawdown', type=float, help='Opt in to a drawdown exposure throttle')
+    options = parser.parse_args()
+    print(json.dumps(replay(max_drawdown=options.drawdown), indent=2))

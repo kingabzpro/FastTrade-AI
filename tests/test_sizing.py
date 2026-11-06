@@ -19,6 +19,19 @@ def test_volatility_weight_rejects_invalid_inputs(target, volatility):
         volatility_weight(target, volatility)
 
 
+@pytest.mark.parametrize(('equity', 'expected'), [(10000, 1.), (9000, .5), (8000, 0.), (7000, 0.), (11000, 1.)])
+def test_drawdown_factor_declines_linearly_to_zero(equity, expected):
+    from fasttrade.sizing import drawdown_factor
+    assert drawdown_factor(10000, equity, .2) == pytest.approx(expected)
+
+
+@pytest.mark.parametrize(('peak', 'equity', 'limit'), [(0, 1, .2), (1, -1, .2), (1, 1, 0), (1, 1, 1.1), (1, math.nan, .2)])
+def test_drawdown_factor_rejects_invalid_inputs(peak, equity, limit):
+    from fasttrade.sizing import drawdown_factor
+    with pytest.raises(ValueError):
+        drawdown_factor(peak, equity, limit)
+
+
 def replay_fixture():
     dates = pd.bdate_range('2026-01-05', periods=8, tz='UTC')
     sessions = pd.DataFrame({'open': dates + pd.Timedelta(hours=14), 'close': dates + pd.Timedelta(hours=15)})
@@ -155,3 +168,102 @@ def test_unconditional_risk_veto_does_not_require_unused_volatility(limit, value
     assert result['ending_balance'] == 10000.
     assert expected in result['evaluations'][0]['risk_rejections']
     assert not result['evaluations'][0]['executed']
+
+
+def test_drawdown_overlay_reduces_existing_exposure_even_without_a_model_sell():
+    from fasttrade.sizing import replay
+
+    sessions, frames, decisions, limits = replay_fixture()
+    frames['AAPL']['close'] = 100.
+    frames['AAPL'].loc[sessions.open.iloc[-1], ['open', 'close']] = 50.
+    limits.update(max_position=10000., max_exposure=10000., max_trades=2, min_confidence=0.)
+    result = replay(sessions, frames, ['AAPL'], decisions, {}, sessions.date.iloc[0], sessions.date.iloc[-1], 10000., 0., 0., limits, max_drawdown=.5)
+    reduction = [row for row in result['evaluations'] if row.get('source') == 'drawdown']
+    assert len(reduction) == 1
+    assert reduction[0]['quantity'] == pytest.approx(100.)
+    assert reduction[0]['executed'] is True
+    assert result['ending_balance'] == 5000.
+
+
+def test_drawdown_reduction_obeys_risk_engine_and_reports_remaining_exposure():
+    from fasttrade.sizing import replay
+
+    sessions, frames, decisions, limits = replay_fixture()
+    frames['AAPL']['close'] = 100.
+    frames['AAPL'].loc[sessions.open.iloc[-1], ['open', 'close']] = 50.
+    limits.update(max_position=10000., max_exposure=10000., max_trades=2, min_confidence=.5)
+    result = replay(sessions, frames, ['AAPL'], decisions, {}, sessions.date.iloc[0], sessions.date.iloc[-1], 10000., 0., 0., limits, max_drawdown=.5)
+    reduction = [row for row in result['evaluations'] if row.get('source') == 'drawdown'][0]
+    assert not reduction['executed']
+    assert 'Confidence below threshold' in reduction['risk_rejections']
+    assert result['drawdown_checks'][-1]['exposure_after'] == pytest.approx(5000.)
+    assert result['drawdown_checks'][-1]['cap_after'] == 0
+
+
+def test_drawdown_reduction_scales_multiple_positions_proportionally():
+    from fasttrade.sizing import replay
+
+    sessions, frames, decisions, limits = replay_fixture()
+    frames['AAPL']['close'] = 100.
+    frames['MSFT'] = frames['AAPL'].copy()
+    decisions.append({**decisions[0], 'symbol': 'MSFT'})
+    for frame in frames.values():
+        frame.loc[sessions.open.iloc[-1], ['open', 'close']] = 90.
+    limits.update(max_position=10000., max_exposure=10000., max_trades=2, min_confidence=0.)
+    result = replay(sessions, frames, ['AAPL', 'MSFT'], decisions, {}, sessions.date.iloc[0], sessions.date.iloc[-1], 10000., 0., 0., limits, max_drawdown=.2)
+    reductions = [row for row in result['evaluations'] if row.get('source') == 'drawdown']
+    assert len(reductions) == 2
+    assert [row['quantity'] for row in reductions] == pytest.approx([25., 25.])
+    assert result['drawdown_checks'][-1]['exposure_after'] == pytest.approx(4500.)
+    assert result['drawdown_checks'][-1]['cap_after'] == pytest.approx(4500.)
+
+
+def test_drawdown_buy_respects_cap_after_transaction_costs():
+    from fasttrade.sizing import replay
+
+    sessions, frames, decisions, limits = replay_fixture()
+    frames['AAPL']['close'] = 100.
+    limits.update(max_position=10000., max_exposure=10000., max_trades=2, min_confidence=0.)
+    result = replay(sessions, frames, ['AAPL'], decisions, {}, sessions.date.iloc[0], sessions.date.iloc[-1], 10000., .01, 0., limits, max_drawdown=.2)
+    check = result['drawdown_checks'][-2]
+    assert check['exposure_after'] <= check['cap_after'] + 1e-7
+
+
+def test_drawdown_reduction_accounts_for_costs_in_resulting_cap():
+    from fasttrade.sizing import replay
+
+    sessions, frames, decisions, limits = replay_fixture()
+    frames['AAPL']['close'] = 100.
+    frames['AAPL'].loc[sessions.open.iloc[-1], ['open', 'close']] = 90.
+    limits.update(max_position=10000., max_exposure=10000., max_trades=2, min_confidence=0.)
+    result = replay(sessions, frames, ['AAPL'], decisions, {}, sessions.date.iloc[0], sessions.date.iloc[-1], 10000., .01, 0., limits, max_drawdown=.2)
+    check = result['drawdown_checks'][-1]
+    assert check['exposure_after'] <= check['cap_after'] + 1e-7
+
+
+def test_multi_position_drawdown_reduction_accounts_for_costs():
+    from fasttrade.sizing import replay
+
+    sessions, frames, decisions, limits = replay_fixture()
+    frames['AAPL']['close'] = 100.
+    frames['MSFT'] = frames['AAPL'].copy()
+    decisions.append({**decisions[0], 'symbol': 'MSFT'})
+    for frame in frames.values():
+        frame.loc[sessions.open.iloc[-1], ['open', 'close']] = 90.
+    limits.update(max_position=10000., max_exposure=10000., max_trades=2, min_confidence=0.)
+    result = replay(sessions, frames, ['AAPL', 'MSFT'], decisions, {}, sessions.date.iloc[0], sessions.date.iloc[-1], 10000., .01, .005, limits, max_drawdown=.2)
+    assert result['drawdown_checks'][-1]['exposure_after'] <= result['drawdown_checks'][-1]['cap_after'] + 1e-7
+
+
+def test_drawdown_throttle_limits_new_buy_to_remaining_exposure_capacity():
+    from fasttrade.sizing import replay
+
+    sessions, frames, decisions, limits = replay_fixture()
+    frames['AAPL']['close'] = 100.
+    frames['AAPL'].loc[sessions.open.iloc[-1], ['open', 'close']] = 50.
+    limits.update(max_position=5000., max_exposure=10000., max_trades=2, min_confidence=0.)
+    decisions.append({**decisions[0], 'decision_time': sessions.close.iloc[6].isoformat(), 'execution_time': sessions.open.iloc[7].isoformat()})
+    result = replay(sessions, frames, ['AAPL'], decisions, {}, sessions.date.iloc[0], sessions.date.iloc[-1], 10000., 0., 0., limits, max_drawdown=.5)
+    check = result['drawdown_checks'][-1]
+    assert check['cap_after'] == pytest.approx(3750.)
+    assert check['exposure_after'] == pytest.approx(3750.)

@@ -15,6 +15,13 @@ def volatility_weight(target, volatility):
     return min(1.0, target / volatility) if volatility else 1.0
 
 
+def drawdown_factor(peak, equity, max_drawdown):
+    if (not all(math.isfinite(x) for x in (peak, equity, max_drawdown)) or
+        peak <= 0 or equity < 0 or not 0 < max_drawdown <= 1):
+        raise ValueError('Drawdown inputs must have a positive peak and a limit in (0, 1]')
+    return max(0.0, 1 - max(0.0, 1 - equity / peak) / max_drawdown)
+
+
 def validate_limits(limits):
     try:
         if (not isinstance(limits, dict) or
@@ -26,10 +33,12 @@ def validate_limits(limits):
         raise ValueError('Explicit valid sizing risk limits are required') from exc
 
 
-def replay(sessions, frames, symbols, decisions, dividends, start, end, initial, fee, slip, limits, *, target=None):
+def replay(sessions, frames, symbols, decisions, dividends, start, end, initial, fee, slip, limits, *, target=None, max_drawdown=None):
     validate_limits(limits)
     if target is not None:
         volatility_weight(target, 0)
+    if max_drawdown is not None:
+        drawdown_factor(1, 1, max_drawdown)
     if not symbols or not math.isfinite(initial) or initial <= 0 or any(not math.isfinite(x) or not 0 <= x < 1 for x in (fee, slip)):
         raise ValueError('Invalid sizing replay inputs')
     sessions_in_range = [s for s in sessions.itertuples() if start <= s.date <= end]
@@ -53,6 +62,8 @@ def replay(sessions, frames, symbols, decisions, dividends, start, end, initial,
     receivables = {symbol: 0.0 for symbol in symbols}
     evaluations = []
     previous_equity = initial
+    peak = initial
+    drawdown_checks = []
     for session in sessions_in_range:
         for symbol in symbols:
             event = dividends.get((symbol, session.date))
@@ -60,6 +71,47 @@ def replay(sessions, frames, symbols, decisions, dividends, start, end, initial,
                 receivables[symbol] += shares[symbol] * event[0]
         prices = {symbol: float(frames[symbol].loc[session.open, 'open']) for symbol in symbols}
         trade_count = 0
+        if max_drawdown is not None:
+            equity = sum(cash[s] + shares[s] * prices[s] + receivables[s] for s in symbols)
+            peak = max(peak, equity)
+            exposure = sum(shares[s] * prices[s] for s in symbols)
+            factor = drawdown_factor(peak, equity, max_drawdown)
+            cap = min(limits['max_exposure'], equity) * factor
+            fraction = 0.0
+            if exposure > cap:
+                sell_cost = 1 - (1 - slip) * (1 - fee)
+                low, high = 0.0, 1.0
+                for _ in range(60):
+                    middle = (low + high) / 2
+                    remaining_equity = max(0.0, equity - exposure * middle * sell_cost)
+                    remaining_cap = min(limits['max_exposure'], remaining_equity) * drawdown_factor(peak, remaining_equity, max_drawdown)
+                    if exposure * (1 - middle) <= remaining_cap:
+                        high = middle
+                    else:
+                        low = middle
+                fraction = high
+            for symbol in symbols:
+                quantity = shares[symbol] * fraction
+                price = prices[symbol]
+                if quantity * price <= 16 * math.ulp(max(equity, 1.0)):
+                    continue
+                equity = sum(cash[s] + shares[s] * prices[s] + receivables[s] for s in symbols)
+                exposure = sum(shares[s] * prices[s] for s in symbols)
+                daily_loss = max(0.0, previous_equity - equity)
+                state = {'source': 'drawdown', 'symbol': symbol, 'action': 'SELL', 'execution_time': session.open.isoformat(),
+                         'price': price, 'position': shares[symbol], 'equity': equity, 'exposure': exposure,
+                         'daily_loss': daily_loss, 'trade_count': trade_count, 'quantity': quantity, 'confidence': 0.0,
+                         'peak': peak, 'max_drawdown': max_drawdown, 'factor': factor, 'initial_cap': cap,
+                         'cash': dict(cash), 'shares': dict(shares), 'prices': dict(prices), 'receivables': dict(receivables),
+                         'fee': fee, 'slippage': slip, 'limits': dict(limits)}
+                state_hash = hashlib.sha256(json.dumps(state, sort_keys=True, separators=(',', ':'), allow_nan=False).encode()).hexdigest()
+                reasons = evaluate('SELL', 0.0, price, position=shares[symbol], equity=equity, exposure=exposure,
+                                   daily_loss=daily_loss, trade_count=trade_count, quantity=quantity, **limits)
+                evaluations.append({**state, 'state_sha256': state_hash, 'risk_rejections': reasons, 'executed': not reasons})
+                if not reasons:
+                    cash[symbol] += quantity * price * (1 - slip) * (1 - fee)
+                    shares[symbol] -= quantity
+                    trade_count += 1
         for row in executions.get(session.open, []):
             symbol, action, price = row['symbol'], row['action'], prices[row['symbol']]
             if action == 'HOLD' or (action == 'SELL' and shares[symbol] == 0):
@@ -74,6 +126,9 @@ def replay(sessions, frames, symbols, decisions, dividends, start, end, initial,
                 affordable = cash[symbol] / (price * (1 + slip) * (1 + fee))
                 capacity = min(affordable, max(0.0, (limits['max_position'] - shares[symbol] * price) / price),
                                max(0.0, (limits['max_exposure'] - exposure) / price), max(0.0, (equity - exposure) / price))
+                if max_drawdown is not None:
+                    drawdown_cap = min(limits['max_exposure'], equity) * drawdown_factor(peak, equity, max_drawdown)
+                    capacity = min(capacity, max(0.0, (drawdown_cap - exposure) / price))
             if action == 'BUY' and target is not None and capacity > 0:
                 risk_probe = min(capacity, 1.0) / 2 or capacity
                 veto = evaluate(action, row['confidence'], price, position=shares[symbol], equity=equity, exposure=exposure,
@@ -90,6 +145,18 @@ def replay(sessions, frames, symbols, decisions, dividends, start, end, initial,
             if action == 'BUY':
                 desired = max(0.0, (equity * weight / len(symbols) - shares[symbol] * price) / price) if weight is not None else 0.0
                 quantity = min(desired, capacity)
+                if quantity > 0 and max_drawdown is not None:
+                    buy_cost = price * ((1 + slip) * (1 + fee) - 1)
+                    low, high = 0.0, quantity
+                    for _ in range(60):
+                        middle = (low + high) / 2
+                        remaining_equity = max(0.0, equity - middle * buy_cost)
+                        remaining_cap = min(limits['max_exposure'], remaining_equity) * drawdown_factor(peak, remaining_equity, max_drawdown)
+                        if exposure + middle * price <= remaining_cap:
+                            low = middle
+                        else:
+                            high = middle
+                    quantity = low
                 exhausts_cash = quantity == affordable
                 if quantity > 0 and (quantity * price * (1 + slip) * (1 + fee) > cash[symbol] or
                                      (shares[symbol] + quantity) * price > limits['max_position'] or
@@ -106,6 +173,8 @@ def replay(sessions, frames, symbols, decisions, dividends, start, end, initial,
                      'risk_probe_quantity': risk_probe,
                      'cash': dict(cash), 'shares': dict(shares), 'prices': dict(prices), 'receivables': dict(receivables),
                      'fee': fee, 'slippage': slip, 'limits': dict(limits)}
+            if max_drawdown is not None:
+                state.update(peak=peak, max_drawdown=max_drawdown, drawdown_factor=drawdown_factor(peak, equity, max_drawdown))
             state_hash = hashlib.sha256(json.dumps(state, sort_keys=True, separators=(',', ':'), allow_nan=False).encode()).hexdigest()
             reasons = veto or (evaluate(action, row['confidence'], price, position=shares[symbol], equity=equity, exposure=exposure,
                                 daily_loss=daily_loss, trade_count=trade_count, quantity=quantity, **limits)
@@ -120,6 +189,16 @@ def replay(sessions, frames, symbols, decisions, dividends, start, end, initial,
                 cash[symbol] += quantity * price * (1 - slip) * (1 - fee)
                 shares[symbol] -= quantity
             trade_count += 1
+        if max_drawdown is not None:
+            equity = sum(cash[s] + shares[s] * prices[s] + receivables[s] for s in symbols)
+            exposure = sum(shares[s] * prices[s] for s in symbols)
+            drawdown_checks.append({'time': session.open.isoformat(), 'peak': peak, 'equity': equity,
+                                    'factor': drawdown_factor(peak, equity, max_drawdown), 'exposure_after': exposure,
+                                    'cap_after': min(limits['max_exposure'], equity) * drawdown_factor(peak, equity, max_drawdown)})
         last_bar = pd.date_range(session.open, session.close, freq='h', inclusive='left')[-1]
         previous_equity = sum(cash[s] + shares[s] * float(frames[s].loc[last_bar, 'close']) + receivables[s] for s in symbols)
-    return {'ending_balance': round(previous_equity, 2), 'return_pct': round((previous_equity / initial - 1) * 100, 2), 'evaluations': evaluations}
+        peak = max(peak, previous_equity)
+    result = {'ending_balance': round(previous_equity, 2), 'return_pct': round((previous_equity / initial - 1) * 100, 2), 'evaluations': evaluations}
+    if max_drawdown is not None:
+        result['drawdown_checks'] = drawdown_checks
+    return result

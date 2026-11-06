@@ -27,6 +27,8 @@ This scales BUY entries or additions; it does not automatically rebalance existi
 
 Reproduce without provider calls using `uv run --locked python docs/replay_sizing.py`. It verifies the original balances, fees and dataset manifest, then prints the comparison, assumptions and hashed per-trade sizing states. The source report SHA-256 is `bce2ece2ddcdb31c8329a2c64fef519b94f22c52bacba0ad20183e55b99730dc`; the dataset manifest SHA-256 is `cf9392006fcd098cff829c6b697ac51131d74ef161e7b908305dd9491622053e`.
 
+As a separate illustration, `uv run --locked python docs/replay_sizing.py --drawdown .02` enables the same 2% drawdown throttle for both variants with those illustrative limits. Fixed sizing returned 2.02% with 29 automatic reduction fills; volatility-scaled BUY sizing returned 1.21% with none. The close and opening checks are discrete, use optimistic same-open fills, and cannot guarantee the drawdown cap. Fees can cause repeated reductions. Automatic SELLs use confidence zero and are rejected by any positive minimum-confidence limit; other risk limits can also block them. These results are assumptions on the same short historical sample, not evidence that a 2% limit or either sizing method is suitable.
+
 To rerun the frozen snapshot (model requests may be charged), choose a new output path:
 
 ```powershell

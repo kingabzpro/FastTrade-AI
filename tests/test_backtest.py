@@ -68,12 +68,48 @@ def test_opt_in_sizing_compares_fixed_and_targeted_with_explicit_limits(tmp_path
     assert result['volatility_targeted']['evaluations'][0]['weight'] == 1
 
 
+def test_drawdown_option_is_recorded_in_both_sizing_replays(tmp_path, monkeypatch):
+    from fasttrade import backtest
+    folder = tmp_path / 'data'
+    dataset(folder)
+    monkeypatch.setattr(cli, 'predict', lambda *args: {'action': 'BUY', 'confidence': .8, 'probabilities': {'BUY': .8, 'HOLD': .1, 'SELL': .1}, 'model': 'test', 'latency_us': 1, 'usage': None})
+    args = cli.parser().parse_args(['backtest', '--data-dir', str(folder), '--start', '2026-01-19', '--end', '2026-01-27', '--symbols', 'AAPL', '--model', 'test', '--output', str(folder / 'report.json'), '--sizing-vol-target', '.1', '--sizing-max-position', '1000', '--sizing-max-exposure', '1000', '--sizing-max-daily-loss', '10000', '--sizing-max-trades', '2', '--sizing-min-confidence', '0', '--sizing-max-drawdown', '.2'])
+    result = backtest.run(args)['sizing_ablation']
+    assert result['max_drawdown'] == .2
+    assert result['fixed']['drawdown_checks']
+    assert result['volatility_targeted']['drawdown_checks']
+
+
 def test_sizing_requires_explicit_limits_before_model_requests(tmp_path, monkeypatch):
     from fasttrade import backtest
     monkeypatch.setattr(cli, 'predict', lambda *args: pytest.fail('Model must not be called'))
     args = cli.parser().parse_args(['backtest', '--data-dir', str(tmp_path), '--start', '2026-01-19', '--end', '2026-01-27', '--symbols', 'AAPL', '--output', str(tmp_path / 'report.json'), '--sizing-vol-target', '.1'])
     with pytest.raises(ValueError, match='sizing risk limits'):
         backtest.run(args)
+
+
+def test_drawdown_option_requires_explicit_limits_and_is_validated_before_model_requests(tmp_path, monkeypatch):
+    from fasttrade import backtest
+    monkeypatch.setattr(cli, 'predict', lambda *args: pytest.fail('Model must not be called'))
+    common = ['backtest', '--data-dir', str(tmp_path), '--start', '2026-01-19', '--end', '2026-01-27', '--symbols', 'AAPL', '--output', str(tmp_path / 'report.json')]
+    args = cli.parser().parse_args([*common, '--sizing-max-drawdown', '.2'])
+    with pytest.raises(ValueError, match='sizing risk limits'):
+        backtest.run(args)
+    args = cli.parser().parse_args([*common, '--sizing-vol-target', '.1', '--sizing-max-position', '1000', '--sizing-max-exposure', '1000', '--sizing-max-daily-loss', '10000', '--sizing-max-trades', '2', '--sizing-min-confidence', '0', '--sizing-max-drawdown', '0'])
+    with pytest.raises(ValueError, match='Drawdown'):
+        backtest.run(args)
+
+
+def test_drawdown_overlay_can_be_used_without_volatility_target(tmp_path, monkeypatch):
+    from fasttrade import backtest
+    folder = tmp_path / 'data'
+    dataset(folder)
+    monkeypatch.setattr(cli, 'predict', lambda *args: {'action': 'BUY', 'confidence': .8, 'probabilities': {'BUY': .8, 'HOLD': .1, 'SELL': .1}, 'model': 'test', 'latency_us': 1, 'usage': None})
+    args = cli.parser().parse_args(['backtest', '--data-dir', str(folder), '--start', '2026-01-19', '--end', '2026-01-27', '--symbols', 'AAPL', '--model', 'test', '--output', str(folder / 'report.json'), '--sizing-max-position', '1000', '--sizing-max-exposure', '1000', '--sizing-max-daily-loss', '10000', '--sizing-max-trades', '2', '--sizing-min-confidence', '0', '--sizing-max-drawdown', '.2'])
+    result = backtest.run(args)['sizing_ablation']
+    assert result['max_drawdown'] == .2
+    assert result['drawdown']['drawdown_checks']
+    assert 'drawdown_checks' not in result['fixed']
 
 
 def test_backtest_records_forecast_used_in_each_decision(tmp_path, monkeypatch):

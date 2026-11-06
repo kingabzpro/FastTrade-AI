@@ -116,13 +116,18 @@ def replay_costs(sessions, frames, symbols, decisions, dividends, start, end, in
 def run(args):
     sizing_names = ('max_position', 'max_exposure', 'max_daily_loss', 'max_trades', 'min_confidence')
     sizing_target = getattr(args, 'sizing_vol_target', None)
+    sizing_drawdown = getattr(args, 'sizing_max_drawdown', None)
     sizing_limits = {name: getattr(args, 'sizing_' + name, None) for name in sizing_names}
-    if sizing_target is None and any(value is not None for value in sizing_limits.values()):
-        raise ValueError('Sizing risk limits require --sizing-vol-target')
-    if sizing_target is not None:
-        from .sizing import validate_limits, volatility_weight
-        volatility_weight(sizing_target, 0)
+    sizing_requested = sizing_target is not None or sizing_drawdown is not None
+    if not sizing_requested and any(value is not None for value in sizing_limits.values()):
+        raise ValueError('Sizing risk limits require a sizing overlay')
+    if sizing_requested:
+        from .sizing import drawdown_factor, validate_limits, volatility_weight
+        if sizing_target is not None:
+            volatility_weight(sizing_target, 0)
         validate_limits(sizing_limits)
+        if sizing_drawdown is not None:
+            drawdown_factor(1, 1, sizing_drawdown)
     try:
         start, end = date.fromisoformat(args.start), date.fromisoformat(args.end)
     except ValueError as exc:
@@ -325,9 +330,16 @@ def run(args):
     sensitivity = {'method': 'fixed-decision flat-cost replay', 'scenarios': [replay_costs(sessions, frames, symbols, decisions, dividends, start, end, initial, fee, slip, factor) for factor in (.5, 1, 2)]}
     impact_sensitivity = {'method': 'fixed-decision square-root impact replay', 'scenarios': [replay_costs(sessions, frames, symbols, decisions, dividends, start, end, initial, fee, slip, factor, impact=True) for factor in (.5, 1, 2)]}
     sizing_ablation = {}
-    if sizing_target is not None:
+    if sizing_requested:
         from .sizing import replay as replay_sizing
         common = (sessions, frames, symbols, decisions, dividends, start, end, initial, fee, slip, sizing_limits)
+        fixed_drawdown = sizing_drawdown if sizing_target is not None else None
         sizing_ablation = {'sizing_ablation': {'target_volatility': sizing_target, 'limits': sizing_limits,
-                           'fixed': replay_sizing(*common), 'volatility_targeted': replay_sizing(*common, target=sizing_target)}}
+                           'fixed': replay_sizing(*common, max_drawdown=fixed_drawdown)}}
+        if sizing_target is not None:
+            sizing_ablation['sizing_ablation']['volatility_targeted'] = replay_sizing(*common, target=sizing_target, max_drawdown=sizing_drawdown)
+        elif sizing_drawdown is not None:
+            sizing_ablation['sizing_ablation']['drawdown'] = replay_sizing(*common, max_drawdown=sizing_drawdown)
+        if sizing_drawdown is not None:
+            sizing_ablation['sizing_ablation']['max_drawdown'] = sizing_drawdown
     return {'start': str(start), 'end': str(end), 'symbols': symbols, 'model_requested': model, 'model_resolved': resolved_model, 'model_retries': retries, 'mean_model_latency_ms': round(sum(d['latency_ms'] for d in decisions) / len(decisions), 2), 'input_tokens_successful': sum(d['usage']['input_tokens'] for d in decisions if d['usage'] is not None), 'usage_complete': usage_complete, 'dataset_manifest_sha256': hashlib.sha256(manifest_bytes).hexdigest(), 'fee_bps': args.fee_bps, 'slippage_bps': args.slippage_bps, 'initial_balance': initial, 'first_execution_time': first_execution.isoformat(), 'ending_balance': round(ending, 2), 'return_pct': round((ending / initial - 1) * 100, 2), 'spy_ending_balance': round(spy_ending, 2), 'spy_return_pct': round((spy_ending / initial - 1) * 100, 2), 'max_drawdown_pct': round(drawdown * 100, 2), 'total_fees': round(sum(t['fee'] for t in trades), 2), 'dividend_receivables': round(sum(receivables[s] for s in symbols), 2), 'spy_dividend_receivables': round(receivables['SPY'], 2), 'dividends': dividend_ledger, 'decisions': decisions, 'trades': trades, 'equity_curve': curve, 'significance': significance, 'cost_sensitivity': sensitivity, 'impact_sensitivity': impact_sensitivity, **sizing_ablation, 'overfitting': {'pbo': None, 'fold_distribution': None, 'reason': 'requires aligned returns from multiple variants'}, 'limitations': 'The input manifest is an unverified attestation; corporate actions, model training knowledge, survivorship and hindsight selection are not verified. Only cash dividends payable after the test are supported; no split accounting. Primary fees and slippage are flat assumptions; the separate impact replay uses uncalibrated liquidity and cost assumptions and does not model spread or partial fills.'}

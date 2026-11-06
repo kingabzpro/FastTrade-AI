@@ -17,19 +17,57 @@ from dotenv import load_dotenv
 from . import cli
 from .calibration import stationary_bootstrap_means
 from .market import validate_candles
+from .impact import impact_bps, liquidity
 
 
-def replay_costs(sessions, frames, symbols, decisions, dividends, start, end, initial, fee, slip, multiplier):
+def replay_costs(sessions, frames, symbols, decisions, dividends, start, end, initial, fee, slip, multiplier, *, impact=False):
     fee, slip = fee * multiplier, slip * multiplier
-    if fee >= 1 or slip >= 1:
+    if fee >= 1 or (not impact and slip >= 1):
         return {'multiplier': multiplier, 'ending_balance': None, 'spy_ending_balance': None, 'reason': 'scaled per-side costs must be below 100%'}
     cash = {symbol: initial / len(symbols) for symbol in symbols}
     shares = {symbol: 0.0 for symbol in symbols}
     receivables = {symbol: 0.0 for symbol in [*symbols, 'SPY']}
     executions = {}
     for decision in decisions:
-        executions.setdefault(pd.Timestamp(decision['execution_time']), []).append(decision)
+        try:
+            decision_time = pd.Timestamp(decision['decision_time'])
+            execution_time = pd.Timestamp(decision['execution_time'])
+            if pd.isna(decision_time) or pd.isna(execution_time) or decision_time.tzinfo is None or execution_time.tzinfo is None or decision_time >= execution_time:
+                raise ValueError('Recorded decision must precede execution with timezone-aware timestamps')
+        except (KeyError, TypeError) as exc:
+            raise ValueError('Invalid recorded decision or execution time') from exc
+        executions.setdefault(execution_time, []).append(decision)
+    active_sessions = [session for session in sessions.itertuples() if start <= session.date <= end]
+    if any(not any(session.open <= execution < session.close for session in active_sessions) for execution in executions):
+        raise ValueError('Recorded execution is outside a replay session')
     spy_shares = 0.0
+    impact_trades = []
+
+    def fill(symbol, action, price, cutoff, amount):
+        if not impact:
+            return (amount / (price * (1 + slip) * (1 + fee)), slip) if action == 'BUY' else (amount, slip)
+        symbol_dividends = {day: event[0] for (name, day), event in dividends.items() if name == symbol}
+        info = liquidity(sessions, frames[symbol], pd.Timestamp(cutoff), dividends=symbol_dividends)
+        if info is None:
+            raise ValueError(f'Insufficient prior liquidity history for {symbol} at {cutoff}')
+        def rate(quantity):
+            return impact_bps(quantity, info['daily_volatility'], info['daily_volume']) * multiplier / 10000
+        if action == 'BUY':
+            low, high = 0.0, amount / (price * (1 + fee))
+            for _ in range(50):
+                middle = (low + high) / 2
+                if middle * price * (1 + rate(middle)) * (1 + fee) <= amount:
+                    low = middle
+                else:
+                    high = middle
+            quantity = low
+        else:
+            quantity = amount
+        slippage = rate(quantity)
+        impact_trades.append({'symbol': symbol, 'action': action, 'decision_time': cutoff,
+                              'quantity': quantity, 'impact_bps': slippage * 10000, **info})
+        return quantity, slippage
+
     for session in sessions.itertuples():
         if not start <= session.date <= end:
             continue
@@ -37,24 +75,42 @@ def replay_costs(sessions, frames, symbols, decisions, dividends, start, end, in
             event = dividends.get((symbol, session.date))
             if event:
                 receivables[symbol] += (spy_shares if symbol == 'SPY' else shares[symbol]) * event[0]
-        actions = executions.get(session.open, [])
+        execution_times = [t for t in executions if session.open <= t < session.close]
+        if len(execution_times) > 1:
+            raise ValueError('Multiple execution times in one session are not supported')
+        execution_time = execution_times[0] if execution_times else None
+        actions = executions.get(execution_time, [])
         if actions and not spy_shares:
-            spy_shares = initial / (float(frames['SPY'].loc[session.open, 'open']) * (1 + slip) * (1 + fee))
+            try:
+                spy_shares, _ = fill('SPY', 'BUY', float(frames['SPY'].loc[execution_time, 'open']), actions[0]['decision_time'], initial)
+            except ValueError as exc:
+                return {'multiplier': multiplier, 'ending_balance': None, 'spy_ending_balance': None, 'reason': str(exc)}
         for decision in actions:
             symbol, action = decision['symbol'], decision['action']
-            price = float(frames[symbol].loc[session.open, 'open'])
+            price = float(frames[symbol].loc[execution_time, 'open'])
             if action == 'BUY' and cash[symbol] > 0:
-                shares[symbol] = cash[symbol] / (price * (1 + slip) * (1 + fee))
+                try:
+                    shares[symbol], _ = fill(symbol, action, price, decision['decision_time'], cash[symbol])
+                except ValueError as exc:
+                    return {'multiplier': multiplier, 'ending_balance': None, 'spy_ending_balance': None, 'reason': str(exc)}
                 cash[symbol] = 0.0
             elif action == 'SELL' and shares[symbol] > 0:
-                cash[symbol] = shares[symbol] * price * (1 - slip) * (1 - fee)
+                try:
+                    _, execution_slip = fill(symbol, action, price, decision['decision_time'], shares[symbol])
+                except ValueError as exc:
+                    return {'multiplier': multiplier, 'ending_balance': None, 'spy_ending_balance': None, 'reason': str(exc)}
+                cash[symbol] = shares[symbol] * price * (1 - execution_slip) * (1 - fee)
                 shares[symbol] = 0.0
         last_bar = pd.date_range(session.open, session.close, freq='h', inclusive='left')[-1]
     ending = sum(cash[s] + shares[s] * float(frames[s].loc[last_bar, 'close']) + receivables[s] for s in symbols)
     spy_ending = spy_shares * float(frames['SPY'].loc[last_bar, 'close']) + receivables['SPY']
-    return {'multiplier': multiplier, 'fee_bps': fee * 10000, 'slippage_bps': slip * 10000,
+    result = {'multiplier': multiplier, 'fee_bps': fee * 10000, 'slippage_bps': slip * 10000,
             'ending_balance': round(ending, 2), 'return_pct': round((ending / initial - 1) * 100, 2),
             'spy_ending_balance': round(spy_ending, 2), 'spy_return_pct': round((spy_ending / initial - 1) * 100, 2)}
+    if impact:
+        result.pop('slippage_bps')
+        result['trades'] = impact_trades
+    return result
 
 
 def run(args):
@@ -257,4 +313,5 @@ def run(args):
     if len(excess) >= 2 and consecutive:
         significance['confidence_interval'] = np.percentile(stationary_bootstrap_means(excess), [2.5, 97.5]).tolist()
     sensitivity = {'method': 'fixed-decision flat-cost replay', 'scenarios': [replay_costs(sessions, frames, symbols, decisions, dividends, start, end, initial, fee, slip, factor) for factor in (.5, 1, 2)]}
-    return {'start': str(start), 'end': str(end), 'symbols': symbols, 'model_requested': model, 'model_resolved': resolved_model, 'model_retries': retries, 'mean_model_latency_ms': round(sum(d['latency_ms'] for d in decisions) / len(decisions), 2), 'input_tokens_successful': sum(d['usage']['input_tokens'] for d in decisions if d['usage'] is not None), 'usage_complete': usage_complete, 'dataset_manifest_sha256': hashlib.sha256(manifest_bytes).hexdigest(), 'fee_bps': args.fee_bps, 'slippage_bps': args.slippage_bps, 'initial_balance': initial, 'first_execution_time': first_execution.isoformat(), 'ending_balance': round(ending, 2), 'return_pct': round((ending / initial - 1) * 100, 2), 'spy_ending_balance': round(spy_ending, 2), 'spy_return_pct': round((spy_ending / initial - 1) * 100, 2), 'max_drawdown_pct': round(drawdown * 100, 2), 'total_fees': round(sum(t['fee'] for t in trades), 2), 'dividend_receivables': round(sum(receivables[s] for s in symbols), 2), 'spy_dividend_receivables': round(receivables['SPY'], 2), 'dividends': dividend_ledger, 'decisions': decisions, 'trades': trades, 'equity_curve': curve, 'significance': significance, 'cost_sensitivity': sensitivity, 'overfitting': {'pbo': None, 'fold_distribution': None, 'reason': 'requires aligned returns from multiple variants'}, 'limitations': 'The input manifest is an unverified attestation; corporate actions, model training knowledge, survivorship and hindsight selection are not verified. Only cash dividends payable after the test are supported; no split accounting. Fees and slippage are assumptions; no liquidity or market impact model.'}
+    impact_sensitivity = {'method': 'fixed-decision square-root impact replay', 'scenarios': [replay_costs(sessions, frames, symbols, decisions, dividends, start, end, initial, fee, slip, factor, impact=True) for factor in (.5, 1, 2)]}
+    return {'start': str(start), 'end': str(end), 'symbols': symbols, 'model_requested': model, 'model_resolved': resolved_model, 'model_retries': retries, 'mean_model_latency_ms': round(sum(d['latency_ms'] for d in decisions) / len(decisions), 2), 'input_tokens_successful': sum(d['usage']['input_tokens'] for d in decisions if d['usage'] is not None), 'usage_complete': usage_complete, 'dataset_manifest_sha256': hashlib.sha256(manifest_bytes).hexdigest(), 'fee_bps': args.fee_bps, 'slippage_bps': args.slippage_bps, 'initial_balance': initial, 'first_execution_time': first_execution.isoformat(), 'ending_balance': round(ending, 2), 'return_pct': round((ending / initial - 1) * 100, 2), 'spy_ending_balance': round(spy_ending, 2), 'spy_return_pct': round((spy_ending / initial - 1) * 100, 2), 'max_drawdown_pct': round(drawdown * 100, 2), 'total_fees': round(sum(t['fee'] for t in trades), 2), 'dividend_receivables': round(sum(receivables[s] for s in symbols), 2), 'spy_dividend_receivables': round(receivables['SPY'], 2), 'dividends': dividend_ledger, 'decisions': decisions, 'trades': trades, 'equity_curve': curve, 'significance': significance, 'cost_sensitivity': sensitivity, 'impact_sensitivity': impact_sensitivity, 'overfitting': {'pbo': None, 'fold_distribution': None, 'reason': 'requires aligned returns from multiple variants'}, 'limitations': 'The input manifest is an unverified attestation; corporate actions, model training knowledge, survivorship and hindsight selection are not verified. Only cash dividends payable after the test are supported; no split accounting. Primary fees and slippage are flat assumptions; the separate impact replay uses uncalibrated liquidity and cost assumptions and does not model spread or partial fills.'}

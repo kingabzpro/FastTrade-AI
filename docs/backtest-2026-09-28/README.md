@@ -20,6 +20,16 @@ Replaying the same decisions with flat commission and slippage scaled together p
 
 The test command above reproduces the 1× balances and checks the replay; new `ft backtest` reports include all three scenarios in `cost_sensitivity`.
 
+The same recorded decisions can also be replayed with a hypothetical square-root impact model. It uses the sample standard deviation of up to 20 prior daily close-to-close returns, adjusted for the manifest's cash dividends, and average volume from up to 20 prior completed sessions, with coefficient 1 and a 1–50 bps per-side floor and cap before stress scaling. It requires at least six valid closes and five adjacent-session returns. Incomplete sessions are omitted without computing a return across a gap; a missing latest session makes the estimate unavailable. A buy's share quantity and cost are solved together. Commission and impact are both scaled for each scenario; SPY receives the same treatment. The liquidity window never includes candles after the decision time.
+
+| Cost multiplier | Portfolio return | SPY return |
+| --- | ---: | ---: |
+| 0.5× | +2.46% | −0.03% |
+| 1× | +2.42% | −0.06% |
+| 2× | +2.35% | −0.12% |
+
+All 33 simulated fills, including SPY, hit the 1 bps floor before scaling; the shortest history had nine completed sessions. The coefficient and floor are assumptions, not calibrated estimates, and the cap can understate large orders. This model omits bid-ask spread, partial fills and other costs. Yahoo volume and history may be revised and are not verified point-in-time. Consequently the apparently lower cost than the flat 10 bps assumption is not evidence that real executions would be cheaper. Reproduce the calculations and per-fill inputs with `uv run --locked python docs/replay_impact_costs.py`; it checks the original report balances and dataset manifest without provider calls. New backtests include this replay in `impact_sensitivity`, with an unavailable reason if required volume or history is missing.
+
 To rerun using the frozen dataset, choose a new output filename:
 
 ```powershell

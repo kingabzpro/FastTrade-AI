@@ -29,7 +29,10 @@ forecast = [
 ]
 
 [dependency-groups]
-dev = ["pytest>=8"]
+dev = [
+    "exchange-calendars==4.13.2",
+    "pytest>=8",
+]
 
 [build-system]
 requires = ["hatchling"]

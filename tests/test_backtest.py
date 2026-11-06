@@ -163,6 +163,35 @@ def test_cost_sensitivity_rejects_invalid_scaled_cost_without_rejecting_base_run
     assert '100%' in stressed['reason']
 
 
+def test_impact_sensitivity_uses_prior_liquidity_and_preserves_flat_result(tmp_path, monkeypatch):
+    folder = tmp_path / 'data'
+    dataset(folder)
+    result, _ = run_fixture(folder, monkeypatch)
+    impact = result['impact_sensitivity']['scenarios']
+    assert [scenario['multiplier'] for scenario in impact] == [.5, 1, 2]
+    assert impact[0]['ending_balance'] == pytest.approx(10000 / (1.00005 * 1.00025), abs=.01)
+    assert impact[0]['ending_balance'] > impact[1]['ending_balance'] > impact[2]['ending_balance']
+    assert impact[1]['trades'][0]['impact_bps'] == 1
+    assert impact[1]['trades'][0]['daily_volume'] == 700
+    assert result['cost_sensitivity']['scenarios'][1]['ending_balance'] == result['ending_balance']
+
+
+def test_impact_reports_unavailable_for_zero_volume_without_rejecting_backtest(tmp_path, monkeypatch):
+    folder = tmp_path / 'data'
+    dataset(folder)
+    path = folder / 'SPY.csv'
+    frame = pd.read_csv(path)
+    frame['volume'] = 0
+    frame.to_csv(path, index=False)
+    manifest_path = folder / 'manifest.json'
+    manifest = json.loads(manifest_path.read_text())
+    manifest['sha256']['SPY.csv'] = hashlib.sha256(path.read_bytes()).hexdigest()
+    manifest_path.write_text(json.dumps(manifest))
+    result, _ = run_fixture(folder, monkeypatch)
+    assert result['ending_balance'] is not None
+    assert all(s['ending_balance'] is None and 'SPY' in s['reason'] for s in result['impact_sensitivity']['scenarios'])
+
+
 def test_recorded_backtest_significance_replays_without_model_calls(tmp_path, monkeypatch):
     from fasttrade import backtest
     root = Path(__file__).resolve().parents[1] / 'docs' / 'backtest-2026-09-28'

@@ -45,6 +45,7 @@ def parser():
     for name in ('max-position', 'max-exposure', 'max-daily-loss', 'min-confidence'):
         t.add_argument('--sizing-' + name, type=float)
     t.add_argument('--sizing-max-trades', type=int)
+    t.add_argument('--sizing-max-drawdown', type=float, help='Opt in to a simulated drawdown exposure throttle, as a fraction in (0, 1]')
     t.add_argument('--output', required=True, help='New JSON report path')
     c = sub.add_parser('calibrate', help='Fit decision-probability calibration from a frozen backtest report (research only)')
     c.add_argument('--report', required=True, help='Backtest report JSON with per-decision probabilities')

@@ -7,6 +7,18 @@ REVISION = 'a0e552de83495b5c28c14c71c374f3e33280b340'
 CONTEXT_LENGTH = 50
 
 
+def disagreement(previous_close, current_close, median_forecast):
+    values = [float(previous_close), float(current_close), float(median_forecast)]
+    if any(not math.isfinite(value) or value <= 0 for value in values):
+        raise ValueError('Disagreement requires finite positive prices')
+    observed = values[1] / values[0] - 1
+    forecast = values[2] / values[1] - 1
+    if not math.isfinite(observed) or not math.isfinite(forecast):
+        raise ValueError('Disagreement requires finite returns')
+    direction = 'flat' if observed == 0 or forecast == 0 else 'aligned' if (observed > 0) == (forecast > 0) else 'opposed'
+    return {'status': 'unvalidated', 'direction': direction, 'observed_return': observed, 'forecast_return': forecast}
+
+
 @lru_cache(maxsize=1)
 def _pipeline():
     try:

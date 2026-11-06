@@ -1,6 +1,31 @@
 import pytest
 
 
+@pytest.mark.parametrize(('previous', 'current', 'median', 'expected'), [
+    (100, 110, 115, 'aligned'),
+    (100, 110, 105, 'opposed'),
+    (110, 100, 105, 'opposed'),
+    (100, 100, 105, 'flat'),
+    (100, 110, 110, 'flat'),
+])
+def test_disagreement_compares_next_bar_forecast_with_last_price_move(previous, current, median, expected):
+    from fasttrade.forecast import disagreement
+
+    result = disagreement(previous, current, median)
+    assert result['direction'] == expected
+    assert result['status'] == 'unvalidated'
+    assert result['observed_return'] == pytest.approx(current / previous - 1)
+    assert result['forecast_return'] == pytest.approx(median / current - 1)
+
+
+@pytest.mark.parametrize('prices', [(0, 1, 1), (1, float('nan'), 1), (1, 1, -1), (1e-300, 1e300, 1)])
+def test_disagreement_rejects_invalid_or_nonfinite_returns(prices):
+    from fasttrade.forecast import disagreement
+
+    with pytest.raises(ValueError):
+        disagreement(*prices)
+
+
 def test_forecast_uses_fixed_recent_window_and_labels_unvalidated(monkeypatch):
     from fasttrade import forecast
 

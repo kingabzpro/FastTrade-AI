@@ -1,3 +1,5 @@
+![FastTrade AI: market data, model signals, and candlestick chart](assets/fasttrade-banner.png)
+
 # FastTrade AI
 
 FastTrade is a market research dashboard for exploring BUY, HOLD and SELL signals. Choose up to five tickers, inspect their charts and indicators, compare model preferences with a simple rule, and try paper trades in your browser.

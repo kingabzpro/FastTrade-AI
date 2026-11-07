@@ -75,7 +75,8 @@ def test_mobile_navigation_has_real_destinations():
     page = TestClient(app, base_url='http://127.0.0.1:8765', client=('127.0.0.1', 50000)).get('/')
     parser = NavLinks()
     parser.feed(page.text)
-    assert {'#workspace', '#chart-panel', '#history-panel'} <= parser.links
+    assert {'#workspace', '#history-panel', '#portfolio-panel'} <= parser.links
+    assert '#chart-panel' not in parser.links
 
 
 def test_page_does_not_run_analysis_on_open(monkeypatch):

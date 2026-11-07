@@ -175,11 +175,11 @@ test('positive portfolio amounts reject zero and accept fractional values or omi
 
 test('desktop rail and mobile navigation link to real destinations', async () => {
   assert.equal(await page.locator('.desktop-rail').isVisible(), true);
-  assert.equal(await page.locator('.desktop-rail a[href="#chart-panel"]').count(), 1);
+  assert.equal(await page.locator('.desktop-rail a[href="#chart-panel"]').count(), 0);
   await page.setViewportSize({ width: 390, height: 844 });
   assert.equal(await page.locator('.desktop-rail').isHidden(), true);
-  await page.locator('.mobile-nav a[href="#chart-panel"]').click();
-  await page.waitForFunction(() => document.querySelector('.mobile-nav a[href="#chart-panel"]').getAttribute('aria-current') === 'location');
+  assert.equal(await page.locator('.mobile-nav a[href="#chart-panel"]').count(), 0);
+  assert.equal(await page.locator('#chart-panel').isVisible(), true);
 });
 
 test('SPY summary remains separate from other results and errors', async () => {
@@ -645,6 +645,73 @@ test('every succeeded ticker of a multi-ticker run lands in history', async () =
   assert.ok(stored.entries.every(entry => !Object.keys(entry).some(key => key.startsWith('_'))));
 });
 
+test('paper trading fills at the analyzed close and only sells held shares', async () => {
+  const data = result('NVDA');
+  await page.route('**/api/analyze', route => route.fulfill({json: data}));
+  await page.locator('#analyze').click();
+  await page.waitForFunction(() => !document.getElementById('decision-content').hidden);
+  assert.equal(await page.locator('#paper-badge').innerText(), 'READY');
+  assert.equal(await page.locator('#paper-sell').isDisabled(), true);
+  await page.fill('#paper-qty', '2');
+  assert.equal(await page.locator('#paper-buy').isEnabled(), true);
+  await page.locator('#paper-buy').click();
+  await page.waitForFunction(() => document.getElementById('paper-position').textContent.includes('2.00 shares'));
+  assert.match(await page.locator('#paper-cash').innerText(), /9,714/);
+  assert.equal(await page.locator('#paper-sell').isEnabled(), true);
+  await page.locator('#paper-sell').click();
+  await page.waitForFunction(() => document.getElementById('paper-position').textContent.includes('None held'));
+  assert.equal(await page.locator('#paper-sell').isDisabled(), true);
+  await page.locator('.desktop-rail a[href="#portfolio-panel"]').click();
+  await page.waitForFunction(() => !document.getElementById('fills').hidden);
+  assert.match(await page.locator('#fills tbody').innerText(), /NVDA/);
+  assert.match(await page.locator('#portfolio-realized').innerText(), /\+0\.00/);
+});
+
+test('paper cash limits buys and the portfolio persists across reloads', async () => {
+  await page.route('**/api/analyze', route => route.fulfill({json: result('NVDA')}));
+  await page.locator('#analyze').click();
+  await page.waitForFunction(() => !document.getElementById('decision-content').hidden);
+  await page.fill('#paper-qty', '100000');
+  assert.equal(await page.locator('#paper-buy').isDisabled(), true);
+  await page.fill('#paper-qty', '2');
+  await page.locator('#paper-buy').click();
+  await page.waitForFunction(() => document.getElementById('paper-position').textContent.includes('2.00 shares'));
+  await page.reload();
+  await page.waitForFunction(() => document.getElementById('portfolio-cash').textContent.includes('9,714'));
+  assert.match(await page.locator('#positions tbody').innerText(), /NVDA/);
+  await openView('portfolio-panel');
+  await page.locator('#portfolio-reset').click();
+  await page.waitForFunction(() => document.getElementById('portfolio-cash').textContent.includes('10,000.00'));
+  assert.equal(await page.locator('#positions').isHidden(), true);
+});
+
+test('stale results cannot be paper traded and history replays stay blocked', async () => {
+  const data = result('NVDA');
+  data.stale_preview = true;
+  await page.route('**/api/analyze', route => route.fulfill({json: data}));
+  await page.locator('#analyze').click();
+  await page.waitForFunction(() => !document.getElementById('decision-content').hidden);
+  assert.equal(await page.locator('#paper-badge').innerText(), 'TRADING BLOCKED');
+  await page.fill('#paper-qty', '2');
+  assert.equal(await page.locator('#paper-buy').isDisabled(), true);
+  assert.equal(await page.locator('#paper-sell').isDisabled(), true);
+});
+
+test('replayed history entries cannot be paper traded', async () => {
+  await openView('history-panel');
+  await page.locator('#history-save').check();
+  await openView('workspace');
+  await page.route('**/api/analyze', route => route.fulfill({json: result('NVDA')}));
+  await page.locator('#analyze').click();
+  await page.waitForFunction(() => document.querySelectorAll('#history tbody tr').length === 1);
+  await openView('history-panel');
+  await page.locator('.history-link').click();
+  await page.waitForFunction(() => document.getElementById('paper-badge').textContent === 'TRADING BLOCKED');
+  await page.fill('#paper-qty', '2');
+  assert.equal(await page.locator('#paper-buy').isDisabled(), true);
+  assert.equal(await page.locator('#paper-sell').isDisabled(), true);
+});
+
 test('existing paper positions and fills remain visible after reload', async () => {
   await page.evaluate(() => localStorage.setItem('fasttrade-paper', JSON.stringify({version: 1, cash: 9714.30, positions: {NVDA: {shares: 2, cost: 285.70}}, realized: 0, fills: [{time: '2026-01-02T20:55:00Z', symbol: 'NVDA', side: 'BUY', quantity: 2, price: 142.85, value: 285.70}]})));
   await page.reload();
@@ -685,8 +752,8 @@ test('history and portfolio pages are reachable from both navigations', async ()
   await page.setViewportSize({width: 1440, height: 1000});
 });
 
-test('paper trading controls are absent and the existing portfolio remains readable', async () => {
-  assert.equal(await page.locator('.paper-card').count(), 0);
+test('paper trading controls are present and the existing portfolio remains readable', async () => {
+  assert.equal(await page.locator('.paper-card').count(), 1);
   await openView('portfolio-panel');
   assert.equal(await page.locator('#portfolio-cash').innerText(), '10,000.00');
 });

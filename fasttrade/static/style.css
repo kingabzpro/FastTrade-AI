@@ -520,6 +520,24 @@ body { background: #f2f5f8; }
 #risk-action.warn { color: #7b520d; }
 .signal-buy { color: #146444; }
 .signal-sell { color: #972d3d; }
+.paper-card { padding: 18px; }
+.paper-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0; border-block: 1px solid #e3e9ef; margin-top: 16px; }
+.paper-stats > div { min-width: 0; padding: 12px; }
+.paper-stats > div + div { border-left: 1px solid #e3e9ef; }
+.paper-stats span { color: #566a7c; font: 12px system-ui, sans-serif; }
+.paper-stats strong { display: block; margin-top: 5px; color: #121b27; font: 600 15px system-ui, sans-serif; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.paper-form { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 8px; align-items: end; margin-top: 12px; }
+.paper-form label { min-width: 0; }
+#paper-qty { margin-top: 6px; }
+#paper-buy, #paper-sell { min-height: 44px; padding: 0 18px; border-radius: 7px; border: 1px solid transparent; font-weight: 700; }
+#paper-buy:not(:disabled) { background: #edf8f1; color: #146444; border-color: #b9dfc9; }
+#paper-sell:not(:disabled) { background: #fff1f2; color: #972d3d; border-color: #e9bfc5; }
+#paper-buy:not(:disabled):hover, #paper-sell:not(:disabled):hover { filter: brightness(.97); }
+#paper-buy:disabled, #paper-sell:disabled { background: #f2f5f8; color: #66748b; border-color: #d8e1ea; cursor: not-allowed; }
+.paper-status { margin: 10px 0 0; color: #506177; font-size: 12px; line-height: 1.55; overflow-wrap: anywhere; }
+.paper-status:empty { display: none; }
+.paper-status.good { color: #146444; }
+.paper-status.bad { color: #972d3d; }
 .portfolio-card { margin-top: 8px; }
 .portfolio-strip { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-top: 14px; }
 .portfolio-strip .summary-card { min-width: 0; min-height: 0; padding: 12px 14px; border: 1px solid #e5eff8; border-radius: 7px; background: var(--surface); display: flex; flex-direction: column; color: #566a7c; font: 10px var(--mono); letter-spacing: .04em; }
@@ -548,6 +566,8 @@ body { background: #f2f5f8; }
 @media (max-width: 760px) {
   #portfolio-panel { scroll-margin-top: 72px; }
   .result-tab { flex: 1 1 auto; justify-content: center; }
+  .paper-stats > div { padding: 12px 8px; }
+  #paper-buy, #paper-sell { padding: 0 12px; }
   .portfolio-strip { grid-template-columns: 1fr 1fr; }
   .portfolio-strip .summary-card:nth-child(3) { border-left: 0; border-top: 1px solid #e3e9ef; }
   .portfolio-strip .summary-card:nth-child(4) { border-top: 1px solid #e3e9ef; }

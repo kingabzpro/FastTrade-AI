@@ -185,6 +185,7 @@ function clearResults() {
   chartLayoutState = null;
   activeSymbol = null;
   $('batch-results').hidden = true;
+  const paperStatus = $('paper-status'); paperStatus.textContent = ''; paperStatus.className = 'paper-status';
   $('chart-readout').hidden = true;
   $('chart-window').disabled = true; $('chart-overlay').disabled = true;
   $('overlay-legend').hidden = true;
@@ -196,6 +197,7 @@ function clearResults() {
   $('evidence').replaceChildren(); $('evidence-empty').hidden = false; $('news-panel').hidden = true;
   $('decision-badge').className = 'pill muted'; setText('decision-badge', 'NOT ANALYZED');
   const context = $('chart').getContext('2d'); context.clearRect(0, 0, $('chart').width, $('chart').height);
+  renderPaper();
 }
 
 function render(result, record = true, replay = false) {
@@ -289,6 +291,7 @@ function render(result, record = true, replay = false) {
     if ($('history-save').checked) saveHistory(history);
     renderHistory();
   }
+  renderPaper();
   renderPortfolio();
   if (!replay) renderTabs();
 }
@@ -392,11 +395,71 @@ function savePaper() {
   if (!paperReadable) return false;
   try { localStorage.setItem(paperKey, JSON.stringify(paper)); return true; } catch { return false; }
 }
+function paperTradable() {
+  return Boolean(current) && !current._replay && !current.stale_preview && current.source !== 'Synthetic sample CSV' && Number.isFinite(current.market?.features?.price);
+}
+let paperStatusSymbol = null;
+function renderPaper() {
+  const result = current;
+  const tradable = paperTradable();
+  const blocked = Boolean(result) && !tradable;
+  $('paper-badge').className = `pill ${tradable ? 'good' : blocked ? 'warning' : 'muted'}`;
+  setText('paper-badge', tradable ? 'READY' : blocked ? 'TRADING BLOCKED' : 'NO SIGNAL');
+  $('paper-empty').hidden = Boolean(result);
+  $('paper-content').hidden = !result;
+  if (paperStatusSymbol && paperStatusSymbol !== result?.market?.symbol) {
+    const status = $('paper-status'); status.textContent = ''; status.className = 'paper-status';
+    paperStatusSymbol = null;
+  }
+  if (!result) return;
+  const held = paper.positions[result.market.symbol];
+  setText('paper-cash', number(paper.cash));
+  setText('paper-position', held ? `${number(held.shares)} shares · avg ${number(held.cost / held.shares)}` : 'None held');
+  setText('paper-price', `${number(result.market.features.price)} · ${formatTime(result.market.candle_timestamp)}`);
+  if (!tradable) { $('paper-buy').disabled = true; $('paper-sell').disabled = true; return; }
+  const qty = Number($('paper-qty').value);
+  $('paper-buy').disabled = !(qty > 0) || qty * result.market.features.price > paper.cash + 1e-9;
+  $('paper-sell').disabled = !(qty > 0) || !held || qty > held.shares + 1e-9;
+}
+function placePaper(side) {
+  if (!paperTradable()) return;
+  const symbol = current.market.symbol;
+  const price = current.market.features.price;
+  const qty = Number($('paper-qty').value);
+  const say = (message, ok) => { const el = $('paper-status'); el.textContent = message; el.className = `paper-status ${ok ? 'good' : 'bad'}`.trim(); paperStatusSymbol = symbol; };
+  if (!(qty > 0)) { say('Enter a share quantity greater than zero.', false); return; }
+  const value = qty * price;
+  if (side === 'BUY') {
+    if (value > paper.cash + 1e-9) { say(`Not enough paper cash: ${number(value)} needed, ${number(paper.cash)} available.`, false); return; }
+    paper.cash -= value;
+    const held = paper.positions[symbol] || {shares: 0, cost: 0};
+    held.shares += qty; held.cost += value;
+    paper.positions[symbol] = held;
+  } else {
+    const held = paper.positions[symbol];
+    if (!held || qty > held.shares + 1e-9) { say(`The paper portfolio holds no ${symbol} shares to sell.`, false); return; }
+    const avg = held.cost / held.shares;
+    paper.cash += value;
+    paper.realized += (price - avg) * qty;
+    held.shares -= qty; held.cost -= avg * qty;
+    if (held.shares <= 1e-9) delete paper.positions[symbol];
+  }
+  paper.fills.unshift({time: new Date().toISOString(), symbol, side, quantity: qty, price, value});
+  if (paper.fills.length > 100) paper.fills.length = 100;
+  const saved = savePaper();
+  say(`${side} ${number(qty)} ${symbol} at ${number(price)} simulated against the last completed close. ${saved ? 'Stored in this browser.' : 'Browser storage is unavailable; it was not saved.'}`, true);
+  renderPaper();
+  renderPortfolio();
+}
+$('paper-qty').addEventListener('input', renderPaper);
+$('paper-buy').addEventListener('click', () => placePaper('BUY'));
+$('paper-sell').addEventListener('click', () => placePaper('SELL'));
 $('portfolio-reset').addEventListener('click', () => {
   paper = {version: 1, cash: PAPER_START_CASH, positions: {}, fills: [], realized: 0};
   try { localStorage.removeItem(paperKey); paperReadable = true; savePaper(); } catch { /* keep the reset in memory only */ }
   paperLoadWarning = '';
-  renderPortfolio();
+  const status = $('paper-status'); status.textContent = ''; status.className = 'paper-status';
+  renderPaper(); renderPortfolio();
 });
 
 /* Portfolio page: paper cash, open positions and simulated fills. */
@@ -556,7 +619,7 @@ function syncNavigation() {
   $('history-panel').hidden = destination !== '#history-panel';
   $('portfolio-panel').hidden = destination !== '#portfolio-panel';
   for (const link of document.querySelectorAll('.mobile-nav a[href^="#"], .desktop-rail nav a[href^="#"]')) {
-    const active = link.getAttribute('href') === destination;
+    const active = link.getAttribute('href') === (destination === '#chart-panel' ? '#workspace' : destination);
     link.classList.toggle('active', active);
     if (active) link.setAttribute('aria-current', 'location');
     else link.removeAttribute('aria-current');

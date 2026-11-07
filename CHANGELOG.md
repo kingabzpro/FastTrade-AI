@@ -2,7 +2,9 @@
 
 ## Unreleased
 
-Nothing yet.
+- The dashboard accepts up to five comma-separated tickers per run, shows each result in its own tab, and offers suggested ticker chips under the symbol field.
+- Added a browser-local paper trading block: simulated BUY and SELL fills at the analyzed last completed close, with SELL enabled only while the paper portfolio holds the shares.
+- Added a Portfolio page (paper cash, positions, fills, realized P&L) next to the History page, and colored BUY/HOLD/SELL badges across results, tabs and history rows.
 
 ## 0.2.0 (2026-11-07)
 

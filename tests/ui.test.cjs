@@ -550,3 +550,132 @@ test('provider discovery failure prevents an unintended analysis', async () => {
   await page.waitForFunction(() => document.querySelector('#notice').textContent.includes('provider configuration'));
   assert.equal(await page.locator('#analyze').isDisabled(), true);
 });
+
+test('suggested ticker chips fill the symbol field without duplicates', async () => {
+  assert.ok(await page.locator('.ticker-chip').count() >= 5);
+  await page.locator('.ticker-chip', {hasText: 'NVDA'}).click();
+  assert.equal(await page.locator('#symbol').inputValue(), 'SPY, NVDA');
+  await page.locator('.ticker-chip', {hasText: 'NVDA'}).click();
+  assert.equal(await page.locator('#symbol').inputValue(), 'SPY, NVDA');
+});
+
+test('several tickers analyze in one run and switch through tabs', async () => {
+  await page.fill('#symbol', 'AAPL, MSFT, NVDA');
+  await page.route('**/api/analyze', route => {
+    const symbol = route.request().postDataJSON().symbol;
+    const data = result(symbol);
+    if (symbol === 'MSFT') data.decision.action = 'SELL';
+    if (symbol === 'NVDA') return route.fulfill({status: 503, json: {error: 'Model request timed out.'}});
+    return route.fulfill({json: data});
+  });
+  await page.locator('#analyze').click();
+  await page.waitForFunction(() => document.querySelectorAll('.result-tab').length === 3);
+  assert.match(await page.locator('#chart-symbol').innerText(), /AAPL/);
+  const tabs = page.locator('.result-tab');
+  assert.equal(await tabs.nth(0).locator('.tab-state').innerText(), 'BUY');
+  assert.equal(await tabs.nth(1).locator('.tab-state').innerText(), 'SELL');
+  assert.equal(await tabs.nth(2).locator('.tab-state').innerText(), 'ERROR');
+  await tabs.nth(1).click();
+  await page.waitForFunction(() => document.getElementById('chart-symbol').textContent.includes('MSFT'));
+  assert.equal(await page.locator('#model-action').innerText(), 'SELL');
+  await tabs.nth(2).click();
+  await page.waitForFunction(() => document.getElementById('notice').classList.contains('error'));
+  assert.match(await page.locator('#notice').innerText(), /NVDA.*timed out/);
+  assert.equal(await page.locator('#paper-content').isHidden(), true);
+});
+
+test('every succeeded ticker of a multi-ticker run lands in history', async () => {
+  await page.locator('#history-save').check();
+  await page.fill('#symbol', 'AAPL, MSFT');
+  await page.route('**/api/analyze', route => route.fulfill({json: result(route.request().postDataJSON().symbol)}));
+  await page.locator('#analyze').click();
+  await page.waitForFunction(() => document.querySelectorAll('.result-tab').length === 2);
+  await page.waitForFunction(() => document.querySelectorAll('#history tbody tr').length === 2);
+  const stored = JSON.parse(await page.evaluate(() => localStorage.getItem('fasttrade-history')));
+  assert.deepEqual(stored.entries.map(entry => entry.market.symbol), ['AAPL', 'MSFT']);
+  assert.ok(stored.entries.every(entry => !Object.keys(entry).some(key => key.startsWith('_'))));
+});
+
+test('paper trading fills at the analyzed close and only sells held shares', async () => {
+  const data = result('NVDA');
+  await page.route('**/api/analyze', route => route.fulfill({json: data}));
+  await page.locator('#analyze').click();
+  await page.waitForFunction(() => !document.getElementById('decision-content').hidden);
+  assert.equal(await page.locator('#paper-badge').innerText(), 'READY');
+  assert.equal(await page.locator('#paper-sell').isDisabled(), true);
+  await page.fill('#paper-qty', '2');
+  assert.equal(await page.locator('#paper-buy').isEnabled(), true);
+  await page.locator('#paper-buy').click();
+  await page.waitForFunction(() => document.getElementById('paper-position').textContent.includes('2.00 shares'));
+  assert.match(await page.locator('#paper-cash').innerText(), /9,714/);
+  assert.equal(await page.locator('#paper-sell').isEnabled(), true);
+  await page.locator('#paper-sell').click();
+  await page.waitForFunction(() => document.getElementById('paper-position').textContent.includes('None held'));
+  assert.equal(await page.locator('#paper-sell').isDisabled(), true);
+  await page.locator('.desktop-rail a[href="#portfolio-panel"]').click();
+  await page.waitForFunction(() => !document.getElementById('fills').hidden);
+  assert.match(await page.locator('#fills tbody').innerText(), /NVDA/);
+  assert.match(await page.locator('#portfolio-realized').innerText(), /\+0\.00/);
+});
+
+test('paper cash limits buys and the portfolio persists across reloads', async () => {
+  await page.route('**/api/analyze', route => route.fulfill({json: result('NVDA')}));
+  await page.locator('#analyze').click();
+  await page.waitForFunction(() => !document.getElementById('decision-content').hidden);
+  await page.fill('#paper-qty', '100000');
+  assert.equal(await page.locator('#paper-buy').isDisabled(), true);
+  await page.fill('#paper-qty', '2');
+  await page.locator('#paper-buy').click();
+  await page.waitForFunction(() => document.getElementById('paper-position').textContent.includes('2.00 shares'));
+  await page.reload();
+  await page.waitForFunction(() => document.getElementById('portfolio-cash').textContent.includes('9,714'));
+  assert.match(await page.locator('#positions tbody').innerText(), /NVDA/);
+  await page.locator('#portfolio-reset').click();
+  await page.waitForFunction(() => document.getElementById('portfolio-cash').textContent.includes('10,000.00'));
+  assert.equal(await page.locator('#positions').isHidden(), true);
+});
+
+test('stale results cannot be paper traded and history replays stay blocked', async () => {
+  const data = result('NVDA');
+  data.stale_preview = true;
+  await page.route('**/api/analyze', route => route.fulfill({json: data}));
+  await page.locator('#analyze').click();
+  await page.waitForFunction(() => !document.getElementById('decision-content').hidden);
+  assert.equal(await page.locator('#paper-badge').innerText(), 'TRADING BLOCKED');
+  await page.fill('#paper-qty', '2');
+  assert.equal(await page.locator('#paper-buy').isDisabled(), true);
+  assert.equal(await page.locator('#paper-sell').isDisabled(), true);
+});
+
+test('replayed history entries cannot be paper traded', async () => {
+  await page.locator('#history-save').check();
+  await page.route('**/api/analyze', route => route.fulfill({json: result('NVDA')}));
+  await page.locator('#analyze').click();
+  await page.waitForFunction(() => document.querySelectorAll('#history tbody tr').length === 1);
+  await page.locator('.history-link').click();
+  await page.waitForFunction(() => document.getElementById('paper-badge').textContent === 'TRADING BLOCKED');
+  await page.fill('#paper-qty', '2');
+  assert.equal(await page.locator('#paper-buy').isDisabled(), true);
+  assert.equal(await page.locator('#paper-sell').isDisabled(), true);
+});
+
+test('a corrupt paper portfolio is reported and reset restores storage', async () => {
+  await page.evaluate(() => localStorage.setItem('fasttrade-paper', '{"version":1,"cash":"lots","positions":{"NVDA":{"shares":"2"}},"fills":[]}'));
+  await page.reload();
+  await page.waitForFunction(() => document.getElementById('portfolio-note').textContent.includes('invalid'));
+  await page.locator('#portfolio-reset').click();
+  await page.waitForFunction(() => document.getElementById('portfolio-cash').textContent.includes('10,000.00'));
+  const stored = JSON.parse(await page.evaluate(() => localStorage.getItem('fasttrade-paper')));
+  assert.equal(stored.cash, 10000);
+});
+
+test('history and portfolio pages are reachable from both navigations', async () => {
+  assert.equal(await page.locator('.desktop-rail a[href="#portfolio-panel"]').count(), 1);
+  assert.equal(await page.locator('.mobile-nav a[href="#portfolio-panel"]').count(), 1);
+  await page.locator('.desktop-rail a[href="#portfolio-panel"]').click();
+  await page.waitForFunction(() => document.querySelector('.desktop-rail a[href="#portfolio-panel"]').classList.contains('active'));
+  await page.setViewportSize({width: 390, height: 844});
+  await page.locator('.mobile-nav a[href="#history-panel"]').click();
+  await page.waitForFunction(() => document.querySelector('.mobile-nav a[href="#history-panel"]').getAttribute('aria-current') === 'location');
+  await page.setViewportSize({width: 1440, height: 1000});
+});

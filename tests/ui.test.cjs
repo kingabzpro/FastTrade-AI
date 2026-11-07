@@ -647,16 +647,22 @@ test('every succeeded ticker of a multi-ticker run lands in history', async () =
 
 test('paper trading fills at the analyzed close and only sells held shares', async () => {
   const data = result('NVDA');
+  data.actionable_signal = null;
   await page.route('**/api/analyze', route => route.fulfill({json: data}));
   await page.locator('#analyze').click();
   await page.waitForFunction(() => !document.getElementById('decision-content').hidden);
   assert.equal(await page.locator('#paper-badge').innerText(), 'READY');
-  assert.equal(await page.locator('#paper-sell').isDisabled(), true);
+  assert.equal(await page.locator('#paper-sell').isHidden(), true);
   await page.fill('#paper-qty', '2');
   assert.equal(await page.locator('#paper-buy').isEnabled(), true);
   await page.locator('#paper-buy').click();
   await page.waitForFunction(() => document.getElementById('paper-position').textContent.includes('2.00 shares'));
   assert.match(await page.locator('#paper-cash').innerText(), /9,714/);
+  data.decision.action = 'SELL';
+  await page.locator('#analyze').click();
+  await page.waitForFunction(() => document.getElementById('model-action').textContent === 'SELL');
+  assert.equal(await page.locator('#paper-qty').inputValue(), '0.2');
+  await page.fill('#paper-qty', '2');
   assert.equal(await page.locator('#paper-sell').isEnabled(), true);
   await page.locator('#paper-sell').click();
   await page.waitForFunction(() => document.getElementById('paper-position').textContent.includes('None held'));
@@ -668,7 +674,8 @@ test('paper trading fills at the analyzed close and only sells held shares', asy
 });
 
 test('paper cash limits buys and the portfolio persists across reloads', async () => {
-  await page.route('**/api/analyze', route => route.fulfill({json: result('NVDA')}));
+  const data = result('NVDA'); data.actionable_signal = null;
+  await page.route('**/api/analyze', route => route.fulfill({json: data}));
   await page.locator('#analyze').click();
   await page.waitForFunction(() => !document.getElementById('decision-content').hidden);
   await page.fill('#paper-qty', '100000');
@@ -688,6 +695,7 @@ test('paper cash limits buys and the portfolio persists across reloads', async (
 test('stale results cannot be paper traded and history replays stay blocked', async () => {
   const data = result('NVDA');
   data.stale_preview = true;
+  data.actionable_signal = null;
   await page.route('**/api/analyze', route => route.fulfill({json: data}));
   await page.locator('#analyze').click();
   await page.waitForFunction(() => !document.getElementById('decision-content').hidden);
@@ -701,7 +709,8 @@ test('replayed history entries cannot be paper traded', async () => {
   await openView('history-panel');
   await page.locator('#history-save').check();
   await openView('workspace');
-  await page.route('**/api/analyze', route => route.fulfill({json: result('NVDA')}));
+  const data = result('NVDA'); data.actionable_signal = null;
+  await page.route('**/api/analyze', route => route.fulfill({json: data}));
   await page.locator('#analyze').click();
   await page.waitForFunction(() => document.querySelectorAll('#history tbody tr').length === 1);
   await openView('history-panel');
@@ -756,4 +765,37 @@ test('paper trading controls are present and the existing portfolio remains read
   assert.equal(await page.locator('.paper-card').count(), 1);
   await openView('portfolio-panel');
   assert.equal(await page.locator('#portfolio-cash').innerText(), '10,000.00');
+});
+
+test('paper controls follow the current signal and do not offer a blocked trade', async () => {
+  const data = result('NVDA');
+  data.actionable_signal = null;
+  await page.route('**/api/analyze', route => route.fulfill({json: data}));
+  await page.locator('#analyze').click();
+  await page.waitForFunction(() => document.getElementById('model-action').textContent === 'BUY');
+  assert.equal(await page.locator('#paper-buy').isVisible(), true);
+  assert.equal(await page.locator('#paper-sell').isHidden(), true);
+  data.decision.action = 'SELL';
+  await page.locator('#analyze').click();
+  await page.waitForFunction(() => document.getElementById('model-action').textContent === 'SELL');
+  assert.equal(await page.locator('#paper-buy').isHidden(), true);
+  assert.equal(await page.locator('#paper-sell').isVisible(), true);
+  data.actionable_signal = 'HOLD'; data.risk_rejections = ['Risk limit reached'];
+  await page.locator('#analyze').click();
+  await page.waitForFunction(() => document.getElementById('risk-action').textContent.includes('HOLD'));
+  assert.equal(await page.locator('#paper-buy').isHidden(), true);
+  assert.equal(await page.locator('#paper-sell').isHidden(), true);
+});
+
+test('paper quantity and estimated value are suggested and remain editable', async () => {
+  const data = result('NVDA'); data.actionable_signal = null;
+  await page.route('**/api/analyze', route => route.fulfill({json: data}));
+  await page.locator('#analyze').click();
+  await page.waitForFunction(() => document.getElementById('model-action').textContent === 'BUY');
+  assert.equal(await page.locator('#paper-allocation').count(), 0);
+  assert.equal(await page.locator('#paper-qty').inputValue(), '7');
+  assert.equal(await page.locator('#paper-cash').innerText(), '10,000.00');
+  assert.match(await page.locator('#paper-estimate').innerText(), /999\.95/);
+  await page.locator('#paper-qty').fill('2');
+  assert.match(await page.locator('#paper-estimate').innerText(), /285\.70/);
 });

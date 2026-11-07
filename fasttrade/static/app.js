@@ -396,15 +396,24 @@ function savePaper() {
   try { localStorage.setItem(paperKey, JSON.stringify(paper)); return true; } catch { return false; }
 }
 function paperTradable() {
-  return Boolean(current) && !current._replay && !current.stale_preview && current.source !== 'Synthetic sample CSV' && Number.isFinite(current.market?.features?.price);
+  return Boolean(current) && !current._replay && !current.stale_preview && current.source !== 'Synthetic sample CSV' && Number.isFinite(current.market?.features?.price) && current.market.features.price > 0;
 }
+const paperAction = () => current?.actionable_signal ?? current?.decision?.action;
 let paperStatusSymbol = null;
+let paperSizingResult = null;
+function suggestPaperQuantity() {
+  const action = paperAction(), price = current?.market?.features?.price;
+  const held = paper.positions[current?.market?.symbol]?.shares || 0;
+  const shares = Number.isFinite(price) && price > 0 ? action === 'BUY' ? Math.floor(paper.cash * 0.1 / price) : action === 'SELL' ? Math.floor(held * 0.1 * 10000) / 10000 : 0 : 0;
+  $('paper-qty').value = shares > 0 ? String(shares) : '';
+}
 function renderPaper() {
   const result = current;
   const tradable = paperTradable();
   const blocked = Boolean(result) && !tradable;
-  $('paper-badge').className = `pill ${tradable ? 'good' : blocked ? 'warning' : 'muted'}`;
-  setText('paper-badge', tradable ? 'READY' : blocked ? 'TRADING BLOCKED' : 'NO SIGNAL');
+  const action = paperAction();
+  $('paper-badge').className = `pill ${tradable && action !== 'HOLD' ? 'good' : blocked ? 'warning' : 'muted'}`;
+  setText('paper-badge', blocked ? 'TRADING BLOCKED' : tradable && action === 'HOLD' ? 'NO TRADE' : tradable ? 'READY' : 'NO SIGNAL');
   $('paper-empty').hidden = Boolean(result);
   $('paper-content').hidden = !result;
   if (paperStatusSymbol && paperStatusSymbol !== result?.market?.symbol) {
@@ -412,22 +421,27 @@ function renderPaper() {
     paperStatusSymbol = null;
   }
   if (!result) return;
+  $('paper-buy').hidden = action !== 'BUY'; $('paper-sell').hidden = action !== 'SELL';
+  $('paper-quantity-label').hidden = action !== 'BUY' && action !== 'SELL';
+  setText('paper-guidance', action === 'HOLD' ? 'Hold signal · No simulated trade' : `Suggested size: 10% of ${action === 'SELL' ? 'shares held' : 'paper cash'} · Not risk-checked${result.actionable_signal == null ? ' · Model preference only' : ''}`);
+  if (paperSizingResult !== result) { paperSizingResult = result; suggestPaperQuantity(); }
   const held = paper.positions[result.market.symbol];
   setText('paper-cash', number(paper.cash));
   setText('paper-position', held ? `${number(held.shares)} shares · avg ${number(held.cost / held.shares)}` : 'None held');
   setText('paper-price', `${number(result.market.features.price)} · ${formatTime(result.market.candle_timestamp)}`);
-  if (!tradable) { $('paper-buy').disabled = true; $('paper-sell').disabled = true; return; }
   const qty = Number($('paper-qty').value);
-  $('paper-buy').disabled = !(qty > 0) || qty * result.market.features.price > paper.cash + 1e-9;
-  $('paper-sell').disabled = !(qty > 0) || !held || qty > held.shares + 1e-9;
+  setText('paper-estimate', action === 'HOLD' ? '' : Number.isFinite(qty) && qty > 0 ? `Estimated ${action.toLowerCase()} value · ${number(qty * result.market.features.price)} at the last close` : action === 'SELL' && !held ? 'No shares held to sell' : 'Enter a share quantity to see the estimated value');
+  if (!tradable) { $('paper-buy').disabled = true; $('paper-sell').disabled = true; return; }
+  $('paper-buy').disabled = !Number.isFinite(qty) || !(qty > 0) || qty * result.market.features.price > paper.cash + 1e-9;
+  $('paper-sell').disabled = !Number.isFinite(qty) || !(qty > 0) || !held || qty > held.shares + 1e-9;
 }
 function placePaper(side) {
-  if (!paperTradable()) return;
+  if (!paperTradable() || side !== paperAction()) return;
   const symbol = current.market.symbol;
   const price = current.market.features.price;
   const qty = Number($('paper-qty').value);
   const say = (message, ok) => { const el = $('paper-status'); el.textContent = message; el.className = `paper-status ${ok ? 'good' : 'bad'}`.trim(); paperStatusSymbol = symbol; };
-  if (!(qty > 0)) { say('Enter a share quantity greater than zero.', false); return; }
+  if (!Number.isFinite(qty) || !(qty > 0)) { say('Enter a share quantity greater than zero.', false); return; }
   const value = qty * price;
   if (side === 'BUY') {
     if (value > paper.cash + 1e-9) { say(`Not enough paper cash: ${number(value)} needed, ${number(paper.cash)} available.`, false); return; }

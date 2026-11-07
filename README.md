@@ -10,17 +10,19 @@ This is a research project. Signals aren't guarantees, paper trades are simulate
 
 ```mermaid
 flowchart LR
-    A[Choose tickers and timeframe] --> B[Fetch completed candles]
-    B --> C[Calculate indicators]
-    C --> D[Request model preference]
-    D --> E{Complete risk inputs?}
-    E -- Yes --> F[Check portfolio and limits]
-    E -- No --> G[Show model preference only]
-    F --> H[Show signal and reasons]
-    G --> H
-    H --> I{Fresh BUY or SELL?}
-    I -- Yes --> J[Optional paper trade]
-    I -- No --> K[No paper trade]
+    A["🔎 Pick a market"] --> B["📊 Analyze data"]
+    B --> C["🤖 Get a model signal"]
+    C --> D["🛡️ Check risk · optional"]
+    D --> E["📋 Review or paper trade"]
+
+    classDef market fill:#e8f1ff,stroke:#7095c9,color:#17345a
+    classDef signal fill:#e5f5ee,stroke:#6eaa8a,color:#164a33
+    classDef risk fill:#fff4dc,stroke:#c69d54,color:#5a3a08
+    classDef result fill:#f0ecfa,stroke:#9b8bbf,color:#39285c
+    class A,B market
+    class C signal
+    class D risk
+    class E result
 ```
 
 You can add portfolio values and limits to check a proposed trade. If any inputs are missing, you get the model preference only. The dashboard can load example inputs, but those aren't your account details or recommended limits. The rule comparison is unvalidated, and model confidence isn't the chance of profit.

@@ -6,7 +6,7 @@ import httpx
 import pandas as pd
 import pytest
 
-from fasttrade import agents, decisions, evidence
+from fasttrade import decisions, evidence, specialists
 from test_core import candles
 
 AS_OF = pd.Timestamp('2026-01-02 19:30', tz='UTC')
@@ -45,7 +45,7 @@ def valid_response(questions, model='jev-test'):
     return {'answers': answers, 'model': model, 'latency_ms': 1.5, 'usage': {'input_tokens': 10, 'output_tokens': 2}}
 
 
-ROLES = set(agents.MODEL_ROLES) | {'fundamentals', 'portfolio'}
+ROLES = set(specialists.MODEL_ROLES) | {'fundamentals', 'portfolio'}
 
 
 # --- Task 1: point-in-time evidence and contracts ---
@@ -223,14 +223,14 @@ def test_all_specialists_share_one_batched_call(monkeypatch):
     def ask(state, questions, url, model, key):
         calls.append({'state': state, 'questions': questions, 'key': key})
         return valid_response(questions)
-    monkeypatch.setattr(agents, 'ask_questions', ask)
+    monkeypatch.setattr(specialists, 'ask_questions', ask)
     snap = snapshot()
-    result = agents.run_specialists(snap, 'https://example.com', 'jev', 'k', timeout_s=5)
+    result = specialists.run_specialists(snap, 'https://example.com', 'jev', 'k', timeout_s=5)
     assert len(calls) == 1 and calls[0]['key'] == 'k'
-    assert set(calls[0]['questions']) == set(agents.MODEL_ROLES)
+    assert set(calls[0]['questions']) == set(specialists.MODEL_ROLES)
     assert 'portfolio' not in calls[0]['state'] and 'fundamentals' not in calls[0]['questions']
     assert set(result) == ROLES
-    assert all(result[name]['status'] == 'ok' for name in agents.MODEL_ROLES)
+    assert all(result[name]['status'] == 'ok' for name in specialists.MODEL_ROLES)
     assert result['market']['answer']['choice'] in calls[0]['questions']['market']['criteria']
     assert result['market']['evidence_ids'] == ['candles:TEST', 'benchmark:SPY']
     assert result['technical']['evidence_ids'] == [f'indicator:{name}' for name in sorted(snap['technical']['features'])]
@@ -248,8 +248,8 @@ def test_specialist_questions_carry_insufficient_options(monkeypatch):
     def ask(state, questions, *args):
         captured.update(questions)
         return valid_response(questions)
-    monkeypatch.setattr(agents, 'ask_questions', ask)
-    agents.run_specialists(snapshot(), 'u', 'm', 'k', timeout_s=5)
+    monkeypatch.setattr(specialists, 'ask_questions', ask)
+    specialists.run_specialists(snapshot(), 'u', 'm', 'k', timeout_s=5)
     for name, question in captured.items():
         if question['type'] == 'choice':
             assert 'insufficient' in question['criteria'] or 'none' in question['criteria']
@@ -266,16 +266,16 @@ def test_specialist_calls_overlap_and_finish_in_either_order(monkeypatch):
         release.wait(5)
         order.append('model')
         return valid_response(questions)
-    monkeypatch.setattr(agents, 'ask_questions', slow_ask)
-    real_portfolio = agents._portfolio_role
+    monkeypatch.setattr(specialists, 'ask_questions', slow_ask)
+    real_portfolio = specialists._portfolio_role
     def tracked_portfolio(portfolio):
         threads['portfolio'] = threading.get_ident()
         role = real_portfolio(portfolio)
         order.append('portfolio')
         return role
-    monkeypatch.setattr(agents, '_portfolio_role', tracked_portfolio)
+    monkeypatch.setattr(specialists, '_portfolio_role', tracked_portfolio)
     box = {}
-    worker = threading.Thread(target=lambda: box.update(result=agents.run_specialists(snapshot(), 'u', 'm', 'k', timeout_s=10)))
+    worker = threading.Thread(target=lambda: box.update(result=specialists.run_specialists(snapshot(), 'u', 'm', 'k', timeout_s=10)))
     worker.start()
     assert started.wait(5)  # the model call is parked while the stage is still running
     time.sleep(0.05)
@@ -288,10 +288,10 @@ def test_specialist_calls_overlap_and_finish_in_either_order(monkeypatch):
 
 
 def test_results_do_not_depend_on_completion_order(monkeypatch):
-    monkeypatch.setattr(agents, 'ask_questions', lambda state, questions, *args: valid_response(questions))
-    real_portfolio = agents._portfolio_role
-    monkeypatch.setattr(agents, '_portfolio_role', lambda p: (time.sleep(0.15), real_portfolio(p))[1])
-    result = agents.run_specialists(snapshot(), 'u', 'm', 'k', timeout_s=5)
+    monkeypatch.setattr(specialists, 'ask_questions', lambda state, questions, *args: valid_response(questions))
+    real_portfolio = specialists._portfolio_role
+    monkeypatch.setattr(specialists, '_portfolio_role', lambda p: (time.sleep(0.15), real_portfolio(p))[1])
+    result = specialists.run_specialists(snapshot(), 'u', 'm', 'k', timeout_s=5)
     assert result['market']['status'] == 'ok' and result['portfolio']['status'] == 'ok'
 
 
@@ -301,12 +301,12 @@ def test_bounded_timeout_marks_unfinished_roles_error(monkeypatch):
         started.set()
         time.sleep(0.6)
         return valid_response(questions)
-    monkeypatch.setattr(agents, 'ask_questions', slow_ask)
+    monkeypatch.setattr(specialists, 'ask_questions', slow_ask)
     began = time.perf_counter()
-    result = agents.run_specialists(snapshot(), 'u', 'm', 'k', timeout_s=0.15)
+    result = specialists.run_specialists(snapshot(), 'u', 'm', 'k', timeout_s=0.15)
     elapsed = time.perf_counter() - began
     assert started.wait(1) and elapsed < 0.5
-    for name in agents.MODEL_ROLES:
+    for name in specialists.MODEL_ROLES:
         assert result[name]['status'] == 'error' and 'timed out' in result[name]['reason'] and result[name]['answer'] is None
     assert result['portfolio']['status'] == 'ok' and set(result) == ROLES
 
@@ -314,9 +314,9 @@ def test_bounded_timeout_marks_unfinished_roles_error(monkeypatch):
 def test_model_failure_is_never_an_action(monkeypatch):
     def ask(*args):
         raise ValueError('Invalid SystemOne response')
-    monkeypatch.setattr(agents, 'ask_questions', ask)
-    result = agents.run_specialists(snapshot(), 'u', 'm', 'k', timeout_s=5)
-    for name in agents.MODEL_ROLES:
+    monkeypatch.setattr(specialists, 'ask_questions', ask)
+    result = specialists.run_specialists(snapshot(), 'u', 'm', 'k', timeout_s=5)
+    for name in specialists.MODEL_ROLES:
         assert result[name]['status'] == 'error' and result[name]['answer'] is None
         assert result[name].get('answer') not in ('BUY', 'SELL')
     assert result['fundamentals']['status'] == 'unavailable' and result['portfolio']['status'] == 'ok'
@@ -325,8 +325,8 @@ def test_model_failure_is_never_an_action(monkeypatch):
 
 def test_missing_news_is_unavailable_without_a_question(monkeypatch):
     captured = {}
-    monkeypatch.setattr(agents, 'ask_questions', lambda state, questions, *args: captured.update(questions) or valid_response(questions))
-    result = agents.run_specialists(snapshot(news=None), 'u', 'm', 'k', timeout_s=5)
+    monkeypatch.setattr(specialists, 'ask_questions', lambda state, questions, *args: captured.update(questions) or valid_response(questions))
+    result = specialists.run_specialists(snapshot(news=None), 'u', 'm', 'k', timeout_s=5)
     assert 'news' not in captured and 'sentiment' not in captured
     assert result['news']['status'] == 'unavailable' and result['sentiment']['status'] == 'unavailable'
     assert result['market']['status'] == 'ok' and set(result) == ROLES
@@ -334,31 +334,31 @@ def test_missing_news_is_unavailable_without_a_question(monkeypatch):
 
 def test_absent_benchmark_keeps_forecast_unavailable(monkeypatch):
     captured = {}
-    monkeypatch.setattr(agents, 'ask_questions', lambda state, questions, *args: captured.update(questions) or valid_response(questions))
-    result = agents.run_specialists(snapshot(benchmark=None), 'u', 'm', 'k', timeout_s=5)
+    monkeypatch.setattr(specialists, 'ask_questions', lambda state, questions, *args: captured.update(questions) or valid_response(questions))
+    result = specialists.run_specialists(snapshot(benchmark=None), 'u', 'm', 'k', timeout_s=5)
     assert 'forecast' not in captured
     assert result['forecast']['status'] == 'unavailable' and result['forecast']['answer'] is None
     assert result['market']['status'] == 'ok' and set(result) == ROLES
 
 
 def test_portfolio_role_is_deterministic_without_model_call(monkeypatch):
-    monkeypatch.setattr(agents, 'ask_questions', lambda state, questions, *args: valid_response(questions))
-    first = agents.run_specialists(snapshot(), 'u', 'm', 'k', timeout_s=5)['portfolio']
-    second = agents.run_specialists(snapshot(), 'u', 'm', 'k', timeout_s=5)['portfolio']
+    monkeypatch.setattr(specialists, 'ask_questions', lambda state, questions, *args: valid_response(questions))
+    first = specialists.run_specialists(snapshot(), 'u', 'm', 'k', timeout_s=5)['portfolio']
+    second = specialists.run_specialists(snapshot(), 'u', 'm', 'k', timeout_s=5)['portfolio']
     assert first == second and first['model'] is None and first['latency_ms'] is None and first['usage'] is None
     assert first['answer']['provided'] == {'position': 0, 'equity': 1000.0}
     assert 'quantity' in first['answer']['missing'] and 'equity' not in first['answer']['missing']
-    empty = agents.run_specialists(snapshot(portfolio=None), 'u', 'm', 'k', timeout_s=5)['portfolio']
+    empty = specialists.run_specialists(snapshot(portfolio=None), 'u', 'm', 'k', timeout_s=5)['portfolio']
     assert empty['status'] == 'unavailable' and empty['answer'] is None
 
 
 def test_concurrency_limit_configures_the_pool(monkeypatch):
     seen = []
-    class Pool(agents.ThreadPoolExecutor):
+    class Pool(specialists.ThreadPoolExecutor):
         def __init__(self, max_workers=None, **kwargs):
             seen.append(max_workers)
             super().__init__(max_workers=max_workers, **kwargs)
-    monkeypatch.setattr(agents, 'ThreadPoolExecutor', Pool)
-    monkeypatch.setattr(agents, 'ask_questions', lambda state, questions, *args: valid_response(questions))
-    agents.run_specialists(snapshot(), 'u', 'm', 'k', concurrency=1, timeout_s=5)
+    monkeypatch.setattr(specialists, 'ThreadPoolExecutor', Pool)
+    monkeypatch.setattr(specialists, 'ask_questions', lambda state, questions, *args: valid_response(questions))
+    specialists.run_specialists(snapshot(), 'u', 'm', 'k', concurrency=1, timeout_s=5)
     assert seen == [1]

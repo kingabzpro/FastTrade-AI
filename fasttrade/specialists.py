@@ -1,4 +1,4 @@
-"""Parallel specialist stage: seven roles over one immutable snapshot; agents never place orders."""
+"""Parallel specialist stage: seven roles over one immutable snapshot; it never places orders."""
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as StageTimeout, as_completed
 
 from .decisions import ask_questions

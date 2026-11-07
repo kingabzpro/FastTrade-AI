@@ -1,4 +1,12 @@
+from pathlib import Path
+
 import pytest
+
+
+@pytest.fixture
+def historical_docs():
+    if not (Path(__file__).resolve().parents[1] / 'docs').is_dir():
+        pytest.skip('Local historical research files are not present')
 
 
 @pytest.fixture(autouse=True)

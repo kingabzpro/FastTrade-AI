@@ -2,7 +2,7 @@ import importlib.util
 from pathlib import Path
 
 
-def test_published_impact_replay_matches_flat_reference_and_reports_scenarios():
+def test_published_impact_replay_matches_flat_reference_and_reports_scenarios(historical_docs):
     path = Path(__file__).resolve().parents[1] / 'docs' / 'replay_impact_costs.py'
     spec = importlib.util.spec_from_file_location('replay_impact_costs', path)
     module = importlib.util.module_from_spec(spec)
@@ -15,7 +15,7 @@ def test_published_impact_replay_matches_flat_reference_and_reports_scenarios():
     assert all(row['trades'] for row in scenarios)
 
 
-def test_recorded_flagship_uses_primary_impact_without_provider_calls():
+def test_recorded_flagship_uses_primary_impact_without_provider_calls(historical_docs):
     path = Path(__file__).resolve().parents[1] / 'docs' / 'replay_impact_costs.py'
     spec = importlib.util.spec_from_file_location('replay_impact_costs', path)
     module = importlib.util.module_from_spec(spec)
@@ -26,7 +26,7 @@ def test_recorded_flagship_uses_primary_impact_without_provider_calls():
     assert result['primary_ending_balance'] == result['impact_sensitivity']['scenarios'][1]['ending_balance']
 
 
-def test_controlled_h1_impact_replay_matches_recorded_no_cost_result():
+def test_controlled_h1_impact_replay_matches_recorded_no_cost_result(historical_docs):
     path = Path(__file__).resolve().parents[1] / 'docs' / 'replay_impact_costs.py'
     spec = importlib.util.spec_from_file_location('replay_impact_costs', path)
     module = importlib.util.module_from_spec(spec)
@@ -39,7 +39,7 @@ def test_controlled_h1_impact_replay_matches_recorded_no_cost_result():
     assert any(t['missing_sessions'] for t in scenarios[1]['trades'])
 
 
-def test_h1_calendar_preserves_early_closes_and_detects_missing_session_edges():
+def test_h1_calendar_preserves_early_closes_and_detects_missing_session_edges(historical_docs):
     import pandas as pd
     from fasttrade.impact import liquidity
 

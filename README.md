@@ -1,49 +1,65 @@
-<div align="center">
-  <img src="docs/fasttrade-banner.png" alt="FastTrade AI: market data, model signals, and candlestick chart">
-  <h1>FastTrade AI</h1>
-  <p>Market research, model signals, and risk checks.</p>
-  <a href="https://github.com/kingabzpro/FastTrade-AI/actions/workflows/tests.yml"><img src="https://github.com/kingabzpro/FastTrade-AI/actions/workflows/tests.yml/badge.svg" alt="Tests"></a>
-  <img src="https://img.shields.io/badge/license-Apache--2.0-blue" alt="Apache-2.0 license">
-</div>
+# FastTrade AI
 
-FastTrade uses Alpaca IEX or Yahoo Finance market data and Jev to generate BUY, HOLD, or SELL preferences. **Research only; no orders are placed.**
+FastTrade is a market research dashboard for exploring BUY, HOLD and SELL signals. Choose up to five tickers, inspect their charts and indicators, compare model preferences with a simple rule, and try paper trades in your browser.
 
-## Benchmark results
+This is a research project. Signals aren't guarantees, paper trades are simulated, and FastTrade doesn't place orders.
 
-| Measure                          | FastTrade                 | SPY buy-and-hold |
-| -------------------------------- | -------------------------:| ----------------:|
-| Return, Jan–Jun 2026             | +6.60%                    | +9.35%           |
-| Return, Oct 2026 (Alpaca IEX)    | +2.04%                    | −0.17%           |
-| Directional accuracy, Jan–Jun    | 49.01% (199 of 406)       | Not measured     |
-| Mean model request time, Jan–Jun | 862 ms                    | Not applicable   |
-| Estimated model cost, Jan–Jun    | $0.0224 for 650 decisions | Not applicable   |
+## How it works
 
-Retrospective results use hindsight-selected stocks and may contain model lookahead; they do not establish a live edge. Directional accuracy excludes HOLD. The six-month test excludes trading costs; the October test includes simulated fees and slippage. Model cost is estimated at a historical rate. See the [six-month benchmark](docs/benchmark-2026-h1.md) and [Alpaca backtest](docs/backtest-2026-09-28-alpaca/README.md) for methods and limitations.
+```mermaid
+flowchart LR
+    A[Choose tickers and timeframe] --> B[Fetch completed candles]
+    B --> C[Calculate indicators]
+    C --> D[Request model preference]
+    D --> E{Complete risk inputs?}
+    E -- Yes --> F[Check portfolio and limits]
+    E -- No --> G[Show model preference only]
+    F --> H[Show signal and reasons]
+    G --> H
+    H --> I{Fresh BUY or SELL?}
+    I -- Yes --> J[Optional paper trade]
+    I -- No --> K[No paper trade]
+```
+
+You can add portfolio values and limits to check a proposed trade. If any inputs are missing, you get the model preference only. The dashboard can load example inputs, but those aren't your account details or recommended limits. The rule comparison is unvalidated, and model confidence isn't the chance of profit.
+
+Paper trades use the last completed close. The dashboard suggests a quantity using 10% of paper cash for a buy or 10% of shares held for a sell; you can change it before confirming. The suggested quantity isn't risk-checked. Your paper portfolio and optional saved history stay in the browser on this device. Stale data, synthetic samples and reopened history can't be paper traded.
 
 ## Get started
 
-Install [uv](https://docs.astral.sh/uv/) and Python 3.10+. Add your [TypeSafe](https://typesafe.ai/) key and, for Alpaca, your API credentials:
+Install Python 3.10+ and `uv`. Copy the environment file, then add your TypeSafe key. Add Alpaca credentials if you want Alpaca data.
 
 ```powershell
 Copy-Item .env.example .env
-# Set TYPESAFE_API_KEY; set ALPACA_API_KEY and ALPACA_SECRET_KEY for Alpaca
+# Set TYPESAFE_API_KEY; for Alpaca also set ALPACA_API_KEY and ALPACA_SECRET_KEY
 uv run ft
 ```
 
-Open [localhost:8765](http://127.0.0.1:8765/) to analyze a market. Alpaca is the default; the dashboard also offers Yahoo Finance. The automatic SPY summary uses Alpaca. Prefer containers? `docker compose up --build -d` serves the same dashboard ([deployment guide](docs/deployment.md)).
+Open `http://127.0.0.1:8765/`. The dashboard defaults to Alpaca IEX and also supports Yahoo Finance. Jev is the default decision model; other configured providers can be selected in the dashboard. Model requests, including the automatic SPY summary, may incur charges. Keep API keys in your environment or `.env`.
 
-For a single ticker:
+You can also run an analysis from the command line:
 
 ```powershell
 uv run ft analyze NVDA --timeframe 5m
-```
-
-For a batch:
-
-```powershell
 uv run ft analyze-batch AAPL MSFT NVDA --concurrency 3
 ```
 
-Add `--source yahoo` to either command for Yahoo Finance. Model requests may incur charges. Every published result is reproducible without provider calls; the methods, frozen datasets and limitations live in [docs/benchmark-2026-h1.md](docs/benchmark-2026-h1.md).
+Add `--source yahoo` to use Yahoo Finance. For containers, run `docker compose up --build -d`. The dashboard exposes an API reference at `/docs`.
 
-[Usage guide](docs/usage.md) · [Deployment](docs/deployment.md) · [Security](SECURITY.md) · [Changelog](CHANGELOG.md) · [Roadmap](ROADMAP.md) · [License](LICENSE)
+## Backtest snapshot
+
+| Measure | FastTrade | SPY buy-and-hold |
+| --- | ---: | ---: |
+| Return, Jan–Jun 2026 | +6.60% | +9.35% |
+| Return, Oct 2026 (Alpaca IEX) | +2.04% | −0.17% |
+| Directional accuracy, Jan–Jun | 49.01% (199 of 406) | Not measured |
+| Mean model request time, Jan–Jun | 862 ms | Not applicable |
+| Estimated model cost, Jan–Jun | $0.0224 for 650 decisions | Not applicable |
+
+These retrospective tests use hindsight-selected stocks and may contain model lookahead, so they don't establish a live edge. Accuracy excludes HOLD. The six-month test excludes trading costs; the October test includes simulated fees and slippage. Model cost uses a historical rate.
+
+## Tests
+
+Run `uv run pytest` for the Python suite and `node --test tests/chart.test.cjs` for chart calculations. The browser UI suite lives in `tests/ui.test.cjs` and requires Playwright and Chromium. Historical research replay tests also need the local, untracked `docs` folder.
+
+Apache-2.0 license.

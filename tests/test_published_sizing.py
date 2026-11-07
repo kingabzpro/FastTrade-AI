@@ -2,7 +2,7 @@ import importlib.util
 from pathlib import Path
 
 
-def test_recorded_alpaca_sizing_comparison_replays_without_model_calls():
+def test_recorded_alpaca_sizing_comparison_replays_without_model_calls(historical_docs):
     path = Path(__file__).resolve().parents[1] / 'docs' / 'replay_sizing.py'
     spec = importlib.util.spec_from_file_location('replay_sizing', path)
     module = importlib.util.module_from_spec(spec)
@@ -14,7 +14,7 @@ def test_recorded_alpaca_sizing_comparison_replays_without_model_calls():
     assert result['sizing_ablation']['fixed']['evaluations']
 
 
-def test_recorded_alpaca_comparison_can_enable_drawdown_overlay():
+def test_recorded_alpaca_comparison_can_enable_drawdown_overlay(historical_docs):
     path = Path(__file__).resolve().parents[1] / 'docs' / 'replay_sizing.py'
     spec = importlib.util.spec_from_file_location('replay_sizing', path)
     module = importlib.util.module_from_spec(spec)

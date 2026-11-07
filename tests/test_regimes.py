@@ -70,7 +70,7 @@ def test_retrieval_rejects_mismatched_timeframe():
         retrieve(corpus, sample_features(), '2026-01-15T00:00:00Z', timeframe='5m')
 
 
-def test_build_from_frozen_backtest_is_unavailable_before_corpus_creation():
+def test_build_from_frozen_backtest_is_unavailable_before_corpus_creation(historical_docs):
     from fasttrade.regimes import build_corpus
     folder = Path(__file__).resolve().parents[1] / 'docs' / 'backtest-2026-09-28'
     corpus = build_corpus(folder / 'report-measured.json', folder)
@@ -118,7 +118,7 @@ def test_future_dataset_retrieval_time_is_rejected(tmp_path):
         build_corpus(report, tmp_path)
 
 
-def test_builder_rejects_outcomes_after_attested_retrieval_and_accepts_unknown_retrieval(tmp_path):
+def test_builder_rejects_outcomes_after_attested_retrieval_and_accepts_unknown_retrieval(historical_docs, tmp_path):
     import hashlib
     import shutil
     from fasttrade.regimes import build_corpus

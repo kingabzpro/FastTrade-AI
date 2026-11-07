@@ -302,7 +302,7 @@ def test_run_calibration_end_to_end(tmp_path):
     assert summary['artifact']['edge']['in_sample']['periods'] == 9
 
 
-def test_calibration_ledger_rate_includes_purged_rows():
+def test_calibration_ledger_rate_includes_purged_rows(historical_docs):
     from types import SimpleNamespace
     args = SimpleNamespace(report='docs/backtest-2026-09-28/report-measured.json', data_dir='docs/backtest-2026-09-28',
                            train_frac=.75, alpha=.1, fee_bps=5, slippage_bps=10)

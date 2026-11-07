@@ -2,17 +2,17 @@
 
 const $ = (id) => document.getElementById(id);
 const riskFields = [
-  ['position', 'Position · shares', 'Shares of this asset you currently own.'],
-  ['equity', 'Account equity', 'Total account value in the instrument’s currency.'],
-  ['exposure', 'Current exposure', 'Gross value of your long positions in the instrument’s currency.'],
-  ['daily_loss', 'Daily loss', 'Today’s loss as a positive amount in the instrument’s currency.'],
-  ['trade_count', 'Trades today', 'Number of trades already made today.'],
-  ['quantity', 'Proposed shares', 'Shares to buy or sell; a sale cannot exceed your position.'],
-  ['max_position', 'Max position value', 'Maximum value of this asset after a purchase, not a share count.'],
-  ['max_exposure', 'Max exposure', 'Maximum gross long exposure after a purchase.'],
-  ['max_daily_loss', 'Max daily loss', 'Daily loss at which buy and sell signals are blocked.'],
-  ['max_trades', 'Max trades', 'Trade count at which buy and sell signals are blocked.'],
-  ['min_confidence', 'Min confidence · 0–1', 'Minimum model confidence for a buy or sell signal.'],
+  ['position', 'Position · shares', 'Shares currently held for this symbol'],
+  ['equity', 'Account equity', 'Total account value in the instrument’s currency'],
+  ['exposure', 'Current exposure', 'Gross value of long positions in the instrument’s currency'],
+  ['daily_loss', 'Daily loss', 'Today’s loss as a positive amount in the instrument’s currency'],
+  ['trade_count', 'Trades today', 'Trades made today'],
+  ['quantity', 'Proposed shares', 'Shares to trade; sells cannot exceed holdings'],
+  ['max_position', 'Max position value', 'Maximum value of this symbol after a buy'],
+  ['max_exposure', 'Max exposure', 'Maximum gross long exposure after a buy'],
+  ['max_daily_loss', 'Max daily loss', 'Loss at which buy and sell signals are blocked'],
+  ['max_trades', 'Max trades', 'Trade count at which buy and sell signals are blocked'],
+  ['min_confidence', 'Min confidence · 0–1', 'Minimum model confidence for a signal'],
 ];
 for (const [name, label, description] of riskFields) {
   const wrap = document.createElement('label');
@@ -31,6 +31,20 @@ for (const [name, label, description] of riskFields) {
   input.setAttribute('aria-describedby', help.id);
   wrap.append(input, help); $('risk-fields').append(wrap);
 }
+
+let exampleRiskInputs = false;
+const exampleRiskValues = {position: 0, equity: 10000, exposure: 0, daily_loss: 0, trade_count: 0, quantity: 1, max_position: 1000, max_exposure: 5000, max_daily_loss: 200, max_trades: 5, min_confidence: 0.5};
+function setRiskInputs(values, isExample) {
+  for (const [name] of riskFields) {
+    const input = $(`risk-${name}`);
+    input.value = values[name] ?? '';
+    input.dispatchEvent(new Event('input', {bubbles: true}));
+  }
+  exampleRiskInputs = isExample;
+  $('risk-example-status').textContent = isExample ? 'Example values loaded · Illustrative only, not your account or recommended limits' : '';
+}
+$('risk-example').addEventListener('click', () => setRiskInputs(exampleRiskValues, true));
+$('risk-clear').addEventListener('click', () => setRiskInputs({}, false));
 
 const suggestedTickers = ['SPY', 'AAPL', 'MSFT', 'NVDA', 'AMZN', 'GOOGL', 'META', 'TSLA'];
 const symbolList = () => [...new Set($('symbol').value.trim().toUpperCase().split(/[,\s]+/).filter(Boolean))];
@@ -87,7 +101,7 @@ function historySnapshot(result) {
   market.headlines = (result.market.headlines || []).map(item => pick(item, ['title', 'source', 'published']));
   const decision = pick(result.decision, ['action', 'model', 'provider', 'latency_us']);
   decision.probabilities = pick(result.decision.probabilities, ['BUY', 'HOLD', 'SELL']);
-  return {...pick(result, ['source', 'stale_preview', 'actionable_signal', 'risk_rejections', 'indicator_interpretations']), market, decision,
+  return {...pick(result, ['source', 'stale_preview', 'actionable_signal', 'risk_rejections', 'indicator_interpretations', 'example_risk']), market, decision,
     rule_comparison: result.rule_comparison ? pick(result.rule_comparison, ['signal', 'agreement']) : null,
     candles: (result.candles || []).map(item => pick(item, ['timestamp', 'open', 'high', 'low', 'close', 'volume', 'ema_9', 'ema_21', 'ema_50', 'vwap']))};
 }
@@ -243,11 +257,12 @@ function render(result, record = true, replay = false) {
   const signalOnly = result.actionable_signal == null;
   const blocked = !signalOnly && result.risk_rejections.length > 0 && action !== 'HOLD';
   document.querySelector('.risk-result').classList.toggle('blocked', blocked || stale);
-  setText('risk-label', signalOnly ? 'PORTFOLIO' : replay ? 'PREVIOUS RISK-CHECKED SIGNAL' : 'RISK-CHECKED SIGNAL');
+  setText('risk-label', result.example_risk ? 'EXAMPLE RISK INPUTS' : signalOnly ? 'PORTFOLIO' : replay ? 'PREVIOUS RISK-CHECKED SIGNAL' : 'RISK-CHECKED SIGNAL');
   const riskValue = signalOnly ? 'SIGNAL ONLY' : blocked ? 'BLOCKED · HOLD' : result.actionable_signal;
   setText('risk-action', riskValue);
   $('risk-action').className = blocked ? 'warn' : ['BUY', 'SELL'].includes(riskValue) ? riskValue.toLowerCase() : signalOnly ? '' : 'flat';
-  setText('risk-reasons', result.risk_rejections.length ? result.risk_rejections.join(' · ') : signalOnly ? 'Add portfolio and risk settings for a risk-checked signal.' : 'No risk rejections. Signal only; no orders are placed.');
+  const riskReasons = result.risk_rejections.length ? result.risk_rejections.join(' · ') : signalOnly ? 'Add portfolio and risk settings for a risk-checked signal.' : 'No risk rejections. Signal only; no orders are placed.';
+  setText('risk-reasons', result.example_risk ? `Illustrative inputs, not your account · ${riskReasons}` : riskReasons);
   setText('model-name', `${decision.provider || 'jev'} / ${decision.model}`); setText('model-latency', `${number(decision.latency_us / 1000, 0)} ms`);
   const indicators = [
     ['RSI (14)', number(feature.rsi_14, 1), 'Momentum'], ['MACD', number(feature.macd, 3), 'Trend & momentum'],
@@ -313,7 +328,8 @@ function renderHistory() {
     button.type = 'button'; button.className = 'history-link'; button.textContent = `${result.market.symbol} · ${result.market.timeframe}`;
     button.addEventListener('click', () => { location.hash = '#chart-panel'; syncNavigation(); result._replay = true; render(result, false, true); $('chart-panel').scrollIntoView(); });
     first.append(button); row.append(first);
-    const cells = [['Model', badge(result.decision.action)], ['Risk-checked', badge(result.actionable_signal == null ? 'SIGNAL ONLY' : result.risk_rejections.length && result.decision.action !== 'HOLD' ? 'BLOCKED · HOLD' : result.actionable_signal)], ['Data time', formatTime(result.market.candle_timestamp)], ['Source', result.source], ['Latency', `${number(result.decision.latency_us / 1000, 0)} ms`]];
+    const riskValue = result.actionable_signal == null ? 'SIGNAL ONLY' : result.risk_rejections.length && result.decision.action !== 'HOLD' ? 'BLOCKED · HOLD' : result.actionable_signal;
+    const cells = [['Model', badge(result.decision.action)], ['Risk-checked', badge(result.example_risk ? `EXAMPLE · ${riskValue}` : riskValue)], ['Data time', formatTime(result.market.candle_timestamp)], ['Source', result.source], ['Latency', `${number(result.decision.latency_us / 1000, 0)} ms`]];
     for (const [label, value] of cells) {
       const cell = document.createElement('td'); cell.dataset.label = label;
       if (typeof value === 'string') cell.textContent = value; else cell.append(value);
@@ -355,7 +371,7 @@ function renderTabs() {
     const price = document.createElement('strong');
     price.className = 'batch-price'; price.textContent = entry && Number.isFinite(entry.market.features?.price) ? number(entry.market.features.price) : '—';
     const risk = document.createElement('span'); risk.className = 'batch-risk';
-    risk.textContent = entry ? entry.stale_preview ? 'Stale · research only' : entry.source === 'Synthetic sample CSV' ? 'Synthetic sample' : entry.actionable_signal == null ? 'Signal only' : entry.risk_rejections.length && action !== 'HOLD' ? 'Blocked · HOLD' : `Risk checked · ${entry.actionable_signal}` : failures.has(symbol) ? 'Select to see error' : 'Awaiting result';
+    risk.textContent = entry ? entry.stale_preview ? 'Stale · research only' : entry.source === 'Synthetic sample CSV' ? 'Synthetic sample' : entry.example_risk ? 'Example risk inputs' : entry.actionable_signal == null ? 'Signal only' : entry.risk_rejections.length && action !== 'HOLD' ? 'Blocked · HOLD' : `Risk checked · ${entry.actionable_signal}` : failures.has(symbol) ? 'Select to see error' : 'Awaiting result';
     tab.disabled = !entry && !failures.has(symbol);
     tab.append(name, state, price, risk);
     tab.addEventListener('click', () => {
@@ -423,7 +439,7 @@ function renderPaper() {
   if (!result) return;
   $('paper-buy').hidden = action !== 'BUY'; $('paper-sell').hidden = action !== 'SELL';
   $('paper-quantity-label').hidden = action !== 'BUY' && action !== 'SELL';
-  setText('paper-guidance', action === 'HOLD' ? 'Hold signal · No simulated trade' : `Suggested size: 10% of ${action === 'SELL' ? 'shares held' : 'paper cash'} · Not risk-checked${result.actionable_signal == null ? ' · Model preference only' : ''}`);
+  setText('paper-guidance', action === 'HOLD' ? 'Hold signal · No simulated trade' : `Suggested size: 10% of ${action === 'SELL' ? 'shares held' : 'paper cash'} · Not risk-checked${result.example_risk ? ' · Example risk inputs' : result.actionable_signal == null ? ' · Model preference only' : ''}`);
   if (paperSizingResult !== result) { paperSizingResult = result; suggestPaperQuantity(); }
   const held = paper.positions[result.market.symbol];
   setText('paper-cash', number(paper.cash));
@@ -686,7 +702,7 @@ $('analysis-form').addEventListener('submit', async (event) => {
   button.querySelector('span').textContent = symbols.length > 1 ? `Analyzing ${symbols.length} tickers…` : 'Analyzing…';
   $('analysis-form').setAttribute('aria-busy', 'true');
   renderSelectedTickers();
-  const fields = [...$('analysis-form').querySelectorAll('input, select, .ticker-chip'), ...document.querySelectorAll('.history-link')];
+  const fields = [...$('analysis-form').querySelectorAll('input, select, .ticker-chip, #risk-example, #risk-clear'), ...document.querySelectorAll('.history-link')];
   fields.forEach(field => { field.disabled = true; });
   clearResults();
   results.clear(); failures.clear();
@@ -700,6 +716,7 @@ $('analysis-form').addEventListener('submit', async (event) => {
       const response = await fetch('/api/analyze', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({...payload, symbol})});
       const data = await response.json();
       if (!response.ok) throw new Error(typeof data.error === 'string' ? data.error : 'Check the symbol, timeframe, and risk settings.');
+      data.example_risk = exampleRiskInputs;
       results.set(symbol, data);
       data._notice = data.stale_preview ? ['The latest candle is stale. This is a historical research preview; portfolio actions are blocked.', 'warning']
         : data.source === 'Synthetic sample CSV' ? ['Synthetic sample candles are displayed. The model response is real; this is not live market data.', 'warning']

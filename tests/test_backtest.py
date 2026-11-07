@@ -250,7 +250,7 @@ def test_impact_reports_unavailable_for_zero_volume_without_rejecting_backtest(t
     assert all(s['ending_balance'] is None and 'SPY' in s['reason'] for s in result['impact_sensitivity']['scenarios'])
 
 
-def test_recorded_backtest_significance_replays_without_model_calls(tmp_path, monkeypatch):
+def test_recorded_backtest_significance_replays_without_model_calls(historical_docs, tmp_path, monkeypatch):
     from fasttrade import backtest
     root = Path(__file__).resolve().parents[1] / 'docs' / 'backtest-2026-09-28'
     original = json.loads((root / 'report-measured.json').read_text(encoding='utf-8'))
@@ -277,7 +277,7 @@ def test_recorded_backtest_significance_replays_without_model_calls(tmp_path, mo
     ('backtest-2026-09-28-alpaca', 3, .012007806862188533, [.0037734611748741673, .0202421525495029]),
     ('backtest-2026-10', 1, .010036297729023813, None),
 ])
-def test_other_recorded_backtests_replay_significance_without_model_calls(tmp_path, monkeypatch, folder_name, observations, mean, interval):
+def test_other_recorded_backtests_replay_significance_without_model_calls(historical_docs, tmp_path, monkeypatch, folder_name, observations, mean, interval):
     from fasttrade import backtest
     root = Path(__file__).resolve().parents[1] / 'docs' / folder_name
     original = json.loads((root / 'report.json').read_text(encoding='utf-8'))
@@ -300,7 +300,7 @@ def test_other_recorded_backtests_replay_significance_without_model_calls(tmp_pa
 
 
 @pytest.mark.parametrize('name', ['baseline', 'forecast'])
-def test_forecast_comparison_replays_recorded_decisions(tmp_path, monkeypatch, name):
+def test_forecast_comparison_replays_recorded_decisions(historical_docs, tmp_path, monkeypatch, name):
     from fasttrade import backtest
     docs = Path(__file__).resolve().parents[1] / 'docs'
     original = json.loads((docs / 'tsfm-comparison' / f'{name}.json').read_text(encoding='utf-8'))

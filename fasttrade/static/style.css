@@ -474,6 +474,15 @@ body { background: #f2f5f8; }
 .legend-dot.overlay { background: #245de0; }
 .spy-spinner { display: inline-block; width: 22px; height: 22px; border: 2px solid #d8e1ea; border-top-color: #1c3155; border-radius: 50%; animation: spin .8s linear infinite; }
 .stale-tag { margin-left: 4px; color: #7b520d; font-size: 9px; font-weight: 700; }
+.risk-toolbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+.risk-toolbar > div { flex: 1 1 220px; }
+.risk-toolbar strong { display: block; color: #1c3155; font-size: 13px; font-weight: 600; }
+.risk-toolbar span { display: block; margin-top: 4px; color: #506177; font-size: 12px; }
+.risk-toolbar button { min-height: 36px; padding: 6px 12px; border: 1px solid #c5d1dd; border-radius: 6px; background: #fff; color: #1c3155; font-size: 12px; }
+.risk-toolbar button:hover:not(:disabled) { background: #e5ecf3; }
+.risk-toolbar button:disabled { opacity: .6; cursor: wait; }
+.risk-example-status { margin: 8px 0 0; color: #7b520d; font-size: 12px; }
+.risk-example-status:empty { display: none; }
 
 /* Result tabs, suggested tickers, and the paper account: colors follow the status palette. */
 .result-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 8px; }

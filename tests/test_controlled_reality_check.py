@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 
 
-def test_recorded_controlled_variants_are_compared_without_model_calls():
+def test_recorded_controlled_variants_are_compared_without_model_calls(historical_docs):
     folder = Path(__file__).resolve().parents[1] / 'docs' / 'benchmark-2026-h1-controlled-comparison'
     spec = importlib.util.spec_from_file_location('controlled_reality_check', folder / 'reality_check.py')
     module = importlib.util.module_from_spec(spec)

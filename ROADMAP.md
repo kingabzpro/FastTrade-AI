@@ -32,7 +32,7 @@ Nothing is committed to a schedule. The useful next steps, roughly in order:
 - A head-to-head run of the second decision model on the same frozen data, so calibration and comparison stop being Jev-only.
 - Point-in-time prices with an independently verified corporate-action history. Most of the caveats in the benchmark docs trace back to this.
 
-The research backlog behind the earlier phases is closed. The measurements live in `docs/`: the [six-month benchmark](docs/benchmark-2026-h1.md), the [September to October backtest](docs/backtest-2026-09-28/README.md), the [Alpaca IEX comparison](docs/backtest-2026-09-28-alpaca/README.md) and the [calibration replay](docs/calibration-2026-09-28.md).
+The research backlog behind the earlier phases is closed. Historical research files are kept locally and are not included in the repository.
 
 Open an issue if something above is missing, or if you would rather work on something else. Priorities follow what people actually use.
 

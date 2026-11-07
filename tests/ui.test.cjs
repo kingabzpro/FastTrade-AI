@@ -173,6 +173,33 @@ test('positive portfolio amounts reject zero and accept fractional values or omi
   }
 });
 
+test('example risk inputs are opt-in and results identify their assumptions', async () => {
+  await page.locator('.risk-settings summary').click();
+  assert.equal(await page.locator('#risk-equity').inputValue(), '');
+  await openView('history-panel');
+  await page.locator('#history-save').check();
+  await openView('workspace');
+  await page.getByRole('button', {name: 'Load example values'}).click();
+  assert.equal(await page.locator('#risk-equity').inputValue(), '10000');
+  assert.equal(await page.locator('#risk-position').inputValue(), '0');
+  assert.match(await page.locator('#risk-example-status').innerText(), /example/i);
+  let sent;
+  await page.route('**/api/analyze', route => { sent = route.request().postDataJSON(); return route.fulfill({json: result('SPY')}); });
+  await page.locator('#analyze').click();
+  await page.waitForFunction(() => !document.getElementById('decision-content').hidden);
+  assert.equal(sent.equity, 10000);
+  assert.equal(sent.example_risk, undefined);
+  assert.match(await page.locator('#risk-label').innerText(), /example/i);
+  await openView('history-panel');
+  assert.match(await page.locator('#history tbody').innerText(), /example/i);
+  await page.reload();
+  await page.locator('.history-link').click();
+  assert.match(await page.locator('#risk-label').innerText(), /example/i);
+  await page.locator('.risk-settings summary').click();
+  await page.getByRole('button', {name: 'Clear risk inputs'}).click();
+  assert.equal(await page.locator('#risk-equity').inputValue(), '');
+});
+
 test('desktop rail and mobile navigation link to real destinations', async () => {
   assert.equal(await page.locator('.desktop-rail').isVisible(), true);
   assert.equal(await page.locator('.desktop-rail a[href="#chart-panel"]').count(), 0);

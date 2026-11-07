@@ -4,7 +4,7 @@ from pathlib import Path
 import pandas as pd
 
 
-def test_iex_aggregation_uses_only_trades_inside_session():
+def test_iex_aggregation_uses_only_trades_inside_session(historical_docs):
     path = Path(__file__).resolve().parents[1] / 'docs/backtest-2026-09-28-alpaca/prepare.py'
     spec = importlib.util.spec_from_file_location('alpaca_benchmark_prepare', path)
     module = importlib.util.module_from_spec(spec)

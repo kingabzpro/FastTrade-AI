@@ -440,6 +440,20 @@ def analyze_args(csv, *extra):
     return cli.parser().parse_args(['analyze', 'TEST', '--csv', str(csv), '--as-of', '2026-01-02T19:30:00Z', *extra])
 
 
+def test_example_inputs_pass_and_block_through_the_risk_gate(monkeypatch, tmp_path):
+    path = tmp_path / 'candles.csv'
+    candles().to_csv(path, index=False)
+    monkeypatch.setattr(cli, 'predict', lambda *args: decisions.normalize(answer(), 1))
+    values = ['--position', '0', '--equity', '10000', '--exposure', '0', '--daily-loss', '0',
+              '--trade-count', '0', '--quantity', '1', '--max-position', '1000', '--max-exposure', '5000',
+              '--max-daily-loss', '200', '--max-trades', '5', '--min-confidence', '0.5']
+    passed = cli.run(analyze_args(path, *values))
+    assert passed['actionable_signal'] == 'BUY'
+    blocked = cli.run(analyze_args(path, *values, '--daily-loss', '200'))
+    assert blocked['actionable_signal'] == 'HOLD'
+    assert 'Daily loss limit reached' in blocked['risk_rejections']
+
+
 def test_calibration_gating_uses_calibrated_confidence(monkeypatch, tmp_path):
     path = tmp_path / 'candles.csv'
     candles().to_csv(path, index=False)

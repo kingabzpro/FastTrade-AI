@@ -2,7 +2,7 @@ import importlib.util
 from pathlib import Path
 
 
-def test_published_h1_ledger_cost_scenarios():
+def test_published_h1_ledger_cost_scenarios(historical_docs):
     path = Path(__file__).resolve().parents[1] / 'docs' / 'replay_h1_costs.py'
     spec = importlib.util.spec_from_file_location('replay_h1_costs', path)
     module = importlib.util.module_from_spec(spec)

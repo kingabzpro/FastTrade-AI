@@ -29,6 +29,11 @@ beforeEach(async () => {
   await page.goto(url);
 });
 
+async function openView(view) {
+  await page.evaluate(hash => { location.hash = hash; }, `#${view}`);
+  await page.waitForFunction(view => !document.getElementById(view === 'workspace' ? 'analysis-view' : view).hidden, view);
+}
+
 function result(symbol = 'NVDA') {
   return {
     market: { symbol, timeframe: '5m', candle_timestamp: '2026-01-02T20:55:00Z', features: {
@@ -359,6 +364,7 @@ test('loading, chart inspection, history replay and failures restore usable cont
   await page.locator('#chart').focus();
   await page.keyboard.press('Home');
   assert.match(await page.locator('#candle-time').innerText(), /15:55/);
+  await openView('history-panel');
   await page.locator('.history-link').click();
   assert.equal(await page.locator('#history tbody tr').count(), 1);
   for (const width of [1024, 390, 320]) {
@@ -413,6 +419,7 @@ test('incomplete portfolio shows signal only in the decision and history', async
   assert.equal(await page.locator('#model-action').innerText(), 'BUY');
   assert.equal(await page.locator('#risk-action').innerText(), 'SIGNAL ONLY');
   assert.match(await page.locator('#history tbody').innerText(), /SIGNAL ONLY/);
+  await openView('history-panel');
   await page.locator('.history-link').click();
   assert.equal(await page.locator('#risk-action').innerText(), 'SIGNAL ONLY');
 });
@@ -424,7 +431,9 @@ test('optional history survives reload, reopens without analysis, and can be del
   data.api_key = 'private-secret';
   await page.route('**/api/analyze', route => { calls++; return route.fulfill({json: data}); });
   assert.equal(await page.locator('#history-save').isChecked(), false);
+  await openView('history-panel');
   await page.locator('#history-save').check();
+  await openView('workspace');
   await page.locator('#analyze').click();
   await page.waitForFunction(() => document.querySelectorAll('#history tbody tr').length === 1);
   const stored = await page.evaluate(() => localStorage.getItem('fasttrade-history'));
@@ -433,10 +442,12 @@ test('optional history survives reload, reopens without analysis, and can be del
   await page.reload();
   assert.equal(await page.locator('#history-save').isChecked(), true);
   assert.match(await page.locator('#history tbody').innerText(), /Alpaca IEX/);
+  await openView('history-panel');
   await page.locator('.history-link').click();
   assert.equal(calls, 1);
   assert.equal(await page.locator('#model-action').innerText(), 'BUY');
   assert.match(await page.locator('#notice').innerText(), /previous.*2026.*no new model/i);
+  await openView('history-panel');
   await page.locator('.history-delete').click();
   assert.equal(await page.locator('#history tbody tr').count(), 0);
   await page.reload();
@@ -451,8 +462,10 @@ test('history storage failures are visible and do not block analysis', async () 
       return original.call(this, key, value);
     };
   });
+  await openView('history-panel');
   await page.locator('#history-save').check({force: true});
   assert.match(await page.locator('#history-storage-status').innerText(), /storage.*unavailable|storage.*full/i);
+  await openView('workspace');
   await page.route('**/api/analyze', route => route.fulfill({json: result()}));
   await page.locator('#analyze').click();
   await page.waitForFunction(() => !document.getElementById('decision-content').hidden);
@@ -462,7 +475,9 @@ test('history storage failures are visible and do not block analysis', async () 
 test('history size limit preserves earlier saved results and clear removes them', async () => {
   const data = result();
   await page.route('**/api/analyze', route => route.fulfill({json: data}));
+  await openView('history-panel');
   await page.locator('#history-save').check();
+  await openView('workspace');
   await page.locator('#analyze').click();
   await page.waitForFunction(() => document.querySelectorAll('#history tbody tr').length === 1);
   data.market.headlines = [{title: 'x'.repeat(2 * 1024 * 1024), source: 'test', published: '2026-01-02T20:55:00Z'}];
@@ -471,11 +486,15 @@ test('history size limit preserves earlier saved results and clear removes them'
   const saved = JSON.parse(await page.evaluate(() => localStorage.getItem('fasttrade-history')));
   assert.equal(saved.entries.length, 1);
   assert.match(await page.locator('#history-storage-status').innerText(), /too large/i);
+  await openView('history-panel');
   await page.locator('#history-save').uncheck();
   await page.reload();
   assert.equal(await page.locator('#history tbody tr').count(), 0);
+  await openView('history-panel');
   await page.locator('#history-save').check();
+  await openView('workspace');
   assert.equal(await page.locator('#history tbody tr').count(), 1);
+  await openView('history-panel');
   await page.locator('#history-clear').click();
   await page.reload();
   assert.equal(await page.locator('#history tbody tr').count(), 0);
@@ -489,6 +508,7 @@ test('reopening history respects the reduced-motion setting', async () => {
     const chart = document.getElementById('chart-panel');
     chart.scrollIntoView = options => { chart.dataset.scrollBehavior = options?.behavior || 'auto'; };
   });
+  await openView('history-panel');
   await page.locator('.history-link').click();
   assert.equal(await page.locator('#chart-panel').getAttribute('data-scroll-behavior'), 'auto');
   assert.equal(await page.locator('html').evaluate(el => getComputedStyle(el).scrollBehavior), 'auto');
@@ -559,6 +579,34 @@ test('suggested ticker chips fill the symbol field without duplicates', async ()
   assert.equal(await page.locator('#symbol').inputValue(), 'SPY, NVDA');
 });
 
+test('multi-ticker workspace shows progress and lets users compare and select results', async () => {
+  await page.fill('#symbol', 'AAPL, MSFT, NVDA, TSLA');
+  await page.getByRole('button', {name: 'Remove TSLA'}).click();
+  assert.equal(await page.locator('#symbol').inputValue(), 'AAPL, MSFT, NVDA');
+  let release;
+  const pending = new Promise(resolve => { release = resolve; });
+  await page.route('**/api/analyze', async route => {
+    const symbol = route.request().postDataJSON().symbol;
+    if (symbol === 'MSFT') await pending;
+    if (symbol === 'NVDA') return route.fulfill({status: 503, json: {error: 'Timed out'}});
+    const data = result(symbol); if (symbol === 'AAPL') data.stale_preview = true;
+    return route.fulfill({json: data});
+  });
+  await page.locator('#analyze').click();
+  await page.waitForFunction(() => document.querySelector('[data-symbol="AAPL"] .tab-state')?.textContent === 'BUY');
+  assert.match(await page.locator('[data-symbol="MSFT"]').innerText(), /Analyzing/);
+  assert.match(await page.locator('[data-symbol="AAPL"]').innerText(), /Stale/);
+  assert.match(await page.locator('[data-symbol="NVDA"]').innerText(), /ERROR/);
+  await page.locator('[data-symbol="AAPL"]').click();
+  assert.match(await page.locator('#chart-symbol').innerText(), /AAPL/);
+  release();
+  await page.waitForFunction(() => document.getElementById('analysis-form').getAttribute('aria-busy') === 'false');
+  await page.locator('[data-symbol="MSFT"]').click();
+  assert.match(await page.locator('#chart-symbol').innerText(), /MSFT/);
+  assert.match(await page.locator('[data-symbol="MSFT"]').innerText(), /142.85/);
+  assert.match(await page.locator('[data-symbol="MSFT"]').innerText(), /HOLD/);
+});
+
 test('several tickers analyze in one run and switch through tabs', async () => {
   await page.fill('#symbol', 'AAPL, MSFT, NVDA');
   await page.route('**/api/analyze', route => {
@@ -569,7 +617,7 @@ test('several tickers analyze in one run and switch through tabs', async () => {
     return route.fulfill({json: data});
   });
   await page.locator('#analyze').click();
-  await page.waitForFunction(() => document.querySelectorAll('.result-tab').length === 3);
+  await page.waitForFunction(() => document.getElementById('analysis-form').getAttribute('aria-busy') === 'false');
   assert.match(await page.locator('#chart-symbol').innerText(), /AAPL/);
   const tabs = page.locator('.result-tab');
   assert.equal(await tabs.nth(0).locator('.tab-state').innerText(), 'BUY');
@@ -581,88 +629,36 @@ test('several tickers analyze in one run and switch through tabs', async () => {
   await tabs.nth(2).click();
   await page.waitForFunction(() => document.getElementById('notice').classList.contains('error'));
   assert.match(await page.locator('#notice').innerText(), /NVDA.*timed out/);
-  assert.equal(await page.locator('#paper-content').isHidden(), true);
 });
 
 test('every succeeded ticker of a multi-ticker run lands in history', async () => {
+  await openView('history-panel');
   await page.locator('#history-save').check();
+  await openView('workspace');
   await page.fill('#symbol', 'AAPL, MSFT');
   await page.route('**/api/analyze', route => route.fulfill({json: result(route.request().postDataJSON().symbol)}));
   await page.locator('#analyze').click();
-  await page.waitForFunction(() => document.querySelectorAll('.result-tab').length === 2);
+  await page.waitForFunction(() => document.getElementById('analysis-form').getAttribute('aria-busy') === 'false');
   await page.waitForFunction(() => document.querySelectorAll('#history tbody tr').length === 2);
   const stored = JSON.parse(await page.evaluate(() => localStorage.getItem('fasttrade-history')));
   assert.deepEqual(stored.entries.map(entry => entry.market.symbol), ['AAPL', 'MSFT']);
   assert.ok(stored.entries.every(entry => !Object.keys(entry).some(key => key.startsWith('_'))));
 });
 
-test('paper trading fills at the analyzed close and only sells held shares', async () => {
-  const data = result('NVDA');
-  await page.route('**/api/analyze', route => route.fulfill({json: data}));
-  await page.locator('#analyze').click();
-  await page.waitForFunction(() => !document.getElementById('decision-content').hidden);
-  assert.equal(await page.locator('#paper-badge').innerText(), 'READY');
-  assert.equal(await page.locator('#paper-sell').isDisabled(), true);
-  await page.fill('#paper-qty', '2');
-  assert.equal(await page.locator('#paper-buy').isEnabled(), true);
-  await page.locator('#paper-buy').click();
-  await page.waitForFunction(() => document.getElementById('paper-position').textContent.includes('2.00 shares'));
-  assert.match(await page.locator('#paper-cash').innerText(), /9,714/);
-  assert.equal(await page.locator('#paper-sell').isEnabled(), true);
-  await page.locator('#paper-sell').click();
-  await page.waitForFunction(() => document.getElementById('paper-position').textContent.includes('None held'));
-  assert.equal(await page.locator('#paper-sell').isDisabled(), true);
-  await page.locator('.desktop-rail a[href="#portfolio-panel"]').click();
-  await page.waitForFunction(() => !document.getElementById('fills').hidden);
-  assert.match(await page.locator('#fills tbody').innerText(), /NVDA/);
-  assert.match(await page.locator('#portfolio-realized').innerText(), /\+0\.00/);
-});
-
-test('paper cash limits buys and the portfolio persists across reloads', async () => {
-  await page.route('**/api/analyze', route => route.fulfill({json: result('NVDA')}));
-  await page.locator('#analyze').click();
-  await page.waitForFunction(() => !document.getElementById('decision-content').hidden);
-  await page.fill('#paper-qty', '100000');
-  assert.equal(await page.locator('#paper-buy').isDisabled(), true);
-  await page.fill('#paper-qty', '2');
-  await page.locator('#paper-buy').click();
-  await page.waitForFunction(() => document.getElementById('paper-position').textContent.includes('2.00 shares'));
+test('existing paper positions and fills remain visible after reload', async () => {
+  await page.evaluate(() => localStorage.setItem('fasttrade-paper', JSON.stringify({version: 1, cash: 9714.30, positions: {NVDA: {shares: 2, cost: 285.70}}, realized: 0, fills: [{time: '2026-01-02T20:55:00Z', symbol: 'NVDA', side: 'BUY', quantity: 2, price: 142.85, value: 285.70}]})));
   await page.reload();
-  await page.waitForFunction(() => document.getElementById('portfolio-cash').textContent.includes('9,714'));
+  await openView('portfolio-panel');
   assert.match(await page.locator('#positions tbody').innerText(), /NVDA/);
-  await page.locator('#portfolio-reset').click();
-  await page.waitForFunction(() => document.getElementById('portfolio-cash').textContent.includes('10,000.00'));
-  assert.equal(await page.locator('#positions').isHidden(), true);
-});
-
-test('stale results cannot be paper traded and history replays stay blocked', async () => {
-  const data = result('NVDA');
-  data.stale_preview = true;
-  await page.route('**/api/analyze', route => route.fulfill({json: data}));
-  await page.locator('#analyze').click();
-  await page.waitForFunction(() => !document.getElementById('decision-content').hidden);
-  assert.equal(await page.locator('#paper-badge').innerText(), 'TRADING BLOCKED');
-  await page.fill('#paper-qty', '2');
-  assert.equal(await page.locator('#paper-buy').isDisabled(), true);
-  assert.equal(await page.locator('#paper-sell').isDisabled(), true);
-});
-
-test('replayed history entries cannot be paper traded', async () => {
-  await page.locator('#history-save').check();
-  await page.route('**/api/analyze', route => route.fulfill({json: result('NVDA')}));
-  await page.locator('#analyze').click();
-  await page.waitForFunction(() => document.querySelectorAll('#history tbody tr').length === 1);
-  await page.locator('.history-link').click();
-  await page.waitForFunction(() => document.getElementById('paper-badge').textContent === 'TRADING BLOCKED');
-  await page.fill('#paper-qty', '2');
-  assert.equal(await page.locator('#paper-buy').isDisabled(), true);
-  assert.equal(await page.locator('#paper-sell').isDisabled(), true);
+  assert.match(await page.locator('#fills tbody').innerText(), /NVDA/);
+  assert.match(await page.locator('#portfolio-cash').innerText(), /9,714/);
 });
 
 test('a corrupt paper portfolio is reported and reset restores storage', async () => {
   await page.evaluate(() => localStorage.setItem('fasttrade-paper', '{"version":1,"cash":"lots","positions":{"NVDA":{"shares":"2"}},"fills":[]}'));
   await page.reload();
   await page.waitForFunction(() => document.getElementById('portfolio-note').textContent.includes('invalid'));
+  await openView('portfolio-panel');
   await page.locator('#portfolio-reset').click();
   await page.waitForFunction(() => document.getElementById('portfolio-cash').textContent.includes('10,000.00'));
   const stored = JSON.parse(await page.evaluate(() => localStorage.getItem('fasttrade-paper')));
@@ -674,8 +670,23 @@ test('history and portfolio pages are reachable from both navigations', async ()
   assert.equal(await page.locator('.mobile-nav a[href="#portfolio-panel"]').count(), 1);
   await page.locator('.desktop-rail a[href="#portfolio-panel"]').click();
   await page.waitForFunction(() => document.querySelector('.desktop-rail a[href="#portfolio-panel"]').classList.contains('active'));
+  assert.equal(await page.locator('#portfolio-panel').isVisible(), true);
+  assert.equal(await page.locator('#history-panel').isHidden(), true);
+  assert.equal(await page.locator('#analysis-form').isHidden(), true);
   await page.setViewportSize({width: 390, height: 844});
   await page.locator('.mobile-nav a[href="#history-panel"]').click();
   await page.waitForFunction(() => document.querySelector('.mobile-nav a[href="#history-panel"]').getAttribute('aria-current') === 'location');
+  assert.equal(await page.locator('#history-panel').isVisible(), true);
+  assert.equal(await page.locator('#portfolio-panel').isHidden(), true);
+  await page.locator('.mobile-nav a[href="#workspace"]').click();
+  await page.waitForFunction(() => !document.getElementById('analysis-view').hidden);
+  assert.equal(await page.locator('#analysis-form').isVisible(), true);
+  assert.equal(await page.locator('#history-panel').isHidden(), true);
   await page.setViewportSize({width: 1440, height: 1000});
+});
+
+test('paper trading controls are absent and the existing portfolio remains readable', async () => {
+  assert.equal(await page.locator('.paper-card').count(), 0);
+  await openView('portfolio-panel');
+  assert.equal(await page.locator('#portfolio-cash').innerText(), '10,000.00');
 });

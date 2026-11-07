@@ -33,11 +33,30 @@ for (const [name, label, description] of riskFields) {
 }
 
 const suggestedTickers = ['SPY', 'AAPL', 'MSFT', 'NVDA', 'AMZN', 'GOOGL', 'META', 'TSLA'];
+const symbolList = () => [...new Set($('symbol').value.trim().toUpperCase().split(/[,\s]+/).filter(Boolean))];
+function renderSelectedTickers() {
+  const selected = $('selected-tickers'); selected.replaceChildren();
+  for (const symbol of symbolList()) {
+    const button = document.createElement('button');
+    button.type = 'button'; button.className = 'selected-ticker';
+    button.textContent = `${symbol} ×`; button.setAttribute('aria-label', `Remove ${symbol}`);
+    button.disabled = $('analysis-form').getAttribute('aria-busy') === 'true';
+    button.addEventListener('click', () => {
+      $('symbol').value = symbolList().filter(item => item !== symbol).join(', ');
+      renderSelectedTickers(); $('symbol').focus();
+    });
+    selected.append(button);
+  }
+}
+$('symbol').addEventListener('input', renderSelectedTickers);
+renderSelectedTickers();
 function addTicker(ticker) {
   const input = $('symbol');
   const list = input.value.trim().toUpperCase().split(/[,\s]+/).filter(Boolean);
+  if (!list.includes(ticker) && list.length >= 5) { showNotice('Choose up to five tickers for one analysis.', 'error'); return; }
   if (!list.includes(ticker)) list.push(ticker);
   input.value = list.slice(0, 5).join(', ');
+  renderSelectedTickers();
 }
 for (const ticker of suggestedTickers) {
   const chip = document.createElement('button');
@@ -53,6 +72,7 @@ let chartLayoutState = null;
 const history = [];
 const results = new Map();
 const failures = new Map();
+const runningSymbols = new Set();
 const lastPrices = new Map();
 let requestedSymbols = [];
 let activeSymbol = null;
@@ -164,8 +184,7 @@ function clearResults() {
   selectedCandle = null;
   chartLayoutState = null;
   activeSymbol = null;
-  $('result-tabs').hidden = true;
-  const paperStatus = $('paper-status'); paperStatus.textContent = ''; paperStatus.className = 'paper-status';
+  $('batch-results').hidden = true;
   $('chart-readout').hidden = true;
   $('chart-window').disabled = true; $('chart-overlay').disabled = true;
   $('overlay-legend').hidden = true;
@@ -177,13 +196,12 @@ function clearResults() {
   $('evidence').replaceChildren(); $('evidence-empty').hidden = false; $('news-panel').hidden = true;
   $('decision-badge').className = 'pill muted'; setText('decision-badge', 'NOT ANALYZED');
   const context = $('chart').getContext('2d'); context.clearRect(0, 0, $('chart').width, $('chart').height);
-  renderPaper();
 }
 
 function render(result, record = true, replay = false) {
   current = result;
   selectedCandle = null;
-  if (replay) { activeSymbol = null; $('result-tabs').hidden = true; }
+  if (replay) { activeSymbol = null; $('batch-results').hidden = true; }
   else if (results.has(result.market.symbol)) activeSymbol = result.market.symbol;
   if (!replay && Number.isFinite(result.market.features?.price)) lastPrices.set(result.market.symbol, result.market.features.price);
   const market = result.market, feature = market.features, decision = result.decision;
@@ -271,7 +289,6 @@ function render(result, record = true, replay = false) {
     if ($('history-save').checked) saveHistory(history);
     renderHistory();
   }
-  renderPaper();
   renderPortfolio();
   if (!replay) renderTabs();
 }
@@ -291,7 +308,7 @@ function renderHistory() {
     const row = document.createElement('tr');
     const first = document.createElement('td'); first.dataset.label = 'Market'; const button = document.createElement('button');
     button.type = 'button'; button.className = 'history-link'; button.textContent = `${result.market.symbol} · ${result.market.timeframe}`;
-    button.addEventListener('click', () => { result._replay = true; render(result, false, true); $('chart-panel').scrollIntoView(); });
+    button.addEventListener('click', () => { location.hash = '#chart-panel'; syncNavigation(); result._replay = true; render(result, false, true); $('chart-panel').scrollIntoView(); });
     first.append(button); row.append(first);
     const cells = [['Model', badge(result.decision.action)], ['Risk-checked', badge(result.actionable_signal == null ? 'SIGNAL ONLY' : result.risk_rejections.length && result.decision.action !== 'HOLD' ? 'BLOCKED · HOLD' : result.actionable_signal)], ['Data time', formatTime(result.market.candle_timestamp)], ['Source', result.source], ['Latency', `${number(result.decision.latency_us / 1000, 0)} ms`]];
     for (const [label, value] of cells) {
@@ -315,23 +332,10 @@ renderHistory();
 /* Result tabs: one tab per ticker requested in the last run. */
 function renderTabs() {
   const tabs = $('result-tabs');
-  const symbols = requestedSymbols.filter(symbol => results.has(symbol) || failures.has(symbol));
-  tabs.hidden = symbols.length === 0;
-  const existing = [...tabs.querySelectorAll('.result-tab')];
-  if (existing.length === symbols.length && existing.every((tab, index) => tab.dataset.symbol === symbols[index])) {
-    for (const [index, symbol] of symbols.entries()) {
-      const tab = existing[index];
-      const action = results.get(symbol)?.decision?.action;
-      tab.classList.toggle('active', symbol === activeSymbol);
-      tab.setAttribute('aria-pressed', symbol === activeSymbol ? 'true' : 'false');
-      const state = tab.querySelector('.tab-state');
-      if (state.textContent !== (action || 'ERROR')) {
-        state.textContent = action || 'ERROR';
-        state.className = `tab-state ${action ? action.toLowerCase() : 'error'}`;
-      }
-    }
-    return;
-  }
+  const symbols = requestedSymbols;
+  $('batch-results').hidden = symbols.length < 2;
+  setText('batch-progress', `${results.size + failures.size} of ${symbols.length} complete`);
+  const focused = document.activeElement?.dataset?.symbol;
   tabs.replaceChildren();
   for (const symbol of symbols) {
     const entry = results.get(symbol);
@@ -343,18 +347,24 @@ function renderTabs() {
     const name = document.createElement('span'); name.textContent = symbol;
     const action = entry?.decision?.action;
     const state = document.createElement('span');
-    state.className = `tab-state ${action ? action.toLowerCase() : 'error'}`;
-    state.textContent = action || 'ERROR';
-    tab.append(name, state);
+    state.className = `tab-state ${action ? action.toLowerCase() : failures.has(symbol) ? 'error' : ''}`;
+    state.textContent = action || (failures.has(symbol) ? 'ERROR' : runningSymbols.has(symbol) ? 'Analyzing' : 'Waiting');
+    const price = document.createElement('strong');
+    price.className = 'batch-price'; price.textContent = entry && Number.isFinite(entry.market.features?.price) ? number(entry.market.features.price) : '—';
+    const risk = document.createElement('span'); risk.className = 'batch-risk';
+    risk.textContent = entry ? entry.stale_preview ? 'Stale · research only' : entry.source === 'Synthetic sample CSV' ? 'Synthetic sample' : entry.actionable_signal == null ? 'Signal only' : entry.risk_rejections.length && action !== 'HOLD' ? 'Blocked · HOLD' : `Risk checked · ${entry.actionable_signal}` : failures.has(symbol) ? 'Select to see error' : 'Awaiting result';
+    tab.disabled = !entry && !failures.has(symbol);
+    tab.append(name, state, price, risk);
     tab.addEventListener('click', () => {
       activeSymbol = symbol;
       const data = results.get(symbol);
       if (data) render(data, false, false);
-      else { clearResults(); showNotice(`${symbol}: ${failures.get(symbol) || 'The analysis failed.'}`, 'error'); }
+      else { clearResults(); activeSymbol = symbol; showNotice(`${symbol}: ${failures.get(symbol) || 'The analysis failed.'}`, 'error'); }
       renderTabs();
     });
     tabs.append(tab);
   }
+  if (focused) tabs.querySelector(`[data-symbol="${CSS.escape(focused)}"]`)?.focus();
 }
 
 /* Paper portfolio: simulated fills stored in this browser only; no orders are ever placed. */
@@ -382,71 +392,11 @@ function savePaper() {
   if (!paperReadable) return false;
   try { localStorage.setItem(paperKey, JSON.stringify(paper)); return true; } catch { return false; }
 }
-function paperTradable() {
-  return Boolean(current) && !current._replay && !current.stale_preview && current.source !== 'Synthetic sample CSV' && Number.isFinite(current.market?.features?.price);
-}
-let paperStatusSymbol = null;
-function renderPaper() {
-  const result = current;
-  const tradable = paperTradable();
-  const blocked = Boolean(result) && !tradable;
-  $('paper-badge').className = `pill ${tradable ? 'good' : blocked ? 'warning' : 'muted'}`;
-  setText('paper-badge', tradable ? 'READY' : blocked ? 'TRADING BLOCKED' : 'NO SIGNAL');
-  $('paper-empty').hidden = Boolean(result);
-  $('paper-content').hidden = !result;
-  if (paperStatusSymbol && paperStatusSymbol !== result?.market?.symbol) {
-    const status = $('paper-status'); status.textContent = ''; status.className = 'paper-status';
-    paperStatusSymbol = null;
-  }
-  if (!result) return;
-  const held = paper.positions[result.market.symbol];
-  setText('paper-cash', number(paper.cash));
-  setText('paper-position', held ? `${number(held.shares)} shares · avg ${number(held.cost / held.shares)}` : 'None held');
-  setText('paper-price', `${number(result.market.features.price)} · ${formatTime(result.market.candle_timestamp)}`);
-  if (!tradable) { $('paper-buy').disabled = true; $('paper-sell').disabled = true; return; }
-  const qty = Number($('paper-qty').value);
-  $('paper-buy').disabled = !(qty > 0) || qty * result.market.features.price > paper.cash + 1e-9;
-  $('paper-sell').disabled = !(qty > 0) || !held || qty > held.shares + 1e-9;
-}
-function placePaper(side) {
-  if (!paperTradable()) return;
-  const symbol = current.market.symbol;
-  const price = current.market.features.price;
-  const qty = Number($('paper-qty').value);
-  const say = (message, ok) => { const el = $('paper-status'); el.textContent = message; el.className = `paper-status ${ok ? 'good' : 'bad'}`.trim(); paperStatusSymbol = symbol; };
-  if (!(qty > 0)) { say('Enter a share quantity greater than zero.', false); return; }
-  const value = qty * price;
-  if (side === 'BUY') {
-    if (value > paper.cash + 1e-9) { say(`Not enough paper cash: ${number(value)} needed, ${number(paper.cash)} available.`, false); return; }
-    paper.cash -= value;
-    const held = paper.positions[symbol] || {shares: 0, cost: 0};
-    held.shares += qty; held.cost += value;
-    paper.positions[symbol] = held;
-  } else {
-    const held = paper.positions[symbol];
-    if (!held || qty > held.shares + 1e-9) { say(`The paper portfolio holds no ${symbol} shares to sell.`, false); return; }
-    const avg = held.cost / held.shares;
-    paper.cash += value;
-    paper.realized += (price - avg) * qty;
-    held.shares -= qty; held.cost -= avg * qty;
-    if (held.shares <= 1e-9) delete paper.positions[symbol];
-  }
-  paper.fills.unshift({time: new Date().toISOString(), symbol, side, quantity: qty, price, value});
-  if (paper.fills.length > 100) paper.fills.length = 100;
-  const saved = savePaper();
-  say(`${side} ${number(qty)} ${symbol} at ${number(price)} simulated against the last completed close. ${saved ? 'Stored in this browser.' : 'Browser storage is unavailable; it was not saved.'}`, true);
-  renderPaper();
-  renderPortfolio();
-}
-$('paper-qty').addEventListener('input', renderPaper);
-$('paper-buy').addEventListener('click', () => placePaper('BUY'));
-$('paper-sell').addEventListener('click', () => placePaper('SELL'));
 $('portfolio-reset').addEventListener('click', () => {
   paper = {version: 1, cash: PAPER_START_CASH, positions: {}, fills: [], realized: 0};
   try { localStorage.removeItem(paperKey); paperReadable = true; savePaper(); } catch { /* keep the reset in memory only */ }
   paperLoadWarning = '';
-  const status = $('paper-status'); status.textContent = ''; status.className = 'paper-status';
-  renderPaper(); renderPortfolio();
+  renderPortfolio();
 });
 
 /* Portfolio page: paper cash, open positions and simulated fills. */
@@ -601,12 +551,18 @@ $('chart-window').disabled = true; $('chart-overlay').disabled = true;
 
 function syncNavigation() {
   const destination = ['#chart-panel', '#history-panel', '#portfolio-panel'].includes(location.hash) ? location.hash : '#workspace';
+  const analysisWasHidden = $('analysis-view').hidden;
+  $('analysis-view').hidden = destination === '#history-panel' || destination === '#portfolio-panel';
+  $('history-panel').hidden = destination !== '#history-panel';
+  $('portfolio-panel').hidden = destination !== '#portfolio-panel';
   for (const link of document.querySelectorAll('.mobile-nav a[href^="#"], .desktop-rail nav a[href^="#"]')) {
     const active = link.getAttribute('href') === destination;
     link.classList.toggle('active', active);
     if (active) link.setAttribute('aria-current', 'location');
     else link.removeAttribute('aria-current');
   }
+  if (!$('analysis-view').hidden && current) drawChart();
+  if (analysisWasHidden && destination === '#chart-panel') $('chart-panel').scrollIntoView();
 }
 window.addEventListener('hashchange', syncNavigation);
 syncNavigation();
@@ -641,8 +597,9 @@ $('analysis-form').addEventListener('invalid', event => {
 
 $('analysis-form').addEventListener('submit', async (event) => {
   event.preventDefault();
-  const symbols = [...new Set($('symbol').value.trim().toUpperCase().split(/[,\s]+/).filter(Boolean))].slice(0, 5);
+  const symbols = symbolList();
   if (!symbols.length) { $('symbol').focus(); return; }
+  if (symbols.length > 5) { showNotice('Choose up to five tickers for one analysis.', 'error'); $('symbol').focus(); return; }
   const payload = {timeframe: $('timeframe').value, source: $('source').value, decision_provider: $('decision-provider').value};
   for (const [name] of riskFields) {
     const raw = $(`risk-${name}`).value.trim();
@@ -651,26 +608,35 @@ $('analysis-form').addEventListener('submit', async (event) => {
   const button = $('analyze'); button.disabled = true;
   button.querySelector('span').textContent = symbols.length > 1 ? `Analyzing ${symbols.length} tickers…` : 'Analyzing…';
   $('analysis-form').setAttribute('aria-busy', 'true');
-  const fields = [...$('analysis-form').querySelectorAll('input, select'), ...document.querySelectorAll('.history-link')];
+  renderSelectedTickers();
+  const fields = [...$('analysis-form').querySelectorAll('input, select, .ticker-chip'), ...document.querySelectorAll('.history-link')];
   fields.forEach(field => { field.disabled = true; });
   clearResults();
   results.clear(); failures.clear();
   requestedSymbols = symbols;
+  runningSymbols.clear(); renderTabs();
   let settled = 0;
   showNotice(symbols.length > 1 ? `Requesting ${symbols.length} model decisions, up to three at a time…` : 'Fetching completed candles and requesting a model decision…', 'loading');
   const runOne = async symbol => {
+    runningSymbols.add(symbol); renderTabs();
     try {
       const response = await fetch('/api/analyze', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({...payload, symbol})});
       const data = await response.json();
       if (!response.ok) throw new Error(typeof data.error === 'string' ? data.error : 'Check the symbol, timeframe, and risk settings.');
       results.set(symbol, data);
+      data._notice = data.stale_preview ? ['The latest candle is stale. This is a historical research preview; portfolio actions are blocked.', 'warning']
+        : data.source === 'Synthetic sample CSV' ? ['Synthetic sample candles are displayed. The model response is real; this is not live market data.', 'warning']
+        : [`Analysis complete. Candle started ${formatTime(data.market.candle_timestamp)}. Model preferences are not trading outcomes.`, 'success'];
       if (Number.isFinite(data.market?.features?.price)) lastPrices.set(symbol, data.market.features.price);
     } catch (error) {
       failures.set(symbol, error instanceof TypeError ? 'Could not reach the local server. Check that FastTrade is running, then try again.'
         : error instanceof Error && error.message ? error.message : 'The request failed.');
     }
+    runningSymbols.delete(symbol);
     settled += 1;
-    if (symbols.length > 1 && settled < symbols.length) showNotice(`Model decisions received: ${settled} of ${symbols.length}…`, 'loading');
+    if (!activeSymbol && results.has(symbol)) render(results.get(symbol), false);
+    renderTabs();
+    if (!current && symbols.length > 1 && settled < symbols.length) showNotice(`Model decisions received: ${settled} of ${symbols.length}…`, 'loading');
   };
   try {
     const queue = [...symbols];
@@ -679,6 +645,7 @@ $('analysis-form').addEventListener('submit', async (event) => {
     button.disabled = false; button.querySelector('span').textContent = 'Run analysis';
     fields.forEach(field => { field.disabled = false; });
     $('analysis-form').setAttribute('aria-busy', 'false');
+    renderSelectedTickers();
   }
   const succeeded = symbols.filter(symbol => results.has(symbol));
   if (!succeeded.length) {
@@ -687,12 +654,17 @@ $('analysis-form').addEventListener('submit', async (event) => {
     renderTabs(); renderPortfolio();
     return;
   }
-  for (const symbol of succeeded.slice(1)) {
+  const selected = results.has(activeSymbol) ? activeSymbol : succeeded[0];
+  for (const symbol of succeeded.filter(symbol => symbol !== selected)) {
     const data = results.get(symbol);
-    data._notice = [`Analysis complete. Candle started ${formatTime(data.market.candle_timestamp)}. Model preferences are not trading outcomes.`, 'success'];
     history.unshift(historySnapshot(data));
     if (history.length > 50) history.pop();
   }
-  render(results.get(succeeded[0]), true);
-  if (failures.size) showNotice(`Analyzed ${succeeded.length} of ${symbols.length} tickers. The failed tickers keep a tab with their error.`, 'warning');
+  if (results.has(activeSymbol) || !activeSymbol) render(results.get(selected), true);
+  else {
+    history.unshift(historySnapshot(results.get(selected)));
+    if ($('history-save').checked) saveHistory(history);
+    renderHistory(); renderTabs();
+  }
+  if (failures.size && !current?.stale_preview && current?.source !== 'Synthetic sample CSV' && !failures.has(activeSymbol)) showNotice(`Analyzed ${succeeded.length} of ${symbols.length} tickers. Select a failed ticker to see its error.`, 'warning');
 });

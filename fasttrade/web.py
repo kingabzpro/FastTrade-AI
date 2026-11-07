@@ -53,7 +53,7 @@ async def lifespan(app):
 from dotenv import load_dotenv
 load_dotenv()
 _openapi_enabled = os.getenv('FASTTRADE_ENABLE_OPENAPI', 'true').lower() == 'true'
-app = FastAPI(title='FastTrade AI API', version='0.1.0', description='Local signal-only market research API. It never places orders.', lifespan=lifespan, openapi_url='/openapi.json' if _openapi_enabled else None, docs_url='/docs' if _openapi_enabled else None, redoc_url='/redoc' if _openapi_enabled else None)
+app = FastAPI(title='FastTrade AI API', version='0.2.0', description='Local signal-only market research API. It never places orders.', lifespan=lifespan, openapi_url='/openapi.json' if _openapi_enabled else None, docs_url='/docs' if _openapi_enabled else None, redoc_url='/redoc' if _openapi_enabled else None)
 
 
 @app.exception_handler(Exception)

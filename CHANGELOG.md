@@ -1,26 +1,33 @@
 # Changelog
 
-User-facing changes are recorded under Unreleased. At release, move them under the new version and date, update the package and API versions together, and tag the release. During 0.x, document incompatible changes and migration steps explicitly.
-
 ## Unreleased
 
 Nothing yet.
 
 ## 0.2.0 (2026-11-07)
 
-- **Incompatible:** backtests now use estimated square-root impact for primary fills. Use `--slippage-model flat` to retain the previous flat model. Impact reports set `slippage_bps` to null and expose the flat comparison rate as `flat_slippage_bps`; consumers should inspect `slippage_model` and per-fill impact details. Impact mode requires prior liquidity history before model calls.
-- Corrected calibration splits and edge intervals to preserve weekly dependence; legacy artifacts without outcome-availability times must be regenerated before use.
-- Added bounded Alpaca and decision-provider retries, `Retry-After` handling, and per-credential circuit breakers.
-- Added a bounded exact-cutoff market cache and a validated-candle indicator cache, both per process.
-- Added a non-root container, a loopback dashboard proxy, and a separate VPN-oriented HTTPS API proxy profile.
-- Added structured request logs and response request IDs.
-- Added provider-reported individual-analysis tokens to per-key usage totals, with older or unavailable records marked incomplete.
-- Added authenticated, rate-limited versioned API endpoints, usage reservations, batch jobs, and liveness/readiness checks.
-- Added selectable market and decision providers, optional local history, and probability calibration research tooling.
-- Added purged-fold, reality-check, deflated-Sharpe and registry-backed overfitting statistics to published research results.
-- Refreshed the public README: new dashboard banner, CI and license badges, a Docker quick start, and links to deployment, security and changelog docs.
-- Added package metadata (readme, repository and issue URLs) and removed internal planning notes from `docs/`.
+First public release.
 
-## 0.1.0
+### Breaking
+
+- Backtests now fill with estimated square-root impact instead of a flat slippage rate. Pass `--slippage-model flat` to keep the old model. Impact reports set `slippage_bps` to null and expose the flat comparison rate separately as `flat_slippage_bps`; read `slippage_model` and the per-fill impact details instead. Impact mode needs prior liquidity history, and the command checks for it before it makes any model call.
+- Calibration splits and edge intervals were wrong for weekly data and have been corrected. Artifacts without outcome-availability timestamps must be regenerated before use.
+
+### Added
+
+- A versioned API under `/v1`: `X-API-Key` authentication, hashed keys, per-key rate limits, request caps and daily budgets, plus `/healthz` and `/readyz`.
+- Batch analysis: `ft analyze-batch`, `POST /v1/analyze:batch`, background jobs, idempotency keys and per-key token accounting.
+- Selectable market data (Alpaca IEX, Yahoo Finance) and decision providers (Jev, Liquid, vLLM-SR, SubQ, Baseten).
+- Bounded retries with `Retry-After` handling, per-credential circuit breakers, and market and indicator caches keyed by source cutoff.
+- A non-root container image, a loopback dashboard proxy, and a separate private-network profile for the HTTPS API.
+- JSON request logs with request ids, and provider-reported token counts in the per-key usage totals.
+- Research tooling: probability calibration, purged folds, the White reality check, the deflated Sharpe ratio and a committed variant registry.
+
+### Changed
+
+- The public README was rewritten: banner, badges, an honest benchmark table and a Docker quick start.
+- Package metadata now points at the repository and the issue tracker, and internal planning notes were removed from `docs/`.
+
+## 0.1.0 (2026-10-28)
 
 Initial tagged research release.

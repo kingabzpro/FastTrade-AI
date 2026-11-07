@@ -1,6 +1,6 @@
 # Next-bar forecast comparison
 
-This is an exploratory comparison on the frozen [Alpaca IEX dataset](../backtest-2026-09-28-alpaca/README.md), not evidence of a trading edge. The same 25 symbols, four review dates, 100 decision requests per run, Jev 1.14.0 model, $10,000 starting capital, 5 bps commission and 10 bps slippage were used. The forecast run includes an unvalidated next-hour-bar price forecast from the last 50 completed hourly closes. It is not the five-session relative-to-SPY forecast described by the proposed multi-agent workflow.
+This is an exploratory comparison on the frozen [Alpaca IEX dataset](../backtest-2026-09-28-alpaca/README.md), not evidence of a trading edge. The same 25 symbols, four review dates, 100 decision requests per run, Jev 1.14.0 model, $10,000 starting capital, 5 bps commission and 10 bps slippage were used. The forecast run includes an unvalidated next-hour-bar price forecast from the last 50 completed hourly closes. It is not the five-session relative-to-SPY forecast described by the proposed parallel decision workflow.
 
 | Measure | Baseline | Forecast input |
 | --- | ---: | ---: |

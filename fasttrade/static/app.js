@@ -174,7 +174,7 @@ function render(result, record = true) {
   const action = decision.action;
   $('model-action').className = `action ${action.toLowerCase()}`; setText('model-action', action);
   const probs = decision.probabilities || {};
-  setText('top-prob', probs[action] == null ? '—' : `${Math.round(probs[action] * 100)}%`);
+  setText('top-prob', probs[action] == null ? '-' : `${Math.round(probs[action] * 100)}%`);
   const list = $('probabilities'); list.replaceChildren();
   for (const name of ['BUY', 'HOLD', 'SELL']) {
     if (probs[name] == null) continue;

@@ -137,7 +137,7 @@ Acceptance criteria:
 
 **Goal:** richer judgments, bounded cost.
 
-The approved specification is [docs/superpowers/plans/2026-10-28-multi-agent-trading-research.md](docs/superpowers/plans/2026-10-28-multi-agent-trading-research.md); this section summarizes its shape and adds deployment-side findings, nothing that contradicts it. The shape: an immutable point-in-time evidence snapshot, a parallel specialist stage, a manager, a bull/bear debate, and a judge whose INSUFFICIENT is distinct from HOLD. The existing deterministic risk engine stays the final gate. Opt-in only, and never an order.
+Phase 5 is deferred (issue #5, closed as not planned). The approved specification's shape is summarized here and in issue #5; the full proposal was an internal planning document and is not committed. The shape: an immutable point-in-time evidence snapshot, a parallel specialist stage, a manager, a bull/bear debate, and a judge whose INSUFFICIENT is distinct from HOLD. The existing deterministic risk engine stays the final gate. Opt-in only, and never an order.
 
 What the research adds beyond that spec:
 

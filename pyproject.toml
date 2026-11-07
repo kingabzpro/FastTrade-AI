@@ -2,6 +2,7 @@
 name = "fasttrade-ai"
 version = "0.1.0"
 description = "Research-oriented, signal-only trading decision CLI"
+readme = "README.md"
 license = "Apache-2.0"
 requires-python = ">=3.10"
 dependencies = [
@@ -22,6 +23,10 @@ dependencies = [
 
 [project.scripts]
 ft = "fasttrade.cli:dashboard"
+
+[project.urls]
+Repository = "https://github.com/kingabzpro/FastTrade-AI"
+Issues = "https://github.com/kingabzpro/FastTrade-AI/issues"
 
 [project.optional-dependencies]
 forecast = [

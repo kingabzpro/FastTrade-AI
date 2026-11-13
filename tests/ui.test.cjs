@@ -135,6 +135,29 @@ test('chart uses green and red candles and a blue overlay', async () => {
   assert.ok(colors.includes('#245de0'));
 });
 
+test('Bollinger overlay draws bands and their fill', async () => {
+  const data = result();
+  await page.route('**/api/analyze', route => route.fulfill({json: data}));
+  await page.locator('#analyze').click();
+  await page.waitForFunction(() => !document.getElementById('decision-content').hidden);
+  await page.evaluate(() => {
+    window.chartColors = [];
+    for (const method of ['fillRect', 'strokeRect', 'stroke', 'fill']) {
+      const original = CanvasRenderingContext2D.prototype[method];
+      CanvasRenderingContext2D.prototype[method] = function (...args) {
+        window.chartColors.push(method === 'fillRect' || method === 'fill' ? this.fillStyle : this.strokeStyle);
+        return original.apply(this, args);
+      };
+    }
+  });
+  await page.selectOption('#chart-overlay', 'bollinger');
+  assert.equal(await page.locator('#overlay-legend').isVisible(), true);
+  assert.match(await page.locator('#overlay-name').innerText(), /BOLLINGER 20/);
+  const colors = await page.evaluate(() => window.chartColors);
+  assert.ok(colors.includes('#245de0'));
+  assert.ok(colors.includes('rgba(36, 93, 224, 0.1)'));
+});
+
 test('collapsed invalid risk settings open so the invalid field can receive focus', async () => {
   await page.locator('.risk-settings summary').click();
   await page.fill('#risk-min_confidence', '2');
@@ -277,7 +300,7 @@ test('SPY signals load automatically with a spinner and show independent results
     assert.equal(await page.locator('#model-stale').isVisible(), true);
     assert.equal(await page.locator('#spy-status').count(), 0);
     assert.equal(await page.locator('#last-analysis').count(), 0);
-    assert.equal(await page.locator('.summary-card small').count(), 0);
+    assert.equal(await page.locator('.workspace-strip .summary-card small').count(), 0);
   } finally { release(); }
 });
 
@@ -368,6 +391,22 @@ test('tablet and phone layouts keep chart, headings and controls within their ca
       assert.equal(await heading.evaluate(el => [...el.children].every(child => child.getBoundingClientRect().right <= el.getBoundingClientRect().right + 1)), true, `heading overflow at ${width}`);
     }
   }
+});
+
+test('phone layout reads decision, chart, context, evidence, then paper trading', async () => {
+  const data = result();
+  data.market.headlines = [{title: 'Market headline', source: 'Example', published: '2026-01-02T20:00:00Z'}];
+  await page.route('**/api/analyze', route => route.fulfill({json: data}));
+  await page.locator('#analyze').click();
+  await page.waitForFunction(() => !document.getElementById('decision-content').hidden);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.waitForFunction(() => getComputedStyle(document.querySelector('.decision-card')).order === '1');
+  const order = await page.evaluate(() => {
+    const names = ['decision-card', 'chart-card', 'indicators-card', 'evidence-card', 'paper-card', 'news-card'];
+    return names.map(name => ({ name, top: document.querySelector(`.${name}`).getBoundingClientRect().top }))
+      .sort((a, b) => a.top - b.top).map(item => item.name);
+  });
+  assert.deepEqual(order, ['decision-card', 'chart-card', 'indicators-card', 'evidence-card', 'paper-card', 'news-card']);
 });
 
 test('loading, chart inspection, history replay and failures restore usable controls', async () => {
@@ -717,6 +756,128 @@ test('paper cash limits buys and the portfolio persists across reloads', async (
   await page.locator('#portfolio-reset').click();
   await page.waitForFunction(() => document.getElementById('portfolio-cash').textContent.includes('10,000.00'));
   assert.equal(await page.locator('#positions').isHidden(), true);
+});
+
+test('portfolio shows unrealized and total profit and loss', async () => {
+  await page.evaluate(() => localStorage.setItem('fasttrade-paper', JSON.stringify({version: 1, cash: 9800, positions: {NVDA: {shares: 2, cost: 200}}, realized: 0, fills: []})));
+  await page.reload();
+  const data = result('NVDA');
+  await page.route('**/api/analyze', route => route.fulfill({json: data}));
+  await page.locator('#analyze').click();
+  await page.waitForFunction(() => !document.getElementById('decision-content').hidden);
+  await openView('portfolio-panel');
+  assert.match(await page.locator('#portfolio-unrealized').innerText(), /\+85\.70/);
+  assert.match(await page.locator('#portfolio-total').innerText(), /\+85\.70/);
+  assert.match(await page.locator('#portfolio-total-pct').innerText(), /\+0\.86% of starting cash/);
+});
+
+test('history exports the displayed analyses as CSV', async () => {
+  const data = result('NVDA');
+  await page.route('**/api/analyze', route => route.fulfill({json: data}));
+  await page.locator('#analyze').click();
+  await page.waitForFunction(() => document.querySelectorAll('#history tbody tr').length === 1);
+  await page.evaluate(() => {
+    window.__csv = null;
+    URL.createObjectURL = blob => { window.__csv = blob; return 'blob:test'; };
+    URL.revokeObjectURL = () => {};
+    HTMLAnchorElement.prototype.click = function () {};
+  });
+  await openView('history-panel');
+  await page.locator('#history-export').click();
+  const text = await page.evaluate(() => window.__csv.text());
+  assert.match(text, /^symbol,timeframe,data_time,source,model,action,choice_probability,rule_signal,rule_agreement,risk_checked,example_risk,risk_rejections,latency_ms/);
+  assert.match(text, /NVDA,5m,2026-01-02T20:55:00Z,Alpaca IEX,test,BUY,0\.7,BUY,agree,HOLD,false,,1/);
+  assert.match(await page.locator('#history-storage-status').innerText(), /Exported 1 analysis to CSV/);
+  assert.equal(await page.locator('#history-storage-status').getAttribute('class'), 'good');
+});
+
+test('history export neutralizes formula-like cell values', async () => {
+  const data = result('NVDA');
+  data.decision.model = '=1+1';
+  await page.route('**/api/analyze', route => route.fulfill({json: data}));
+  await page.locator('#analyze').click();
+  await page.waitForFunction(() => document.querySelectorAll('#history tbody tr').length === 1);
+  await page.evaluate(() => {
+    window.__csv = null;
+    URL.createObjectURL = blob => { window.__csv = blob; return 'blob:test'; };
+    URL.revokeObjectURL = () => {};
+    HTMLAnchorElement.prototype.click = function () {};
+  });
+  await openView('history-panel');
+  await page.locator('#history-export').click();
+  const text = await page.evaluate(() => window.__csv.text());
+  assert.match(text, /Alpaca IEX,'=1\+1,BUY/);
+});
+
+test('history export marks example risk inputs', async () => {
+  await page.locator('.risk-settings summary').click();
+  await page.getByRole('button', {name: 'Load example values'}).click();
+  const data = result('NVDA');
+  await page.route('**/api/analyze', route => route.fulfill({json: data}));
+  await page.locator('#analyze').click();
+  await page.waitForFunction(() => document.querySelectorAll('#history tbody tr').length === 1);
+  await page.evaluate(() => {
+    window.__csv = null;
+    URL.createObjectURL = blob => { window.__csv = blob; return 'blob:test'; };
+    URL.revokeObjectURL = () => {};
+    HTMLAnchorElement.prototype.click = function () {};
+  });
+  await openView('history-panel');
+  await page.locator('#history-export').click();
+  const text = await page.evaluate(() => window.__csv.text());
+  assert.match(text, /HOLD,true,,1/);
+});
+
+test('portfolio marks profit and loss unavailable when a position has no price', async () => {
+  await page.evaluate(() => localStorage.setItem('fasttrade-paper', JSON.stringify({version: 1, cash: 9800, positions: {NVDA: {shares: 2, cost: 200}}, realized: 0, fills: []})));
+  await page.reload();
+  await openView('portfolio-panel');
+  assert.equal(await page.locator('#portfolio-unrealized').innerText(), 'Unavailable');
+  assert.equal(await page.locator('#portfolio-total').innerText(), 'Unavailable');
+  assert.match(await page.locator('#portfolio-total-pct').innerText(), /no analyzed price/);
+});
+
+test('saved history prices survive reload for the portfolio', async () => {
+  await openView('history-panel');
+  await page.locator('#history-save').check();
+  await openView('workspace');
+  const data = result('NVDA');
+  await page.route('**/api/analyze', route => route.fulfill({json: data}));
+  await page.locator('#analyze').click();
+  await page.waitForFunction(() => document.querySelectorAll('#history tbody tr').length === 1);
+  await page.evaluate(() => localStorage.setItem('fasttrade-paper', JSON.stringify({version: 1, cash: 9800, positions: {NVDA: {shares: 2, cost: 200}}, realized: 0, fills: []})));
+  await page.reload();
+  await openView('portfolio-panel');
+  assert.match(await page.locator('#portfolio-unrealized').innerText(), /\+85\.70/);
+  assert.match(await page.locator('#portfolio-total').innerText(), /\+85\.70/);
+});
+
+test('paper fills export as CSV with an explicit empty state', async () => {
+  await openView('portfolio-panel');
+  await page.locator('#portfolio-export').click();
+  assert.match(await page.locator('#portfolio-status').innerText(), /No paper fills to export yet/);
+  assert.equal(await page.locator('#portfolio-status').getAttribute('class'), 'portfolio-status warning');
+  const data = result('NVDA'); data.actionable_signal = null;
+  await page.route('**/api/analyze', route => route.fulfill({json: data}));
+  await openView('workspace');
+  await page.locator('#analyze').click();
+  await page.waitForFunction(() => !document.getElementById('decision-content').hidden);
+  await page.fill('#paper-qty', '2');
+  await page.locator('#paper-buy').click();
+  await page.waitForFunction(() => document.getElementById('paper-position').textContent.includes('2.00 shares'));
+  await page.evaluate(() => {
+    window.__csv = null;
+    URL.createObjectURL = blob => { window.__csv = blob; return 'blob:test'; };
+    URL.revokeObjectURL = () => {};
+    HTMLAnchorElement.prototype.click = function () {};
+  });
+  await openView('portfolio-panel');
+  await page.locator('#portfolio-export').click();
+  const text = await page.evaluate(() => window.__csv.text());
+  assert.match(text, /^time,symbol,side,shares,price,value/);
+  assert.match(text, /NVDA,BUY,2,142\.85,285\.7/);
+  assert.match(await page.locator('#portfolio-status').innerText(), /Exported 1 simulated fill to CSV/);
+  assert.equal(await page.locator('#portfolio-status').getAttribute('class'), 'portfolio-status good');
 });
 
 test('stale results cannot be paper traded and history replays stay blocked', async () => {

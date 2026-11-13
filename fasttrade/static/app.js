@@ -94,6 +94,7 @@ const setText = (id, text) => { $(id).textContent = text; };
 const historyKey = 'fasttrade-history';
 let savedHistory = [];
 let historyReadable = true;
+function setHistoryStatus(text, state = '') { const el = $('history-storage-status'); el.textContent = text; el.className = state; }
 const pick = (object, keys) => Object.fromEntries(keys.filter(key => object?.[key] !== undefined).map(key => [key, object[key]]));
 function historySnapshot(result) {
   const market = pick(result.market, ['symbol', 'timeframe', 'candle_timestamp']);
@@ -106,20 +107,20 @@ function historySnapshot(result) {
     candles: (result.candles || []).map(item => pick(item, ['timestamp', 'open', 'high', 'low', 'close', 'volume', 'ema_9', 'ema_21', 'ema_50', 'vwap']))};
 }
 function saveHistory(entries = savedHistory) {
-  if (!historyReadable) { setText('history-storage-status', 'Stored history is unavailable; clear it to start again.'); return false; }
+  if (!historyReadable) { setHistoryStatus('Stored history is unavailable; clear it to start again.', 'error'); return false; }
   const kept = entries.slice(0, 50);
   let data = JSON.stringify({version: 1, enabled: $('history-save').checked, entries: kept}, (key, value) => key.startsWith('_') ? undefined : value);
   while (new TextEncoder().encode(data).length > 2 * 1024 * 1024 && kept.length > 1) {
     kept.pop(); data = JSON.stringify({version: 1, enabled: $('history-save').checked, entries: kept});
   }
   if (new TextEncoder().encode(data).length > 2 * 1024 * 1024) {
-    setText('history-storage-status', 'This analysis is too large to save; previous saved history is unchanged.'); return false;
+    setHistoryStatus('This analysis is too large to save; previous saved history is unchanged.', 'error'); return false;
   }
   try {
     localStorage.setItem(historyKey, data); savedHistory = kept;
-    setText('history-storage-status', kept.length < entries.length ? 'Older saved analyses were removed to fit the storage limit.' : '');
+    setHistoryStatus(kept.length < entries.length ? 'Older saved analyses were removed to fit the storage limit.' : '', kept.length < entries.length ? 'warning' : '');
     return true;
-  } catch { setText('history-storage-status', 'Browser storage is full or unavailable; history was not saved.'); return false; }
+  } catch { setHistoryStatus('Browser storage is full or unavailable; history was not saved.', 'error'); return false; }
 }
 try {
   const stored = JSON.parse(localStorage.getItem(historyKey) || 'null');
@@ -129,7 +130,7 @@ try {
     $('history-save').checked = stored.enabled === true;
     if (stored.enabled) history.push(...savedHistory);
   }
-} catch { historyReadable = false; setText('history-storage-status', 'Stored history is unavailable or invalid; clear it to start again.'); }
+} catch { historyReadable = false; setHistoryStatus('Stored history is unavailable or invalid; clear it to start again.', 'error'); }
 $('history-save').addEventListener('change', () => {
   if ($('history-save').checked) {
     for (const entry of savedHistory) if (!history.includes(entry)) history.push(entry);
@@ -140,15 +141,43 @@ $('history-save').addEventListener('change', () => {
 $('history-clear').addEventListener('click', () => {
   try {
     localStorage.removeItem(historyKey); historyReadable = true; savedHistory = []; history.length = 0;
-    if ($('history-save').checked) saveHistory(); else setText('history-storage-status', '');
+    if ($('history-save').checked) saveHistory(); else setHistoryStatus('');
     renderHistory();
-  } catch { setText('history-storage-status', 'Browser storage is unavailable; saved history could not be cleared.'); }
+  } catch { setHistoryStatus('Browser storage is unavailable; saved history could not be cleared.', 'error'); }
+});
+$('history-export').addEventListener('click', () => {
+  if (!history.length) { setHistoryStatus('No analyses to export yet.'); return; }
+  const rows = [['symbol', 'timeframe', 'data_time', 'source', 'model', 'action', 'choice_probability', 'rule_signal', 'rule_agreement', 'risk_checked', 'example_risk', 'risk_rejections', 'latency_ms']];
+  for (const entry of history) {
+    const probability = entry.decision.probabilities?.[entry.decision.action];
+    const risk = entry.actionable_signal == null ? 'SIGNAL ONLY' : entry.risk_rejections.length && entry.decision.action !== 'HOLD' ? 'BLOCKED' : entry.actionable_signal;
+    rows.push([entry.market.symbol, entry.market.timeframe, entry.market.candle_timestamp, entry.source, entry.decision.model, entry.decision.action,
+      probability == null ? '' : Math.round(probability * 100) / 100, entry.rule_comparison?.signal || '', entry.rule_comparison?.agreement || '',
+      risk, entry.example_risk ? 'true' : 'false', entry.risk_rejections.join(' | '), Math.round(entry.decision.latency_us / 1000)]);
+  }
+  downloadCsv('fasttrade-history.csv', rows);
+  setHistoryStatus(`Exported ${history.length} ${history.length === 1 ? 'analysis' : 'analyses'} to CSV.`, 'good');
 });
 const number = (value, digits = 2) => Number(value).toLocaleString('en-US', {minimumFractionDigits: digits, maximumFractionDigits: digits});
 function formatTime(value) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
   return new Intl.DateTimeFormat('en-GB', {timeZone: 'UTC', day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false}).format(date) + ' UTC';
+}
+function csvCell(value) {
+  if (value == null) return '';
+  if (typeof value === 'number' && Number.isFinite(value)) return String(value);
+  let text = String(value);
+  if (/^\s*[=+\-@\t\r]/.test(text)) text = `'${text}`;
+  return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+}
+function downloadCsv(filename, rows) {
+  const data = new Blob([rows.map(row => row.map(csvCell).join(',')).join('\r\n') + '\r\n'], {type: 'text/csv;charset=utf-8'});
+  const url = URL.createObjectURL(data);
+  const link = document.createElement('a');
+  link.href = url; link.download = filename;
+  document.body.append(link); link.click(); link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 const noticeIcons = {loading: 'i-spark', warning: 'i-alert', error: 'i-error'};
 function showNotice(message, state = '') {
@@ -484,12 +513,21 @@ function placePaper(side) {
 $('paper-qty').addEventListener('input', renderPaper);
 $('paper-buy').addEventListener('click', () => placePaper('BUY'));
 $('paper-sell').addEventListener('click', () => placePaper('SELL'));
+function setPortfolioStatus(text, state = 'good') { const el = $('portfolio-status'); el.textContent = text; el.className = `portfolio-status ${state}`.trim(); }
 $('portfolio-reset').addEventListener('click', () => {
   paper = {version: 1, cash: PAPER_START_CASH, positions: {}, fills: [], realized: 0};
   try { localStorage.removeItem(paperKey); paperReadable = true; savePaper(); } catch { /* keep the reset in memory only */ }
   paperLoadWarning = '';
   const status = $('paper-status'); status.textContent = ''; status.className = 'paper-status';
+  setPortfolioStatus('');
   renderPaper(); renderPortfolio();
+});
+$('portfolio-export').addEventListener('click', () => {
+  if (!paper.fills.length) { setPortfolioStatus('No paper fills to export yet.', 'warning'); return; }
+  const rows = [['time', 'symbol', 'side', 'shares', 'price', 'value']];
+  for (const fill of paper.fills) rows.push([fill.time, fill.symbol, fill.side, fill.quantity, fill.price, fill.value]);
+  downloadCsv('fasttrade-paper-fills.csv', rows);
+  setPortfolioStatus(`Exported ${paper.fills.length} simulated ${paper.fills.length === 1 ? 'fill' : 'fills'} to CSV.`);
 });
 
 /* Portfolio page: paper cash, open positions and simulated fills. */
@@ -498,12 +536,13 @@ function renderPortfolio() {
   $('positions-empty').hidden = entries.length > 0;
   $('positions').hidden = entries.length === 0;
   const body = $('positions').querySelector('tbody'); body.replaceChildren();
-  let marketValue = 0, allPriced = true;
+  let marketValue = 0, unrealized = 0, allPriced = true;
   for (const [symbol, held] of entries) {
     const last = lastPrices.get(symbol);
     const avg = held.cost / held.shares;
     const value = last != null ? held.shares * last : held.cost;
     if (last == null) allPriced = false;
+    else unrealized += (last - avg) * held.shares;
     marketValue += value;
     const row = document.createElement('tr');
     for (const [label, text] of [['Symbol', symbol], ['Shares', number(held.shares)], ['Avg cost', number(avg)], ['Last price', last != null ? number(last) : 'No price yet'], ['Value', number(value)], ['Unrealized P&L', last != null ? `${last >= avg ? '+' : ''}${number((last - avg) * held.shares)}` : 'n/a']]) {
@@ -511,10 +550,17 @@ function renderPortfolio() {
     }
     body.append(row);
   }
+  const equity = paper.cash + marketValue;
+  const total = equity - PAPER_START_CASH;
+  const totalPct = total / PAPER_START_CASH * 100;
+  const priced = !entries.length || allPriced;
   setText('portfolio-cash', number(paper.cash));
   setText('portfolio-value', number(marketValue));
-  setText('portfolio-equity', number(paper.cash + marketValue));
+  setText('portfolio-equity', number(equity));
   setText('portfolio-realized', `${paper.realized >= 0 ? '+' : ''}${number(paper.realized)}`);
+  setText('portfolio-unrealized', priced ? `${unrealized >= 0 ? '+' : ''}${number(unrealized)}` : 'Unavailable');
+  setText('portfolio-total', priced ? `${total >= 0 ? '+' : ''}${number(total)}` : 'Unavailable');
+  setText('portfolio-total-pct', priced ? `${total >= 0 ? '+' : ''}${number(totalPct)}% of starting cash` : 'Some positions have no analyzed price');
   setText('portfolio-note', paperLoadWarning || (allPriced ? '' : 'Symbols without a recent analysis are valued at cost.'));
   const fillsBody = $('fills').querySelector('tbody'); fillsBody.replaceChildren();
   $('fills').hidden = paper.fills.length === 0;
@@ -527,7 +573,7 @@ function renderPortfolio() {
     fillsBody.append(row);
   }
 }
-for (const entry of history) if (!lastPrices.has(entry.market.symbol) && Number.isFinite(entry.market?.features?.price)) lastPrices.set(entry.market.symbol, entry.market.features.price);
+for (const entry of savedHistory) if (!lastPrices.has(entry.market.symbol) && Number.isFinite(entry.market?.features?.price)) lastPrices.set(entry.market.symbol, entry.market.features.price);
 renderPortfolio();
 
 function visibleCandles() {
@@ -544,8 +590,17 @@ function drawChart() {
   if (!candles.length) { $('chart-readout').hidden = true; return; }
   const overlay = $('chart-overlay').value;
   $('overlay-legend').hidden = overlay === 'none';
-  if (overlay !== 'none') setText('overlay-name', overlay === 'vwap' ? 'VWAP' : overlay.replace('_', ' ').toUpperCase());
-  const overlayValues = candles.map(c => c[overlay]).filter(v => typeof v === 'number' && Number.isFinite(v));
+  if (overlay !== 'none') setText('overlay-name', overlay === 'vwap' ? 'VWAP' : overlay === 'bollinger' ? 'BOLLINGER 20 (2 SD)' : overlay.replace('_', ' ').toUpperCase());
+  let bands = null;
+  if (overlay === 'bollinger') {
+    const all = current.candles || candles;
+    const series = ChartMath.bollinger(all.map(c => c.close));
+    const offset = Math.max(0, all.length - candles.length);
+    bands = {middle: series.middle.slice(offset), upper: series.upper.slice(offset), lower: series.lower.slice(offset)};
+  }
+  const overlayValues = bands
+    ? [...bands.upper, ...bands.middle, ...bands.lower].filter(v => typeof v === 'number' && Number.isFinite(v))
+    : candles.map(c => c[overlay]).filter(v => typeof v === 'number' && Number.isFinite(v));
   const rawLow = Math.min(...candles.map(c => c.low), ...overlayValues);
   const rawHigh = Math.max(...candles.map(c => c.high), ...overlayValues);
   const padding = rawHigh > rawLow ? (rawHigh - rawLow) * .07 : Math.max(Math.abs(rawHigh) * .005, 1e-8);
@@ -585,7 +640,43 @@ function drawChart() {
     const volumeHeight = (volumeBottom - volumeTop - 13) * c.volume / maxVolume;
     ctx.fillRect(x(i) - bodyWidth / 2, volumeBottom - volumeHeight, bodyWidth, volumeHeight);
   });
-  if (overlay !== 'none') {
+  if (bands) {
+    const segments = [];
+    let segment = [];
+    candles.forEach((c, i) => {
+      const valid = Number.isFinite(bands.upper[i]) && Number.isFinite(bands.lower[i]);
+      const gap = i && ChartMath.hasTimeGap(candles[i - 1].timestamp, c.timestamp, current.market.timeframe);
+      if (valid && !gap) { segment.push(i); return; }
+      if (segment.length) segments.push(segment);
+      segment = valid ? [i] : [];
+    });
+    if (segment.length) segments.push(segment);
+    for (const indexes of segments) {
+      if (indexes.length < 2) continue;
+      ctx.fillStyle = 'rgba(36, 93, 224, .10)';
+      ctx.beginPath();
+      indexes.forEach((index, position) => position ? ctx.lineTo(x(index), y(bands.upper[index])) : ctx.moveTo(x(index), y(bands.upper[index])));
+      for (let position = indexes.length - 1; position >= 0; position--) ctx.lineTo(x(indexes[position]), y(bands.lower[indexes[position]]));
+      ctx.closePath(); ctx.fill();
+    }
+    const strokeSeries = (values, lineWidth, dashed) => {
+      ctx.save(); ctx.strokeStyle = '#245de0'; ctx.lineWidth = lineWidth;
+      if (dashed) ctx.setLineDash([4, 3]);
+      ctx.beginPath();
+      let drawing = false;
+      candles.forEach((c, i) => {
+        const value = values[i];
+        if (typeof value !== 'number' || !Number.isFinite(value)) { drawing = false; return; }
+        const gap = i && ChartMath.hasTimeGap(candles[i - 1].timestamp, c.timestamp, current.market.timeframe);
+        if (!drawing || gap) ctx.moveTo(x(i), y(value)); else ctx.lineTo(x(i), y(value));
+        drawing = true;
+      });
+      ctx.stroke(); ctx.restore();
+    };
+    strokeSeries(bands.upper, 1.4, false);
+    strokeSeries(bands.middle, 1, true);
+    strokeSeries(bands.lower, 1.4, false);
+  } else if (overlay !== 'none') {
     ctx.strokeStyle = '#245de0'; ctx.lineWidth = 1.5; ctx.beginPath();
     let drawing = false;
     candles.forEach((c, i) => {

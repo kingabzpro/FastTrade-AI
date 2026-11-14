@@ -221,7 +221,7 @@ def test_cached_alpaca_fetch_uses_same_credential_snapshot_as_cache_key(monkeypa
     def get(url, *, headers, **kwargs):
         seen.append(headers.copy())
         return httpx.Response(200, json={'bars': bars}, request=httpx.Request('GET', url))
-    monkeypatch.setattr(market.httpx, 'get', get)
+    monkeypatch.setattr(market, 'pooled_get', get)
     market.cached_market(market.alpaca, 'TEST', '5m', pd.Timestamp('2026-01-02T19:31Z'))
     assert seen[0]['APCA-API-KEY-ID'] == 'key-a'
     assert seen[0]['APCA-API-SECRET-KEY'] == 'secret-a'

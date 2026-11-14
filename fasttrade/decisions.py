@@ -2,7 +2,7 @@ import math
 import os
 import time
 import httpx
-from .resilience import CircuitOpen, request
+from .resilience import CircuitOpen, pooled_post, request
 
 
 PROVIDERS = {
@@ -50,7 +50,7 @@ def predict(state, url, model, key):
     headers = {'Authorization': f'Bearer {key}'} if key else {}
     start = time.perf_counter_ns()
     try:
-        response = request(httpx.post, url, service='decision:' + url, credentials=key, retry_transport=False, json=payload, headers=headers, timeout=30)
+        response = request(pooled_post, url, service='decision:' + url, credentials=key, retry_transport=False, json=payload, headers=headers, timeout=30)
         response.raise_for_status()
         data = response.json()
     except httpx.TimeoutException as exc:

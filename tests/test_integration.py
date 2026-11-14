@@ -28,11 +28,11 @@ def test_decision_request_and_timeout(monkeypatch):
     def post(url, **kwargs):
         assert kwargs['json']['questions']['action']['type'] == 'choice'
         return httpx.Response(200, json=answer(), request=httpx.Request('POST', url))
-    monkeypatch.setattr(decisions.httpx, 'post', post)
+    monkeypatch.setattr(decisions, 'pooled_post', post)
     assert decisions.predict({}, 'https://example.com', 'jev', 'key')['action'] == 'BUY'
     def timeout(*args, **kwargs):
         raise httpx.ReadTimeout('timeout')
-    monkeypatch.setattr(decisions.httpx, 'post', timeout)
+    monkeypatch.setattr(decisions, 'pooled_post', timeout)
     with pytest.raises(ValueError, match='request failed'):
         decisions.predict({}, 'https://example.com', 'jev', 'key')
 
@@ -54,7 +54,7 @@ def test_model_retries_explicit_rate_limit_but_not_timeout(monkeypatch):
         data = answer()
         data['usage'] = {'input_tokens': 10, 'output_tokens': 3}
         return httpx.Response(200, json=data, request=httpx.Request('POST', url))
-    monkeypatch.setattr(decisions.httpx, 'post', post)
+    monkeypatch.setattr(decisions, 'pooled_post', post)
     decision = decisions.predict({}, 'https://example.com', 'jev', 'key')
     assert decision['action'] == 'BUY'
     assert decision['usage']['input_tokens'] == 10
@@ -64,7 +64,7 @@ def test_model_retries_explicit_rate_limit_but_not_timeout(monkeypatch):
     def timeout(url, **kwargs):
         calls.append(1)
         raise httpx.ReadTimeout('unknown outcome')
-    monkeypatch.setattr(decisions.httpx, 'post', timeout)
+    monkeypatch.setattr(decisions, 'pooled_post', timeout)
     with pytest.raises(ValueError, match='timeout'):
         decisions.predict({}, 'https://example.com', 'jev', 'key')
     assert len(calls) == 3

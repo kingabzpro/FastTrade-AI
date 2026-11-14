@@ -582,6 +582,7 @@ body { background: #f2f5f8; }
 .auto-badge { flex: none; padding: 2px 8px; border-radius: 5px; font: 700 10px var(--mono); letter-spacing: .03em; background: #f2f5f8; color: #45566b; border: 1px solid #d8e1ea; }
 .auto-badge.up { background: #edf8f1; color: #146444; border-color: #b9dfc9; }
 .auto-badge.down { background: #fff1f2; color: #972d3d; border-color: #e9bfc5; }
+.pending-badge { flex: none; margin-left: 4px; padding: 2px 8px; border-radius: 5px; font: 700 10px var(--mono); letter-spacing: .03em; background: #fff8e8; color: #7b520d; border: 1px solid #e8d3a4; cursor: help; }
 .equity-wrap { height: 200px; }
 @media (max-width: 760px) { .equity-wrap { height: 160px; } .trade-form { grid-template-columns: 1fr 1fr; } }
 .portfolio-strip { gap: 0; border-block: 1px solid #e3e9ef; margin-top: 16px; }

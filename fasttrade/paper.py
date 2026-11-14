@@ -107,6 +107,17 @@ def last_price(symbol):
     return {'symbol': symbol, 'price': price}
 
 
+def market_clock():
+    """Return whether the US market is open and when it next opens."""
+    data = _call(pooled_get, f'{PAPER_BASE}/v2/clock')
+    try:
+        is_open = data['is_open'] is True
+        next_open = str(data['next_open']) if data['next_open'] else None
+    except (KeyError, TypeError, AttributeError) as exc:
+        raise ValueError('Invalid Alpaca clock response') from exc
+    return {'is_open': is_open, 'next_open': next_open}
+
+
 def submit_order(symbol, side, quantity):
     """Submit a paper market order; Alpaca fills it at the next available price."""
     symbol = _symbol(symbol)
@@ -125,7 +136,13 @@ def submit_order(symbol, side, quantity):
         filled_avg_price = float(data['filled_avg_price']) if data['filled_avg_price'] else None
     except (TypeError, ValueError, OverflowError):
         filled_quantity, filled_avg_price = 0.0, None
-    return {'symbol': symbol, 'side': side, 'quantity': quantity, 'order_id': order_id, 'status': status, 'filled_quantity': filled_quantity, 'filled_avg_price': filled_avg_price}
+    pending, next_open = False, None
+    try:
+        clock = market_clock()
+        pending, next_open = not clock['is_open'], clock['next_open']
+    except ValueError:
+        pass
+    return {'symbol': symbol, 'side': side, 'quantity': quantity, 'order_id': order_id, 'status': status, 'filled_quantity': filled_quantity, 'filled_avg_price': filled_avg_price, 'pending': pending, 'next_open': next_open}
 
 
 def movers(limit=8, minimum_cap=MIN_MARKET_CAP):

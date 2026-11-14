@@ -10,7 +10,7 @@ import asyncio
 import os
 import logging
 import uuid
-from threading import Lock
+from threading import BoundedSemaphore, Lock
 from time import monotonic
 from typing import Any, Literal
 from urllib.parse import urlsplit
@@ -437,7 +437,6 @@ def spy_signals(body: SpySignalsRequest):
         return result
 
 
-@app.post('/api/analyze', tags=['Analysis'], responses={200: {'model': AnalysisResponse, 'description': 'Model preference and risk-checked signal'}, 503: {'description': 'Market or model unavailable; no actionable signal'}})
 async def analyze(body: AnalysisRequest):
     """Analyze completed candles; incomplete risk inputs produce signal-only results."""
     args = parser().parse_args(['analyze', body.symbol.upper(), '--timeframe', body.timeframe])
@@ -483,6 +482,21 @@ async def analyze(body: AnalysisRequest):
         return JSONResponse({'error': errors.get(str(exc), 'Analysis failed. Check data and settings.'), 'actionable_signal': None}, status_code=503)
     except Exception:
         return JSONResponse({'error': 'Analysis failed. Check data and settings.', 'actionable_signal': None}, status_code=503)
+
+
+_analyze_gate = BoundedSemaphore(1)
+_ANALYZE_GATE_SECONDS = 60
+
+
+@app.post('/api/analyze', tags=['Analysis'], responses={200: {'model': AnalysisResponse, 'description': 'Model preference and risk-checked signal'}, 503: {'description': 'Market or model unavailable, or another local analysis is still running'}})
+async def local_analyze(body: AnalysisRequest):
+    """Queue overlapping local requests on one paid pipeline instead of running them in parallel."""
+    if not await run_in_threadpool(_analyze_gate.acquire, True, _ANALYZE_GATE_SECONDS):
+        return JSONResponse({'error': 'An analysis is already running. Wait for it to finish and try again.', 'actionable_signal': None}, status_code=503)
+    try:
+        return await analyze(body)
+    finally:
+        _analyze_gate.release()
 
 
 @app.post('/v1/analyze', tags=['Analysis'])

@@ -116,6 +116,51 @@ def test_analysis_api_passes_provider_and_rejects_invalid_choice(monkeypatch):
     assert client.post('/api/analyze', json={'symbol': 'SPY', 'source': 'other'}).status_code == 422
 
 
+def test_local_analyze_reports_busy_when_another_analysis_is_running(monkeypatch):
+    import pytest
+    from fasttrade import web
+    monkeypatch.setattr(web, 'run_analysis', lambda args: pytest.fail('must not run while the gate is held'))
+    monkeypatch.setattr(web, '_ANALYZE_GATE_SECONDS', 0.2)
+    assert web._analyze_gate.acquire(timeout=0)
+    try:
+        client = TestClient(web.app, base_url='http://127.0.0.1:8765', client=('127.0.0.1', 50000))
+        response = client.post('/api/analyze', json={'symbol': 'SPY', 'timeframe': '5m'})
+        assert response.status_code == 503 and 'already running' in response.json()['error']
+    finally:
+        web._analyze_gate.release()
+
+
+def test_local_analyze_queues_overlapping_requests_on_one_pipeline(monkeypatch):
+    import threading
+    from fasttrade import web
+    started, release = threading.Event(), threading.Event()
+    calls, state = [], {'active': 0, 'max': 0}
+    def slow(args):
+        calls.append(args)
+        state['active'] += 1
+        state['max'] = max(state['max'], state['active'])
+        if len(calls) == 1:
+            started.set()
+            release.wait(5)
+        state['active'] -= 1
+        return {'actionable_signal': 'HOLD', 'risk_rejections': []}
+    monkeypatch.setattr(web, 'run_analysis', slow)
+    results = []
+    def post():
+        client = TestClient(web.app, base_url='http://127.0.0.1:8765', client=('127.0.0.1', 50000))
+        results.append(client.post('/api/analyze', json={'symbol': 'SPY', 'timeframe': '5m'}))
+    first = threading.Thread(target=post)
+    first.start()
+    assert started.wait(5)
+    timer = threading.Timer(0.3, release.set)
+    timer.start()
+    post()
+    first.join(5)
+    timer.join()
+    assert len(results) == 2 and all(response.status_code == 200 for response in results)
+    assert state['max'] == 1 and len(calls) == 2
+
+
 def test_spy_overview_uses_completed_bars_and_reports_news_failure(monkeypatch):
     import pandas as pd
     import pytest

@@ -1,6 +1,6 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { chartLayout, candleAtX, timeLabels, priceDigits, hasTimeGap } = require('../fasttrade/static/chart-math.js');
+const { chartLayout, candleAtX, timeLabels, priceDigits, hasTimeGap, bollinger } = require('../fasttrade/static/chart-math.js');
 
 test('dense charts keep candle bodies within each interval', () => {
   const layout = chartLayout(290, 300, 200);
@@ -35,4 +35,22 @@ test('wide price labels reserve their own axis space', () => {
   const layout = chartLayout(320, 300, 30, 95);
   assert.equal(layout.right, 95);
   assert.equal(layout.plotWidth, 320 - layout.left - 95);
+});
+
+test('Bollinger bands skip warmup and use the whole window', () => {
+  const bands = bollinger(Array.from({length: 40}, (_, i) => i + 1));
+  assert.equal(bands.middle.length, 40);
+  assert.ok(bands.middle.slice(0, 19).every(value => value === null));
+  assert.equal(bands.middle[19], 10.5);
+  const deviation = 2 * Math.sqrt(33.25);
+  assert.ok(Math.abs(bands.upper[19] - (10.5 + deviation)) < 1e-9);
+  assert.ok(Math.abs(bands.lower[19] - (10.5 - deviation)) < 1e-9);
+  assert.equal(bands.middle[39], 30.5);
+});
+
+test('Bollinger bands reject windows with missing closes', () => {
+  const bands = bollinger([1, 2, NaN, 4, 5, 6], 3);
+  assert.deepEqual(bands.middle.slice(0, 5), [null, null, null, null, null]);
+  assert.equal(bands.middle[5], 5);
+  assert.ok(Math.abs(bands.upper[5] - (5 + 2 * Math.sqrt(2 / 3))) < 1e-9);
 });

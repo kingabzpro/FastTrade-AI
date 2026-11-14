@@ -27,7 +27,7 @@ flowchart LR
 
 You can add portfolio values and limits to check a proposed trade. If any inputs are missing, you get the model preference only. The dashboard can load example inputs, but those aren't your account details or recommended limits. The rule comparison is unvalidated, and model confidence isn't the chance of profit.
 
-Paper trades use the last completed close. The dashboard suggests a quantity using 10% of paper cash for a buy or 10% of shares held for a sell; you can change it before confirming. The suggested quantity isn't risk-checked. Your paper portfolio and optional saved history stay in the browser on this device. Stale data, synthetic samples and reopened history can't be paper traded.
+Paper trades use the last completed close. The dashboard suggests a quantity using 10% of paper cash for a buy or 10% of shares held for a sell; you can change it before confirming. The suggested quantity isn't risk-checked. Your paper portfolio and optional saved history stay in the browser on this device. Stale data, synthetic samples and reopened history can't be paper traded. The Portfolio page shows realized and unrealized P&L, and history and simulated fills can be exported as CSV.
 
 ## Get started
 

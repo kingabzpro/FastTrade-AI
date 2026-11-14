@@ -29,7 +29,22 @@
   function hasTimeGap(previous, next, timeframe) {
     return new Date(next) - new Date(previous) > parseInt(timeframe, 10) * 60 * 1500;
   }
-  const api = {chartLayout, candleAtX, timeLabels, priceDigits, hasTimeGap};
+  function bollinger(values, period = 20, multiplier = 2) {
+    const middle = [], upper = [], lower = [];
+    for (let i = 0; i < values.length; i++) {
+      const window = values.slice(i - period + 1, i + 1);
+      if (window.length < period || window.some(value => typeof value !== 'number' || !Number.isFinite(value))) {
+        middle.push(null); upper.push(null); lower.push(null);
+        continue;
+      }
+      const mean = window.reduce((sum, value) => sum + value, 0) / period;
+      const variance = window.reduce((sum, value) => sum + (value - mean) ** 2, 0) / period;
+      const deviation = Math.sqrt(variance) * multiplier;
+      middle.push(mean); upper.push(mean + deviation); lower.push(mean - deviation);
+    }
+    return {middle, upper, lower};
+  }
+  const api = {chartLayout, candleAtX, timeLabels, priceDigits, hasTimeGap, bollinger};
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.ChartMath = api;
 })(typeof window !== 'undefined' ? window : globalThis);

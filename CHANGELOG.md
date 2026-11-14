@@ -5,6 +5,10 @@
 - The dashboard accepts up to five comma-separated tickers per run, shows each result in its own tab, and offers suggested ticker chips under the symbol field.
 - Added a browser-local paper trading block: simulated BUY and SELL fills at the analyzed last completed close, with SELL enabled only while the paper portfolio holds the shares.
 - Added a Portfolio page (paper cash, positions, fills, realized P&L) next to the History page, and colored BUY/HOLD/SELL badges across results, tabs and history rows.
+- Added Bollinger Bands to the chart overlays, with upper and lower bands, a dashed middle average, and a shaded band area.
+- Added CSV export for analysis history and simulated paper fills.
+- Added unrealized P&L, total P&L, and return against starting cash to the Portfolio page.
+- Fixed the phone card order so paper trading follows the decision, chart, indicators and evidence cards instead of appearing first.
 
 ## 0.2.0 (2026-11-07)
 

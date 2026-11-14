@@ -54,6 +54,12 @@ function result(symbol = 'NVDA') {
   };
 }
 
+function accountData() {
+  return {cash: 25000, equity: 26100, buying_power: 50000, positions: [
+    {symbol: 'NVDA', quantity: 2, avg_price: 100, price: 550, value: 1100, unrealized: 900},
+  ]};
+}
+
 test('dashboard defaults to Alpaca and can analyze with Yahoo Finance', async () => {
   assert.equal(await page.locator('#chart-window').isDisabled(), true);
   assert.equal(await page.locator('#chart-overlay').isDisabled(), true);
@@ -733,13 +739,13 @@ test('paper trading fills at the analyzed close and only sells held shares', asy
   await page.locator('#paper-sell').click();
   await page.waitForFunction(() => document.getElementById('paper-position').textContent.includes('None held'));
   assert.equal(await page.locator('#paper-sell').isDisabled(), true);
-  await page.locator('.desktop-rail a[href="#portfolio-panel"]').click();
-  await page.waitForFunction(() => !document.getElementById('fills').hidden);
-  assert.match(await page.locator('#fills tbody').innerText(), /NVDA/);
-  assert.match(await page.locator('#portfolio-realized').innerText(), /\+0\.00/);
+  const stored = JSON.parse(await page.evaluate(() => localStorage.getItem('fasttrade-paper')));
+  assert.equal(stored.fills.length, 2);
+  assert.equal(stored.fills[0].side, 'SELL');
+  assert.equal(stored.cash, 10000);
 });
 
-test('paper cash limits buys and the portfolio persists across reloads', async () => {
+test('paper cash limits buys and the practice portfolio persists across reloads', async () => {
   const data = result('NVDA'); data.actionable_signal = null;
   await page.route('**/api/analyze', route => route.fulfill({json: data}));
   await page.locator('#analyze').click();
@@ -750,25 +756,10 @@ test('paper cash limits buys and the portfolio persists across reloads', async (
   await page.locator('#paper-buy').click();
   await page.waitForFunction(() => document.getElementById('paper-position').textContent.includes('2.00 shares'));
   await page.reload();
-  await page.waitForFunction(() => document.getElementById('portfolio-cash').textContent.includes('9,714'));
-  assert.match(await page.locator('#positions tbody').innerText(), /NVDA/);
+  await page.waitForFunction(() => JSON.parse(localStorage.getItem('fasttrade-paper')).cash === 9714.30);
   await openView('portfolio-panel');
   await page.locator('#portfolio-reset').click();
-  await page.waitForFunction(() => document.getElementById('portfolio-cash').textContent.includes('10,000.00'));
-  assert.equal(await page.locator('#positions').isHidden(), true);
-});
-
-test('portfolio shows unrealized and total profit and loss', async () => {
-  await page.evaluate(() => localStorage.setItem('fasttrade-paper', JSON.stringify({version: 1, cash: 9800, positions: {NVDA: {shares: 2, cost: 200}}, realized: 0, fills: []})));
-  await page.reload();
-  const data = result('NVDA');
-  await page.route('**/api/analyze', route => route.fulfill({json: data}));
-  await page.locator('#analyze').click();
-  await page.waitForFunction(() => !document.getElementById('decision-content').hidden);
-  await openView('portfolio-panel');
-  assert.match(await page.locator('#portfolio-unrealized').innerText(), /\+85\.70/);
-  assert.match(await page.locator('#portfolio-total').innerText(), /\+85\.70/);
-  assert.match(await page.locator('#portfolio-total-pct').innerText(), /\+0\.86% of starting cash/);
+  await page.waitForFunction(() => JSON.parse(localStorage.getItem('fasttrade-paper')).cash === 10000);
 });
 
 test('history exports the displayed analyses as CSV', async () => {
@@ -828,30 +819,6 @@ test('history export marks example risk inputs', async () => {
   assert.match(text, /HOLD,true,,1/);
 });
 
-test('portfolio marks profit and loss unavailable when a position has no price', async () => {
-  await page.evaluate(() => localStorage.setItem('fasttrade-paper', JSON.stringify({version: 1, cash: 9800, positions: {NVDA: {shares: 2, cost: 200}}, realized: 0, fills: []})));
-  await page.reload();
-  await openView('portfolio-panel');
-  assert.equal(await page.locator('#portfolio-unrealized').innerText(), 'Unavailable');
-  assert.equal(await page.locator('#portfolio-total').innerText(), 'Unavailable');
-  assert.match(await page.locator('#portfolio-total-pct').innerText(), /no analyzed price/);
-});
-
-test('saved history prices survive reload for the portfolio', async () => {
-  await openView('history-panel');
-  await page.locator('#history-save').check();
-  await openView('workspace');
-  const data = result('NVDA');
-  await page.route('**/api/analyze', route => route.fulfill({json: data}));
-  await page.locator('#analyze').click();
-  await page.waitForFunction(() => document.querySelectorAll('#history tbody tr').length === 1);
-  await page.evaluate(() => localStorage.setItem('fasttrade-paper', JSON.stringify({version: 1, cash: 9800, positions: {NVDA: {shares: 2, cost: 200}}, realized: 0, fills: []})));
-  await page.reload();
-  await openView('portfolio-panel');
-  assert.match(await page.locator('#portfolio-unrealized').innerText(), /\+85\.70/);
-  assert.match(await page.locator('#portfolio-total').innerText(), /\+85\.70/);
-});
-
 test('paper fills export as CSV with an explicit empty state', async () => {
   await openView('portfolio-panel');
   await page.locator('#portfolio-export').click();
@@ -909,13 +876,13 @@ test('replayed history entries cannot be paper traded', async () => {
   assert.equal(await page.locator('#paper-sell').isDisabled(), true);
 });
 
-test('existing paper positions and fills remain visible after reload', async () => {
+test('existing practice fills remain stored after reload', async () => {
   await page.evaluate(() => localStorage.setItem('fasttrade-paper', JSON.stringify({version: 1, cash: 9714.30, positions: {NVDA: {shares: 2, cost: 285.70}}, realized: 0, fills: [{time: '2026-01-02T20:55:00Z', symbol: 'NVDA', side: 'BUY', quantity: 2, price: 142.85, value: 285.70}]})));
   await page.reload();
-  await openView('portfolio-panel');
-  assert.match(await page.locator('#positions tbody').innerText(), /NVDA/);
-  assert.match(await page.locator('#fills tbody').innerText(), /NVDA/);
-  assert.match(await page.locator('#portfolio-cash').innerText(), /9,714/);
+  const stored = JSON.parse(await page.evaluate(() => localStorage.getItem('fasttrade-paper')));
+  assert.equal(stored.cash, 9714.30);
+  assert.equal(stored.fills.length, 1);
+  assert.equal(stored.fills[0].symbol, 'NVDA');
 });
 
 test('a corrupt paper portfolio is reported and reset restores storage', async () => {
@@ -924,9 +891,7 @@ test('a corrupt paper portfolio is reported and reset restores storage', async (
   await page.waitForFunction(() => document.getElementById('portfolio-note').textContent.includes('invalid'));
   await openView('portfolio-panel');
   await page.locator('#portfolio-reset').click();
-  await page.waitForFunction(() => document.getElementById('portfolio-cash').textContent.includes('10,000.00'));
-  const stored = JSON.parse(await page.evaluate(() => localStorage.getItem('fasttrade-paper')));
-  assert.equal(stored.cash, 10000);
+  await page.waitForFunction(() => JSON.parse(localStorage.getItem('fasttrade-paper')).cash === 10000);
 });
 
 test('history and portfolio pages are reachable from both navigations', async () => {
@@ -949,10 +914,14 @@ test('history and portfolio pages are reachable from both navigations', async ()
   await page.setViewportSize({width: 1440, height: 1000});
 });
 
-test('paper trading controls are present and the existing portfolio remains readable', async () => {
+test('paper trading controls are present and the account view reports missing credentials', async () => {
   assert.equal(await page.locator('.paper-card').count(), 1);
+  await page.route('**/api/paper/account', route => route.fulfill({status: 503, json: {error: 'Alpaca credentials are missing'}}));
+  await page.reload();
   await openView('portfolio-panel');
-  assert.equal(await page.locator('#portfolio-cash').innerText(), '10,000.00');
+  assert.equal(await page.locator('#account-empty').isHidden(), false);
+  assert.match(await page.locator('#account-empty').innerText(), /Alpaca credentials are missing/);
+  assert.equal(await page.locator('#account-content').isHidden(), true);
 });
 
 test('paper controls follow the current signal and do not offer a blocked trade', async () => {
@@ -986,4 +955,100 @@ test('paper quantity and estimated value are suggested and remain editable', asy
   assert.match(await page.locator('#paper-estimate').innerText(), /999\.95/);
   await page.locator('#paper-qty').fill('2');
   assert.match(await page.locator('#paper-estimate').innerText(), /285\.70/);
+});
+
+test('alpaca paper account renders cash, buying power, equity and positions', async () => {
+  await page.route('**/api/paper/account', route => route.fulfill({json: accountData()}));
+  await openView('portfolio-panel');
+  await page.waitForFunction(() => !document.getElementById('account-content').hidden);
+  assert.match(await page.locator('#account-cash').innerText(), /25,000/);
+  assert.match(await page.locator('#account-buying-power').innerText(), /50,000/);
+  assert.match(await page.locator('#account-equity').innerText(), /26,100/);
+  assert.match(await page.locator('#positions tbody').innerText(), /NVDA/);
+  assert.match(await page.locator('#positions tbody').innerText(), /1,100\.00/);
+});
+
+test('manual trade submits an alpaca market order with the fetched price', async () => {
+  let order;
+  await page.route('**/api/paper/account', route => route.fulfill({json: accountData()}));
+  await page.route('**/api/paper/price**', route => route.fulfill({json: {symbol: 'AAPL', price: 142.85}}));
+  await page.route('**/api/paper/order', route => { order = route.request().postDataJSON(); return route.fulfill({json: {symbol: 'AAPL', side: 'BUY', quantity: 2, order_id: 'o1', status: 'accepted', filled_quantity: 0, filled_avg_price: null}}); });
+  await openView('portfolio-panel');
+  await page.waitForFunction(() => !document.getElementById('account-content').hidden);
+  await page.fill('#trade-symbol', 'aapl');
+  await page.fill('#trade-qty', '2');
+  await page.waitForFunction(() => document.getElementById('trade-price').textContent.includes('142.85'));
+  assert.equal(await page.locator('#trade-buy').isEnabled(), true);
+  assert.equal(await page.locator('#trade-sell').isDisabled(), true);
+  await page.locator('#trade-buy').click();
+  await page.waitForFunction(() => document.getElementById('portfolio-status').textContent.includes('submitted'));
+  assert.deepEqual(order, {symbol: 'AAPL', side: 'BUY', quantity: 2});
+  assert.match(await page.locator('#portfolio-status').innerText(), /submitted · status accepted/);
+});
+
+test('manual sell is limited to held shares and buy to buying power', async () => {
+  await page.route('**/api/paper/account', route => route.fulfill({json: accountData()}));
+  await page.route('**/api/paper/price**', route => route.fulfill({json: {symbol: 'NVDA', price: 550}}));
+  await openView('portfolio-panel');
+  await page.waitForFunction(() => !document.getElementById('account-content').hidden);
+  await page.fill('#trade-symbol', 'NVDA');
+  await page.fill('#trade-qty', '3');
+  await page.waitForFunction(() => document.getElementById('trade-price').textContent.includes('550'));
+  assert.equal(await page.locator('#trade-sell').isDisabled(), true);
+  await page.fill('#trade-qty', '2');
+  assert.equal(await page.locator('#trade-sell').isEnabled(), true);
+  await page.fill('#trade-qty', '200');
+  assert.equal(await page.locator('#trade-buy').isDisabled(), true);
+});
+
+test('auto-trade run now decides on the qualifying $1B+ gainer and places the order', async () => {
+  let order;
+  const analysis = result('BIGCO'); analysis.actionable_signal = 'BUY';
+  await page.route('**/api/paper/account', route => route.fulfill({json: accountData()}));
+  await page.route('**/api/paper/movers', route => route.fulfill({json: {pick: {symbol: 'BIGCO', price: 220, change_percent: 3.2, market_cap: 3.4e12}, considered: [], minimum_cap: 1e9}}));
+  await page.route('**/api/analyze', route => route.fulfill({json: analysis}));
+  await page.route('**/api/paper/order', route => { order = route.request().postDataJSON(); return route.fulfill({json: {symbol: 'BIGCO', side: 'BUY', quantity: 17, order_id: 'o2', status: 'accepted', filled_quantity: 0, filled_avg_price: null}}); });
+  await openView('portfolio-panel');
+  await page.waitForFunction(() => !document.getElementById('account-content').hidden);
+  await page.locator('#auto-toggle').check();
+  await page.waitForFunction(() => document.getElementById('auto-log').children.length > 0);
+  assert.deepEqual(order, {symbol: 'BIGCO', side: 'BUY', quantity: 17});
+  const entry = await page.locator('#auto-log li').first().innerText();
+  assert.match(entry, /BIGCO/);
+  assert.match(entry, /3\.40T/);
+  assert.match(entry, /decision: buy 17\.00 shares · order accepted/);
+  assert.equal(await page.evaluate(() => localStorage.getItem('fasttrade-auto')), 'on');
+});
+
+test('auto-trade records a wait entry when no $1B+ gainer qualifies', async () => {
+  let analysisCalls = 0;
+  await page.route('**/api/paper/account', route => route.fulfill({json: accountData()}));
+  await page.route('**/api/paper/movers', route => route.fulfill({json: {pick: null, considered: [{symbol: 'SMALL', market_cap: null}], minimum_cap: 1e9}}));
+  await page.route('**/api/analyze', route => { analysisCalls += 1; return route.fulfill({json: result()}); });
+  await openView('portfolio-panel');
+  await page.waitForFunction(() => !document.getElementById('account-content').hidden);
+  await page.locator('#auto-toggle').check();
+  await page.waitForFunction(() => document.getElementById('auto-log').children.length > 0);
+  assert.match(await page.locator('#auto-log li').first().innerText(), /No gainer with a \$1B\+ cap today \(1 candidates checked\)/);
+  assert.equal(analysisCalls, 0);
+});
+
+test('equity history renders snapshots with a keyboard-inspectable readout', async () => {
+  const points = [
+    {time: '2026-01-02T15:00:00Z', equity: 25000, cash: 20000, value: 5000},
+    {time: '2026-01-02T16:00:00Z', equity: 25500, cash: 20000, value: 5500},
+    {time: '2026-01-02T17:00:00Z', equity: 26000, cash: 20000, value: 6000},
+  ];
+  await page.evaluate(data => localStorage.setItem('fasttrade-equity', JSON.stringify(data)), points);
+  await page.route('**/api/paper/account', route => route.fulfill({status: 503, json: {error: 'Alpaca credentials are missing'}}));
+  await page.reload();
+  await openView('portfolio-panel');
+  await page.waitForFunction(() => document.getElementById('equity-empty').hidden);
+  assert.equal(await page.locator('#equity-readout').isHidden(), false);
+  assert.match(await page.locator('#snapshot-equity').innerText(), /26,000/);
+  assert.match(await page.locator('#snapshot-time').innerText(), /02 Jan 2026, 17:00/);
+  await page.locator('#equity-chart').focus();
+  await page.keyboard.press('ArrowLeft');
+  assert.match(await page.locator('#snapshot-equity').innerText(), /25,500/);
+  assert.match(await page.locator('#snapshot-change').innerText(), /\+500\.00 since first snapshot/);
 });

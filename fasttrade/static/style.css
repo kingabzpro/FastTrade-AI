@@ -551,7 +551,7 @@ body { background: #f2f5f8; }
 .paper-status.good { color: #146444; }
 .paper-status.bad { color: #972d3d; }
 .portfolio-card { margin-top: 8px; }
-.portfolio-strip { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; margin-top: 14px; }
+.portfolio-strip { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-top: 14px; }
 .portfolio-strip .summary-card { min-width: 0; min-height: 0; padding: 12px 14px; border: 1px solid #e5eff8; border-radius: 7px; background: var(--surface); display: flex; flex-direction: column; color: #566a7c; font: 10px var(--mono); letter-spacing: .04em; }
 .portfolio-strip .summary-card strong { margin-top: 6px; color: #121b27; font: 600 18px/1.25 system-ui, sans-serif; letter-spacing: 0; overflow-wrap: anywhere; }
 .portfolio-note { min-height: 1.2em; margin: 8px 0 0; color: #7b520d; font-size: 12px; }
@@ -568,6 +568,22 @@ body { background: #f2f5f8; }
 .paper-details[open] summary::before { content: '▾'; }
 .paper-details summary:hover { text-decoration: underline; }
 .paper-details p { margin: 8px 0 0; }
+.trade-form { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto auto; gap: 8px; align-items: end; margin-top: 12px; }
+.trade-form label { min-width: 0; }
+.trade-form input { margin-top: 6px; }
+#trade-buy, #trade-sell { min-height: 44px; padding: 0 18px; border-radius: 7px; border: 1px solid transparent; font-weight: 700; }
+#trade-buy:not(:disabled) { background: #edf8f1; color: #146444; border-color: #b9dfc9; }
+#trade-sell:not(:disabled) { background: #fff1f2; color: #972d3d; border-color: #e9bfc5; }
+#trade-buy:not(:disabled):hover, #trade-sell:not(:disabled):hover { filter: brightness(.97); }
+#trade-buy:disabled, #trade-sell:disabled { background: #f2f5f8; color: #66748b; border-color: #d8e1ea; cursor: not-allowed; }
+.auto-controls { margin-top: 12px; }
+.auto-log { margin: 12px 0 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+.auto-log li { display: flex; gap: 8px; align-items: baseline; padding: 8px 10px; border: 1px solid #e3e9ef; border-radius: 7px; color: #3d4d61; font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
+.auto-badge { flex: none; padding: 2px 8px; border-radius: 5px; font: 700 10px var(--mono); letter-spacing: .03em; background: #f2f5f8; color: #45566b; border: 1px solid #d8e1ea; }
+.auto-badge.up { background: #edf8f1; color: #146444; border-color: #b9dfc9; }
+.auto-badge.down { background: #fff1f2; color: #972d3d; border-color: #e9bfc5; }
+.equity-wrap { height: 200px; }
+@media (max-width: 760px) { .equity-wrap { height: 160px; } .trade-form { grid-template-columns: 1fr 1fr; } }
 .portfolio-strip { gap: 0; border-block: 1px solid #e3e9ef; margin-top: 16px; }
 .portfolio-strip .summary-card { padding: 12px; border: 0; border-radius: 0; background: transparent; }
 .portfolio-strip .summary-card + .summary-card { border-left: 1px solid #e3e9ef; }

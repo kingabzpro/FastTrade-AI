@@ -597,3 +597,61 @@ def test_network_binding_refuses_missing_hashed_keys(monkeypatch):
     monkeypatch.delenv('FASTTRADE_BATCH_KEY_HASHES', raising=False)
     with pytest.raises(SystemExit, match='valid hashed API keys'):
         web.serve()
+
+
+def test_paper_account_endpoint_caches_and_reports_errors(monkeypatch):
+    from fasttrade import web
+    calls = []
+    def overview():
+        calls.append(1)
+        return {'cash': 950.5, 'equity': 1075.25, 'buying_power': 2000.0, 'positions': []}
+    monkeypatch.setattr(web, '_paper_cache', None)
+    monkeypatch.setattr(web.paper, 'overview', overview)
+    client = TestClient(web.app, base_url='http://127.0.0.1:8765', client=('127.0.0.1', 50000))
+    first = client.get('/api/paper/account')
+    assert first.status_code == 200 and first.json()['equity'] == 1075.25
+    monkeypatch.setattr(web.paper, 'overview', lambda: (_ for _ in ()).throw(AssertionError('must use cache')))
+    assert client.get('/api/paper/account').status_code == 200
+    assert len(calls) == 1
+    monkeypatch.setattr(web, '_paper_cache', None)
+    monkeypatch.setattr(web.paper, 'overview', lambda: (_ for _ in ()).throw(ValueError('Alpaca credentials are missing')))
+    failed = client.get('/api/paper/account')
+    assert failed.status_code == 503 and failed.json()['error'] == 'Alpaca credentials are missing'
+
+
+def test_paper_order_endpoint_validates_and_clears_cache(monkeypatch):
+    from fasttrade import web
+    submitted = []
+    def submit_order(symbol, side, quantity):
+        submitted.append((symbol, side, quantity))
+        return {'symbol': symbol, 'side': side, 'quantity': quantity, 'order_id': 'order-9', 'status': 'accepted', 'filled_quantity': 0.0, 'filled_avg_price': None}
+    monkeypatch.setattr(web, '_paper_cache', (0.0, {'cash': 1}))
+    monkeypatch.setattr(web.paper, 'submit_order', submit_order)
+    client = TestClient(web.app, base_url='http://127.0.0.1:8765', client=('127.0.0.1', 50000))
+    good = client.post('/api/paper/order', json={'symbol': 'nvda', 'side': 'BUY', 'quantity': 1.5})
+    assert good.status_code == 200 and good.json()['order_id'] == 'order-9'
+    assert submitted == [('nvda', 'BUY', 1.5)]
+    assert web._paper_cache is None
+    assert client.post('/api/paper/order', json={'symbol': 'NVDA', 'side': 'HOLD', 'quantity': 1}).status_code == 422
+    assert client.post('/api/paper/order', json={'symbol': 'NVDA', 'side': 'BUY', 'quantity': 0}).status_code == 422
+    assert client.post('/api/paper/order', json={'symbol': 'BAD SYMBOL!', 'side': 'BUY', 'quantity': 1}).status_code == 422
+    assert client.post('/api/paper/order', json={'symbol': 'NVDA', 'side': 'BUY', 'quantity': 1, 'extra': 1}).status_code == 422
+    monkeypatch.setattr(web.paper, 'submit_order', lambda *args: (_ for _ in ()).throw(ValueError('Alpaca rejected the request: insufficient buying power')))
+    rejected = client.post('/api/paper/order', json={'symbol': 'NVDA', 'side': 'BUY', 'quantity': 1000})
+    assert rejected.status_code == 503 and 'insufficient buying power' in rejected.json()['error']
+
+
+def test_paper_price_and_movers_endpoints(monkeypatch):
+    from fasttrade import web
+    monkeypatch.setattr(web, '_movers_cache', None)
+    monkeypatch.setattr(web.paper, 'last_price', lambda symbol: {'symbol': 'AAPL', 'price': 142.85})
+    monkeypatch.setattr(web.paper, 'movers', lambda: {'pick': {'symbol': 'BIGCO', 'price': 220.0, 'change_percent': 3.2, 'market_cap': 3.4e12}, 'considered': [], 'minimum_cap': 1_000_000_000})
+    client = TestClient(web.app, base_url='http://127.0.0.1:8765', client=('127.0.0.1', 50000))
+    price = client.get('/api/paper/price', params={'symbol': 'aapl'})
+    assert price.status_code == 200 and price.json()['price'] == 142.85
+    movers = client.get('/api/paper/movers')
+    assert movers.status_code == 200 and movers.json()['pick']['symbol'] == 'BIGCO'
+    monkeypatch.setattr(web, '_movers_cache', None)
+    monkeypatch.setattr(web.paper, 'movers', lambda: (_ for _ in ()).throw(ValueError('Alpaca paper trading rate limited')))
+    limited = client.get('/api/paper/movers')
+    assert limited.status_code == 503 and 'rate limited' in limited.json()['error']

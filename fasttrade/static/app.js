@@ -87,7 +87,6 @@ const history = [];
 const results = new Map();
 const failures = new Map();
 const runningSymbols = new Set();
-const lastPrices = new Map();
 let requestedSymbols = [];
 let activeSymbol = null;
 const setText = (id, text) => { $(id).textContent = text; };
@@ -248,7 +247,6 @@ function render(result, record = true, replay = false) {
   selectedCandle = null;
   if (replay) { activeSymbol = null; $('batch-results').hidden = true; }
   else if (results.has(result.market.symbol)) activeSymbol = result.market.symbol;
-  if (!replay && Number.isFinite(result.market.features?.price)) lastPrices.set(result.market.symbol, result.market.features.price);
   const market = result.market, feature = market.features, decision = result.decision;
   const stale = Boolean(result.stale_preview), sample = result.source === 'Synthetic sample CSV';
   const source = sample ? 'SYNTHETIC SAMPLE' : result.source === 'CSV' ? 'HISTORICAL CSV' : result.source === 'Yahoo Finance' ? 'YAHOO FINANCE' : 'ALPACA IEX';
@@ -336,7 +334,7 @@ function render(result, record = true, replay = false) {
     renderHistory();
   }
   renderPaper();
-  renderPortfolio();
+  renderPractice();
   if (!replay) renderTabs();
 }
 
@@ -508,7 +506,7 @@ function placePaper(side) {
   const saved = savePaper();
   say(`${side} ${number(qty)} ${symbol} at ${number(price)} simulated against the last completed close. ${saved ? 'Stored in this browser.' : 'Browser storage is unavailable; it was not saved.'}`, true);
   renderPaper();
-  renderPortfolio();
+  renderPractice();
 }
 $('paper-qty').addEventListener('input', renderPaper);
 $('paper-buy').addEventListener('click', () => placePaper('BUY'));
@@ -520,7 +518,7 @@ $('portfolio-reset').addEventListener('click', () => {
   paperLoadWarning = '';
   const status = $('paper-status'); status.textContent = ''; status.className = 'paper-status';
   setPortfolioStatus('');
-  renderPaper(); renderPortfolio();
+  renderPaper(); renderPractice();
 });
 $('portfolio-export').addEventListener('click', () => {
   if (!paper.fills.length) { setPortfolioStatus('No paper fills to export yet.', 'warning'); return; }
@@ -530,51 +528,297 @@ $('portfolio-export').addEventListener('click', () => {
   setPortfolioStatus(`Exported ${paper.fills.length} simulated ${paper.fills.length === 1 ? 'fill' : 'fills'} to CSV.`);
 });
 
-/* Portfolio page: paper cash, open positions and simulated fills. */
-function renderPortfolio() {
-  const entries = Object.entries(paper.positions);
+/* Portfolio page: Alpaca paper account, manual trades, auto-trade watcher and equity history. */
+function renderPractice() {
+  setText('portfolio-note', paperLoadWarning || '');
+}
+
+/* Alpaca paper account: real paper trading through the local server. */
+const autoKey = 'fasttrade-auto';
+const autoLogKey = 'fasttrade-auto-log';
+const equityKey = 'fasttrade-equity';
+const AUTO_INTERVAL_MS = 5 * 60 * 1000;
+let account = null;
+let accountBusy = false;
+let auto = {enabled: false, running: false};
+let autoLog = [];
+let equityHistory = [];
+let selectedSnapshot = null;
+let equityLayoutState = null;
+let tradeDebounce = null;
+try {
+  const storedLog = JSON.parse(localStorage.getItem(autoLogKey) || '[]');
+  if (Array.isArray(storedLog)) autoLog = storedLog.filter(entry => entry && typeof entry.time === 'string' && typeof entry.action === 'string' && typeof entry.detail === 'string').slice(0, 50);
+} catch { /* start with an empty activity log */ }
+try {
+  const storedEquity = JSON.parse(localStorage.getItem(equityKey) || '[]');
+  if (Array.isArray(storedEquity)) equityHistory = storedEquity.filter(point => point && typeof point.time === 'string' && Number.isFinite(point.equity) && Number.isFinite(point.cash) && Number.isFinite(point.value)).slice(-500);
+} catch { /* start without history */ }
+try { auto.enabled = localStorage.getItem(autoKey) === 'on'; } catch { /* default off */ }
+function saveAutoLog() { try { localStorage.setItem(autoLogKey, JSON.stringify(autoLog.slice(0, 50))); } catch { /* keep in memory only */ } }
+function saveEquity() { try { localStorage.setItem(equityKey, JSON.stringify(equityHistory)); } catch { /* keep in memory only */ } }
+function formatCap(value) {
+  if (!Number.isFinite(value) || value <= 0) return 'unknown';
+  if (value >= 1e12) return `${number(value / 1e12)}T`;
+  if (value >= 1e9) return `${number(value / 1e9)}B`;
+  return `${number(value / 1e6)}M`;
+}
+function renderAccount() {
+  const has = Boolean(account);
+  $('account-empty').hidden = has;
+  $('account-content').hidden = !has;
+  if (!has) return;
+  setText('account-cash', number(account.cash));
+  setText('account-buying-power', number(account.buying_power));
+  setText('account-equity', number(account.equity));
+  setText('account-value', number(account.equity - account.cash));
+  const entries = account.positions;
   $('positions-empty').hidden = entries.length > 0;
   $('positions').hidden = entries.length === 0;
   const body = $('positions').querySelector('tbody'); body.replaceChildren();
-  let marketValue = 0, unrealized = 0, allPriced = true;
-  for (const [symbol, held] of entries) {
-    const last = lastPrices.get(symbol);
-    const avg = held.cost / held.shares;
-    const value = last != null ? held.shares * last : held.cost;
-    if (last == null) allPriced = false;
-    else unrealized += (last - avg) * held.shares;
-    marketValue += value;
+  for (const held of entries) {
     const row = document.createElement('tr');
-    for (const [label, text] of [['Symbol', symbol], ['Shares', number(held.shares)], ['Avg cost', number(avg)], ['Last price', last != null ? number(last) : 'No price yet'], ['Value', number(value)], ['Unrealized P&L', last != null ? `${last >= avg ? '+' : ''}${number((last - avg) * held.shares)}` : 'n/a']]) {
+    for (const [label, text] of [['Symbol', held.symbol], ['Shares', number(held.quantity, 4)], ['Avg price', number(held.avg_price)], ['Last price', number(held.price)], ['Value', number(held.value)], ['Unrealized P&L', `${held.unrealized >= 0 ? '+' : ''}${number(held.unrealized)}`]]) {
       const cell = document.createElement('td'); cell.dataset.label = label; cell.textContent = text; row.append(cell);
     }
     body.append(row);
   }
-  const equity = paper.cash + marketValue;
-  const total = equity - PAPER_START_CASH;
-  const totalPct = total / PAPER_START_CASH * 100;
-  const priced = !entries.length || allPriced;
-  setText('portfolio-cash', number(paper.cash));
-  setText('portfolio-value', number(marketValue));
-  setText('portfolio-equity', number(equity));
-  setText('portfolio-realized', `${paper.realized >= 0 ? '+' : ''}${number(paper.realized)}`);
-  setText('portfolio-unrealized', priced ? `${unrealized >= 0 ? '+' : ''}${number(unrealized)}` : 'Unavailable');
-  setText('portfolio-total', priced ? `${total >= 0 ? '+' : ''}${number(total)}` : 'Unavailable');
-  setText('portfolio-total-pct', priced ? `${total >= 0 ? '+' : ''}${number(totalPct)}% of starting cash` : 'Some positions have no analyzed price');
-  setText('portfolio-note', paperLoadWarning || (allPriced ? '' : 'Symbols without a recent analysis are valued at cost.'));
-  const fillsBody = $('fills').querySelector('tbody'); fillsBody.replaceChildren();
-  $('fills').hidden = paper.fills.length === 0;
-  $('fills-empty').hidden = paper.fills.length > 0;
-  for (const fill of paper.fills) {
-    const row = document.createElement('tr');
-    for (const [label, text] of [['Time', formatTime(fill.time)], ['Symbol', fill.symbol], ['Side', fill.side], ['Shares', number(fill.quantity)], ['Price', number(fill.price)], ['Value', number(fill.value)]]) {
-      const cell = document.createElement('td'); cell.dataset.label = label; cell.textContent = text; row.append(cell);
-    }
-    fillsBody.append(row);
+}
+async function refreshAccount() {
+  if (accountBusy) return;
+  accountBusy = true;
+  try {
+    const response = await fetch('/api/paper/account');
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Alpaca paper account unavailable');
+    account = data;
+    setPortfolioStatus('');
+    renderAccount();
+    snapshotEquity();
+  } catch (error) {
+    if (!account) $('account-empty').textContent = error.message;
+    setPortfolioStatus(error.message, 'bad');
+  } finally {
+    accountBusy = false;
   }
 }
-for (const entry of savedHistory) if (!lastPrices.has(entry.market.symbol) && Number.isFinite(entry.market?.features?.price)) lastPrices.set(entry.market.symbol, entry.market.features.price);
-renderPortfolio();
+$('portfolio-refresh').addEventListener('click', () => refreshAccount());
+
+/* Manual trade form: market orders on the Alpaca paper account. */
+function tradeSymbol() { return $('trade-symbol').value.trim().toUpperCase(); }
+function heldQuantity(symbol) { return account?.positions?.find(entry => entry.symbol === symbol)?.quantity || 0; }
+function renderTrade() {
+  const symbol = tradeSymbol();
+  const qty = Number($('trade-qty').value);
+  const price = Number($('trade-price').dataset.price);
+  const held = heldQuantity(symbol);
+  const valid = Boolean(symbol) && Number.isFinite(qty) && qty > 0;
+  const priced = Number.isFinite(price) && price > 0;
+  setText('trade-estimate', !symbol ? '' : !valid ? 'Enter a share quantity greater than zero.' : priced ? `Estimated ${number(qty * price)} · Alpaca fills market orders at the next available price` : 'No Alpaca price for this symbol yet.');
+  $('trade-buy').disabled = !(valid && priced && qty * price <= (account?.buying_power ?? 0) + 1e-9);
+  $('trade-sell').disabled = !(valid && held > 0 && qty <= held + 1e-9);
+}
+async function fetchTradePrice() {
+  const symbol = tradeSymbol();
+  const el = $('trade-price');
+  if (!symbol) { delete el.dataset.price; el.textContent = ''; renderTrade(); return; }
+  el.textContent = 'Fetching Alpaca price...';
+  try {
+    const data = await jsonRequest(`/api/paper/price?symbol=${encodeURIComponent(symbol)}`);
+    el.dataset.price = String(data.price);
+    el.textContent = `Last trade ${number(data.price)}`;
+  } catch (error) {
+    delete el.dataset.price;
+    el.textContent = error.message;
+  }
+  renderTrade();
+}
+async function placeTrade(side) {
+  const symbol = tradeSymbol();
+  const qty = Number($('trade-qty').value);
+  if (!symbol || !Number.isFinite(qty) || !(qty > 0)) return;
+  try {
+    const order = await jsonRequest('/api/paper/order', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({symbol, side, quantity: qty})});
+    await refreshAccount();
+    setPortfolioStatus(`${side} order for ${number(qty)} ${symbol} submitted · status ${order.status}${order.filled_avg_price ? ` · filled ${number(order.filled_avg_price)}` : ''}.`, 'good');
+  } catch (error) {
+    setPortfolioStatus(error.message, 'bad');
+  }
+}
+$('trade-symbol').addEventListener('input', () => { clearTimeout(tradeDebounce); tradeDebounce = setTimeout(fetchTradePrice, 500); renderTrade(); });
+$('trade-qty').addEventListener('input', renderTrade);
+$('trade-buy').addEventListener('click', () => placeTrade('BUY'));
+$('trade-sell').addEventListener('click', () => placeTrade('SELL'));
+
+/* Auto-trade watcher: every 5 minutes, decide on the strongest $1B+ gainer and act on it. */
+async function jsonRequest(url, options) {
+  const response = await fetch(url, options);
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error || `${response.status} request failed`);
+  return data;
+}
+function autoQuantity(action, symbol, price) {
+  if (!Number.isFinite(price) || !(price > 0)) return 0;
+  if (action === 'BUY') return Math.floor((account?.cash ?? 0) * 0.1 / price);
+  return Math.floor(heldQuantity(symbol) * 0.1 * 10000) / 10000;
+}
+function autoNote(entry) {
+  autoLog.unshift(entry);
+  if (autoLog.length > 50) autoLog.length = 50;
+  saveAutoLog();
+  renderAuto();
+}
+function renderAuto() {
+  $('auto-toggle').checked = auto.enabled;
+  $('auto-run').disabled = !auto.enabled || auto.running;
+  setText('auto-status', auto.running ? 'Auto-trade tick in progress...' : auto.enabled ? 'Watching every 5 minutes for a $1B+ gainer. Each tick runs one real decision.' : 'Turn on to auto-trade the strongest $1B+ gainer every 5 minutes.');
+  const list = $('auto-log');
+  list.hidden = autoLog.length === 0;
+  list.replaceChildren();
+  for (const entry of autoLog) {
+    const row = document.createElement('li');
+    const badge = document.createElement('span');
+    badge.className = `auto-badge ${entry.action === 'BUY' ? 'up' : entry.action === 'SELL' ? 'down' : ''}`.trim();
+    badge.textContent = entry.action;
+    const text = document.createElement('span');
+    text.textContent = `${formatTime(entry.time)} · ${entry.symbol || 'market'} · ${entry.detail}`;
+    row.append(badge, text);
+    list.append(row);
+  }
+}
+async function autoTick(force = false) {
+  if (!auto.enabled || auto.running || (!force && document.hidden)) return;
+  auto.running = true;
+  renderAuto();
+  try {
+    const movers = await jsonRequest('/api/paper/movers');
+    const pick = movers.pick;
+    if (!pick) {
+      autoNote({time: new Date().toISOString(), symbol: '', action: 'WAIT', detail: `No gainer with a $1B+ cap today (${movers.considered.length} candidates checked).`});
+      return;
+    }
+    const analysis = await jsonRequest('/api/analyze', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({symbol: pick.symbol, timeframe: '5m', source: 'alpaca'})});
+    const action = analysis.actionable_signal ?? analysis.decision?.action ?? 'HOLD';
+    let detail = `cap ${formatCap(pick.market_cap)} · +${number(pick.change_percent)}%`;
+    if (action === 'HOLD') detail += ' · decision: hold, no trade';
+    else {
+      const price = Number.isFinite(analysis.market?.features?.price) ? analysis.market.features.price : pick.price;
+      const quantity = autoQuantity(action, pick.symbol, price);
+      if (!(quantity > 0)) detail += ` · decision: ${action.toLowerCase()}, skipped (no size available)`;
+      else {
+        const order = await jsonRequest('/api/paper/order', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({symbol: pick.symbol, side: action, quantity})});
+        detail += ` · decision: ${action.toLowerCase()} ${number(quantity)} shares · order ${order.status}`;
+      }
+    }
+    autoNote({time: new Date().toISOString(), symbol: pick.symbol, action, detail});
+  } catch (error) {
+    autoNote({time: new Date().toISOString(), symbol: '', action: 'ERROR', detail: error.message});
+  } finally {
+    auto.running = false;
+    renderAuto();
+    refreshAccount();
+  }
+}
+function setAutoEnabled(enabled) {
+  auto.enabled = enabled;
+  try { localStorage.setItem(autoKey, enabled ? 'on' : 'off'); } catch { /* keep in memory only */ }
+  renderAuto();
+  if (enabled) autoTick();
+}
+$('auto-toggle').addEventListener('change', () => setAutoEnabled($('auto-toggle').checked));
+$('auto-run').addEventListener('click', () => autoTick(true));
+setInterval(autoTick, AUTO_INTERVAL_MS);
+renderAuto();
+renderTrade();
+
+/* Equity history: snapshots of the Alpaca paper account, stored in this browser. */
+function snapshotEquity() {
+  if (!account || !Number.isFinite(account.equity)) return;
+  const now = Date.now();
+  const last = equityHistory[equityHistory.length - 1];
+  if (last && now - new Date(last.time).getTime() < 60000 && last.equity === account.equity) return;
+  equityHistory.push({time: new Date(now).toISOString(), equity: account.equity, cash: account.cash, value: account.equity - account.cash});
+  if (equityHistory.length > 500) equityHistory.length = 500;
+  saveEquity();
+  drawEquity();
+}
+function drawEquity() {
+  const canvas = $('equity-chart'), ctx = canvas.getContext('2d');
+  const w = canvas.clientWidth, h = canvas.clientHeight, scale = window.devicePixelRatio || 1;
+  if (!w || !h) return;
+  canvas.width = Math.round(w * scale); canvas.height = Math.round(h * scale);
+  ctx.setTransform(scale, 0, 0, scale, 0, 0); ctx.clearRect(0, 0, w, h);
+  const points = equityHistory;
+  $('equity-empty').hidden = points.length > 0;
+  $('equity-readout').hidden = points.length === 0;
+  if (!points.length) return;
+  const values = points.map(point => point.equity);
+  const rawLow = Math.min(...values), rawHigh = Math.max(...values);
+  const padding = rawHigh > rawLow ? (rawHigh - rawLow) * .07 : Math.max(Math.abs(rawHigh) * .005, 1e-8);
+  const low = rawLow - padding, high = rawHigh + padding, span = high - low;
+  const precision = ChartMath.priceDigits(span);
+  ctx.font = '10px ui-monospace, monospace';
+  const axisWidth = Math.max(62, ctx.measureText(number(high, precision)).width + 12, ctx.measureText(number(low, precision)).width + 12);
+  const layout = ChartMath.chartLayout(w, h, points.length, axisWidth);
+  equityLayoutState = layout;
+  const {left, plotWidth, top, priceBottom, volumeTop, volumeBottom, step} = layout;
+  const y = value => top + (high - value) / span * (priceBottom - top);
+  const x = index => left + step * (index + .5);
+  ctx.font = '10px ui-monospace, monospace'; ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+  for (let n = 0; n <= 4; n++) {
+    const value = high - span * n / 4, py = y(value);
+    ctx.strokeStyle = '#dce3ed'; ctx.lineWidth = .7;
+    ctx.beginPath(); ctx.moveTo(left, py); ctx.lineTo(left + plotWidth, py); ctx.stroke();
+    ctx.fillStyle = '#506177'; ctx.fillText(number(value, precision), w - 2, py);
+  }
+  ctx.strokeStyle = '#245de0'; ctx.lineWidth = 1.6;
+  ctx.beginPath();
+  points.forEach((point, i) => i ? ctx.lineTo(x(i), y(point.equity)) : ctx.moveTo(x(0), y(points[0].equity)));
+  ctx.stroke();
+  ctx.lineTo(x(points.length - 1), priceBottom); ctx.lineTo(x(0), priceBottom); ctx.closePath();
+  ctx.fillStyle = 'rgba(36, 93, 224, .08)'; ctx.fill();
+  ctx.fillStyle = '#506177'; ctx.textBaseline = 'bottom';
+  const labels = ChartMath.timeLabels(points.map(point => ({timestamp: point.time})), plotWidth >= 450 ? 3 : 2);
+  labels.forEach((label, i) => {
+    ctx.textAlign = i === 0 ? 'left' : i === labels.length - 1 ? 'right' : 'center';
+    const pos = i === 0 ? left : i === labels.length - 1 ? left + plotWidth : x(label.index);
+    ctx.fillText(label.text, pos, h - 3);
+  });
+  if (selectedSnapshot !== null) {
+    selectedSnapshot = Math.min(selectedSnapshot, points.length - 1);
+    ctx.save(); ctx.setLineDash([3, 3]); ctx.strokeStyle = '#1c3155bb'; ctx.beginPath();
+    ctx.moveTo(x(selectedSnapshot), top); ctx.lineTo(x(selectedSnapshot), volumeBottom); ctx.stroke(); ctx.restore();
+  }
+  const selected = points[selectedSnapshot === null ? points.length - 1 : selectedSnapshot];
+  const change = selected.equity - points[0].equity;
+  setText('snapshot-time', `SNAPSHOT ${formatTime(selected.time)}`);
+  setText('snapshot-equity', number(selected.equity));
+  setText('snapshot-cash', number(selected.cash));
+  setText('snapshot-value', number(selected.value));
+  setText('snapshot-change', `${change >= 0 ? '+' : ''}${number(change)} since first snapshot`);
+  $('snapshot-change').className = change >= 0 ? 'signal-buy' : 'signal-sell';
+}
+function selectSnapshot(event) {
+  const canvas = $('equity-chart'), points = equityHistory;
+  if (!points.length) return;
+  const rect = canvas.getBoundingClientRect();
+  const layout = equityLayoutState || ChartMath.chartLayout(canvas.clientWidth, canvas.clientHeight, points.length);
+  selectedSnapshot = ChartMath.candleAtX(event.clientX - rect.left, layout, points.length);
+  drawEquity();
+}
+$('equity-chart').addEventListener('pointermove', event => { if (event.pointerType === 'mouse') selectSnapshot(event); });
+$('equity-chart').addEventListener('pointerdown', selectSnapshot);
+$('equity-chart').addEventListener('pointerleave', () => { selectedSnapshot = null; drawEquity(); });
+$('equity-chart').addEventListener('keydown', event => {
+  if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+  const points = equityHistory;
+  if (!points.length) return;
+  event.preventDefault();
+  const index = selectedSnapshot === null ? points.length - 1 : selectedSnapshot;
+  selectedSnapshot = event.key === 'Home' ? 0 : event.key === 'End' ? points.length - 1 : Math.max(0, Math.min(points.length - 1, index + (event.key === 'ArrowLeft' ? -1 : 1)));
+  drawEquity();
+});
+renderPractice();
 
 function visibleCandles() {
   return current?.candles?.slice(-Number($('chart-window').value)) || [];
@@ -728,7 +972,7 @@ $('chart').addEventListener('keydown', event => {
   selectedCandle = event.key === 'Home' ? 0 : event.key === 'End' ? candles.length - 1 : Math.max(0, Math.min(candles.length - 1, index + (event.key === 'ArrowLeft' ? -1 : 1)));
   drawChart();
 });
-window.addEventListener('resize', drawChart);
+window.addEventListener('resize', () => { drawChart(); drawEquity(); });
 $('chart-window').addEventListener('change', () => { selectedCandle = null; drawChart(); });
 $('chart-overlay').addEventListener('change', drawChart);
 $('chart-window').disabled = true; $('chart-overlay').disabled = true;
@@ -746,6 +990,7 @@ function syncNavigation() {
     else link.removeAttribute('aria-current');
   }
   if (!$('analysis-view').hidden && current) drawChart();
+  if (destination === '#portfolio-panel') { refreshAccount(); drawEquity(); }
   if (analysisWasHidden && destination === '#chart-panel') $('chart-panel').scrollIntoView();
 }
 window.addEventListener('hashchange', syncNavigation);
@@ -812,7 +1057,6 @@ $('analysis-form').addEventListener('submit', async (event) => {
       data._notice = data.stale_preview ? ['The latest candle is stale. This is a historical research preview; portfolio actions are blocked.', 'warning']
         : data.source === 'Synthetic sample CSV' ? ['Synthetic sample candles are displayed. The model response is real; this is not live market data.', 'warning']
         : [`Analysis complete. Candle started ${formatTime(data.market.candle_timestamp)}. Model preferences are not trading outcomes.`, 'success'];
-      if (Number.isFinite(data.market?.features?.price)) lastPrices.set(symbol, data.market.features.price);
     } catch (error) {
       failures.set(symbol, error instanceof TypeError ? 'Could not reach the local server. Check that FastTrade is running, then try again.'
         : error instanceof Error && error.message ? error.message : 'The request failed.');
@@ -836,7 +1080,7 @@ $('analysis-form').addEventListener('submit', async (event) => {
   if (!succeeded.length) {
     const message = failures.get(symbols[0]) || 'The analysis failed.';
     showNotice(symbols.length > 1 ? `${symbols[0]}: ${message}` : `${message} No actionable signal is available.`, 'error');
-    renderTabs(); renderPortfolio();
+    renderTabs(); renderPractice();
     return;
   }
   const selected = results.has(activeSymbol) ? activeSymbol : succeeded[0];

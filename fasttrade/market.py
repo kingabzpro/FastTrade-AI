@@ -234,6 +234,33 @@ def yahoo(symbol, timeframe, as_of):
     return frame, details, news
 
 
+_cap_cache = OrderedDict()
+_cap_cache_lock = Lock()
+
+
+def market_cap(symbol):
+    """Return the company market cap in USD from Yahoo fundamentals, cached for an hour."""
+    symbol = symbol.upper()
+    with _cap_cache_lock:
+        cached = _cap_cache.get(symbol)
+        if cached and monotonic() < cached[0]:
+            return cached[1]
+    import yfinance as yf
+    result = _yahoo_request(lambda: yf.Ticker(symbol).info)
+    try:
+        cap = float(result['marketCap'])
+    except (KeyError, TypeError, ValueError, OverflowError) as exc:
+        raise ValueError('Market cap unavailable for this symbol') from exc
+    if not math.isfinite(cap) or cap <= 0:
+        raise ValueError('Market cap unavailable for this symbol')
+    with _cap_cache_lock:
+        _cap_cache[symbol] = (monotonic() + 3600, cap)
+        _cap_cache.move_to_end(symbol)
+        while len(_cap_cache) > 64:
+            _cap_cache.popitem(last=False)
+    return cap
+
+
 def alpaca(symbol, timeframe, as_of, *, credentials=None):
     key, secret = credentials if credentials is not None else (os.getenv('ALPACA_API_KEY'), os.getenv('ALPACA_SECRET_KEY'))
     if not key or not secret:

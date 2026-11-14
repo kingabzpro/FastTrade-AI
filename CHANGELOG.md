@@ -9,6 +9,9 @@
 - Added CSV export for analysis history and simulated paper fills.
 - Added unrealized P&L, total P&L, and return against starting cash to the Portfolio page.
 - Fixed the phone card order so paper trading follows the decision, chart, indicators and evidence cards instead of appearing first.
+- Rebuilt the Portfolio page around the Alpaca paper trading account: cash, buying power, equity and positions come from Alpaca, and manual BUY/SELL submits real paper market orders at the latest Alpaca trade price.
+- Added automated paper trading: an opt-in toggle that every five minutes picks the top gainer with a market cap of $1B or more, runs one decision on it, and submits BUY, SELL or HOLD as a paper order, with an activity log and a Run now button.
+- Added an interactive equity history chart to the Portfolio page, built from account snapshots stored in the browser, with hover and keyboard inspection.
 
 ## 0.2.0 (2026-11-07)
 

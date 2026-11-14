@@ -26,6 +26,7 @@ from .cli import parser, run as run_analysis
 from .decisions import predict
 from .indicators import features, rule_signal
 from .market import INTERVALS, alpaca, alpaca_news, validate_candles
+from . import paper
 
 ROOT = Path(__file__).resolve().parent
 PORT = 8765
@@ -113,6 +114,13 @@ class AnalysisRequest(BaseModel):
 
 class SpySignalsRequest(BaseModel):
     model_config = ConfigDict(extra='forbid')
+
+
+class PaperOrderRequest(BaseModel):
+    model_config = ConfigDict(extra='forbid', allow_inf_nan=False)
+    symbol: str = Field(min_length=1, max_length=20, pattern=r'^[A-Za-z0-9.\^=\-]+$', description='US stock ticker symbol')
+    side: Literal['BUY', 'SELL']
+    quantity: float = Field(gt=0)
 
 
 class DecisionResponse(BaseModel):
@@ -435,6 +443,65 @@ def spy_signals(body: SpySignalsRequest):
             close_time = pd.Timestamp(result['candle_timestamp']) + pd.Timedelta(seconds=INTERVALS['10m'])
             result['stale'] = (pd.Timestamp.now(tz='UTC') - close_time).total_seconds() > 2 * INTERVALS['10m']
         return result
+
+
+_paper_cache = None
+_movers_cache = None
+_paper_lock = Lock()
+
+
+@app.get('/api/paper/account', tags=['Paper'])
+def paper_account():
+    """Return the Alpaca paper account overview, cached for 10 seconds."""
+    global _paper_cache
+    with _paper_lock:
+        if _paper_cache is not None and monotonic() - _paper_cache[0] < 10:
+            return _paper_cache[1]
+    try:
+        result = paper.overview()
+    except ValueError as exc:
+        return JSONResponse({'error': str(exc)}, status_code=503)
+    with _paper_lock:
+        _paper_cache = (monotonic(), result)
+    return result
+
+
+@app.post('/api/paper/order', tags=['Paper'])
+async def paper_order(body: PaperOrderRequest):
+    """Submit a market order to the Alpaca paper account. Paper trading only, never live."""
+    try:
+        result = await run_in_threadpool(paper.submit_order, body.symbol, body.side, body.quantity)
+    except ValueError as exc:
+        return JSONResponse({'error': str(exc)}, status_code=503)
+    global _paper_cache
+    with _paper_lock:
+        _paper_cache = None
+    return result
+
+
+@app.get('/api/paper/price', tags=['Paper'])
+async def paper_price(symbol: str):
+    """Return the latest Alpaca trade price used to size manual orders."""
+    try:
+        return await run_in_threadpool(paper.last_price, symbol)
+    except ValueError as exc:
+        return JSONResponse({'error': str(exc)}, status_code=503)
+
+
+@app.get('/api/paper/movers', tags=['Paper'])
+def paper_movers():
+    """Return today's qualifying gainer among stocks with a market cap of $1B or more, cached for 60 seconds."""
+    global _movers_cache
+    with _paper_lock:
+        if _movers_cache is not None and monotonic() - _movers_cache[0] < 60:
+            return _movers_cache[1]
+    try:
+        result = paper.movers()
+    except ValueError as exc:
+        return JSONResponse({'error': str(exc)}, status_code=503)
+    with _paper_lock:
+        _movers_cache = (monotonic(), result)
+    return result
 
 
 async def analyze(body: AnalysisRequest):

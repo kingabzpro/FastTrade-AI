@@ -972,7 +972,7 @@ test('manual trade submits an alpaca market order with the fetched price', async
   let order;
   await page.route('**/api/paper/account', route => route.fulfill({json: accountData()}));
   await page.route('**/api/paper/price**', route => route.fulfill({json: {symbol: 'AAPL', price: 142.85}}));
-  await page.route('**/api/paper/order', route => { order = route.request().postDataJSON(); return route.fulfill({json: {symbol: 'AAPL', side: 'BUY', quantity: 2, order_id: 'o1', status: 'accepted', filled_quantity: 0, filled_avg_price: null}}); });
+  await page.route('**/api/paper/order', route => { order = route.request().postDataJSON(); return route.fulfill({json: {symbol: 'AAPL', side: 'BUY', quantity: 2, order_id: 'o1', status: 'accepted', filled_quantity: 0, filled_avg_price: null, pending: true, next_open: '2026-11-16T09:30:00-05:00'}}); });
   await openView('portfolio-panel');
   await page.waitForFunction(() => !document.getElementById('account-content').hidden);
   await page.fill('#trade-symbol', 'aapl');
@@ -981,9 +981,12 @@ test('manual trade submits an alpaca market order with the fetched price', async
   assert.equal(await page.locator('#trade-buy').isEnabled(), true);
   assert.equal(await page.locator('#trade-sell').isDisabled(), true);
   await page.locator('#trade-buy').click();
-  await page.waitForFunction(() => document.getElementById('portfolio-status').textContent.includes('submitted'));
+  await page.waitForFunction(() => document.getElementById('portfolio-status').textContent.includes('market opens'));
   assert.deepEqual(order, {symbol: 'AAPL', side: 'BUY', quantity: 2});
-  assert.match(await page.locator('#portfolio-status').innerText(), /submitted · status accepted/);
+  assert.match(await page.locator('#portfolio-status').innerText(), /accepted · it will perform when the market opens/);
+  const badge = page.locator('#portfolio-status .pending-badge');
+  assert.equal(await badge.innerText(), 'PENDING');
+  assert.match(await badge.getAttribute('title'), /will perform when the market opens \(16 Nov 2026, 14:30 UTC\)/);
 });
 
 test('manual sell is limited to held shares and buy to buying power', async () => {
@@ -1007,7 +1010,7 @@ test('auto-trade run now decides on the qualifying $1B+ gainer and places the or
   await page.route('**/api/paper/account', route => route.fulfill({json: accountData()}));
   await page.route('**/api/paper/movers', route => route.fulfill({json: {pick: {symbol: 'BIGCO', price: 220, change_percent: 3.2, market_cap: 3.4e12}, considered: [], minimum_cap: 1e9}}));
   await page.route('**/api/analyze', route => route.fulfill({json: analysis}));
-  await page.route('**/api/paper/order', route => { order = route.request().postDataJSON(); return route.fulfill({json: {symbol: 'BIGCO', side: 'BUY', quantity: 17, order_id: 'o2', status: 'accepted', filled_quantity: 0, filled_avg_price: null}}); });
+  await page.route('**/api/paper/order', route => { order = route.request().postDataJSON(); return route.fulfill({json: {symbol: 'BIGCO', side: 'BUY', quantity: 17, order_id: 'o2', status: 'accepted', filled_quantity: 0, filled_avg_price: null, pending: true, next_open: '2026-11-16T09:30:00-05:00'}}); });
   await openView('portfolio-panel');
   await page.waitForFunction(() => !document.getElementById('account-content').hidden);
   await page.locator('#auto-toggle').check();
@@ -1016,7 +1019,10 @@ test('auto-trade run now decides on the qualifying $1B+ gainer and places the or
   const entry = await page.locator('#auto-log li').first().innerText();
   assert.match(entry, /BIGCO/);
   assert.match(entry, /3\.40T/);
-  assert.match(entry, /decision: buy 17\.00 shares · order accepted/);
+  assert.match(entry, /decision: buy 17\.00 shares · order accepted · will perform when the market opens/);
+  const pending = page.locator('#auto-log li').first().locator('.pending-badge');
+  assert.equal(await pending.innerText(), 'PENDING');
+  assert.match(await pending.getAttribute('title'), /will perform when the market opens \(16 Nov 2026, 14:30 UTC\)/);
   assert.equal(await page.evaluate(() => localStorage.getItem('fasttrade-auto')), 'on');
 });
 

@@ -633,6 +633,13 @@ async function fetchTradePrice() {
   }
   renderTrade();
 }
+function pendingBadge(nextOpen) {
+  const badge = document.createElement('span');
+  badge.className = 'pending-badge';
+  badge.textContent = 'PENDING';
+  badge.title = nextOpen ? `Market is closed. The trade will perform when the market opens (${formatTime(nextOpen)}).` : 'Market is closed. The trade will perform when the market opens.';
+  return badge;
+}
 async function placeTrade(side) {
   const symbol = tradeSymbol();
   const qty = Number($('trade-qty').value);
@@ -640,7 +647,10 @@ async function placeTrade(side) {
   try {
     const order = await jsonRequest('/api/paper/order', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({symbol, side, quantity: qty})});
     await refreshAccount();
-    setPortfolioStatus(`${side} order for ${number(qty)} ${symbol} submitted · status ${order.status}${order.filled_avg_price ? ` · filled ${number(order.filled_avg_price)}` : ''}.`, 'good');
+    setPortfolioStatus(order.pending
+      ? `${side} order for ${number(qty)} ${symbol} accepted · it will perform when the market opens.`
+      : `${side} order for ${number(qty)} ${symbol} submitted · status ${order.status}${order.filled_avg_price ? ` · filled ${number(order.filled_avg_price)}` : ''}.`, 'good');
+    if (order.pending) $('portfolio-status').append(pendingBadge(order.next_open));
   } catch (error) {
     setPortfolioStatus(error.message, 'bad');
   }
@@ -683,6 +693,7 @@ function renderAuto() {
     const text = document.createElement('span');
     text.textContent = `${formatTime(entry.time)} · ${entry.symbol || 'market'} · ${entry.detail}`;
     row.append(badge, text);
+    if (entry.pending) row.append(pendingBadge(entry.next_open));
     list.append(row);
   }
 }
@@ -690,6 +701,7 @@ async function autoTick(force = false) {
   if (!auto.enabled || auto.running || (!force && document.hidden)) return;
   auto.running = true;
   renderAuto();
+  let pending = {};
   try {
     const movers = await jsonRequest('/api/paper/movers');
     const pick = movers.pick;
@@ -708,9 +720,11 @@ async function autoTick(force = false) {
       else {
         const order = await jsonRequest('/api/paper/order', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({symbol: pick.symbol, side: action, quantity})});
         detail += ` · decision: ${action.toLowerCase()} ${number(quantity)} shares · order ${order.status}`;
+        if (order.pending) detail += ' · will perform when the market opens';
+        pending = {pending: order.pending, next_open: order.next_open};
       }
     }
-    autoNote({time: new Date().toISOString(), symbol: pick.symbol, action, detail});
+    autoNote({time: new Date().toISOString(), symbol: pick.symbol, action, detail, ...pending});
   } catch (error) {
     autoNote({time: new Date().toISOString(), symbol: '', action: 'ERROR', detail: error.message});
   } finally {

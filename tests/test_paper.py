@@ -58,19 +58,42 @@ def test_last_price_reads_latest_trade(monkeypatch):
 
 def test_submit_order_posts_market_order_and_reports_fill(monkeypatch):
     posted = {}
+    urls = []
     def post(url, **kwargs):
         posted['url'], posted['json'] = url, kwargs['json']
         return httpx.Response(200, json={'id': 'order-1', 'status': 'accepted', 'filled_qty': '1', 'filled_avg_price': None}, request=httpx.Request('POST', url))
+    def get(url, **kwargs):
+        urls.append(url)
+        return httpx.Response(200, json={'is_open': True, 'next_open': '2026-11-16T09:30:00-05:00'}, request=httpx.Request('GET', url))
     monkeypatch.setattr(paper, 'pooled_post', post)
+    monkeypatch.setattr(paper, 'pooled_get', get)
     monkeypatch.setenv('ALPACA_API_KEY', 'key')
     monkeypatch.setenv('ALPACA_SECRET_KEY', 'secret')
     result = paper.submit_order('nvda', 'BUY', 1.5)
     assert posted['json'] == {'symbol': 'NVDA', 'qty': '1.5', 'side': 'buy', 'type': 'market', 'time_in_force': 'day'}
-    assert result == {'symbol': 'NVDA', 'side': 'BUY', 'quantity': 1.5, 'order_id': 'order-1', 'status': 'accepted', 'filled_quantity': 1.0, 'filled_avg_price': None}
+    assert urls[-1].endswith('/v2/clock')
+    assert result == {'symbol': 'NVDA', 'side': 'BUY', 'quantity': 1.5, 'order_id': 'order-1', 'status': 'accepted', 'filled_quantity': 1.0, 'filled_avg_price': None, 'pending': False, 'next_open': '2026-11-16T09:30:00-05:00'}
     with pytest.raises(ValueError, match='side must be BUY or SELL'):
         paper.submit_order('NVDA', 'HOLD', 1)
     with pytest.raises(ValueError, match='quantity must be positive'):
         paper.submit_order('NVDA', 'BUY', 0)
+
+
+def test_submit_order_flags_pending_when_market_is_closed(monkeypatch):
+    def post(url, **kwargs):
+        return httpx.Response(200, json={'id': 'order-2', 'status': 'accepted', 'filled_qty': '0', 'filled_avg_price': None}, request=httpx.Request('POST', url))
+    def get(url, **kwargs):
+        assert url.endswith('/v2/clock')
+        return httpx.Response(200, json={'is_open': False, 'next_open': '2026-11-16T09:30:00-05:00'}, request=httpx.Request('GET', url))
+    monkeypatch.setattr(paper, 'pooled_post', post)
+    monkeypatch.setattr(paper, 'pooled_get', get)
+    monkeypatch.setenv('ALPACA_API_KEY', 'key')
+    monkeypatch.setenv('ALPACA_SECRET_KEY', 'secret')
+    result = paper.submit_order('AAPL', 'BUY', 1)
+    assert result['pending'] is True and result['next_open'] == '2026-11-16T09:30:00-05:00'
+    monkeypatch.setattr(paper, 'pooled_get', lambda url, **kwargs: (_ for _ in ()).throw(httpx.ConnectError('clock unavailable')))
+    degraded = paper.submit_order('AAPL', 'BUY', 1)
+    assert degraded['pending'] is False and degraded['next_open'] is None
 
 
 def test_submit_order_reports_rejection_reason(monkeypatch):

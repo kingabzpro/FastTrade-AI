@@ -1,4 +1,5 @@
 """Bounded upstream retries and per-credential circuit breakers."""
+import atexit
 import hashlib
 import json
 import math
@@ -12,6 +13,20 @@ from urllib.parse import urlsplit
 
 import httpx
 from tenacity import Retrying, retry_if_exception_type, retry_if_result
+
+
+# Shared client keeps upstream connections warm across decisions; per-request
+# timeouts and proxies behave exactly like the top-level httpx API.
+_client = httpx.Client(limits=httpx.Limits(max_connections=20, max_keepalive_connections=10, keepalive_expiry=30))
+atexit.register(_client.close)
+
+
+def pooled_get(url, **kwargs):
+    return _client.get(url, **kwargs)
+
+
+def pooled_post(url, **kwargs):
+    return _client.post(url, **kwargs)
 
 
 class CircuitOpen(Exception):

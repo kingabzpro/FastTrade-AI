@@ -173,3 +173,20 @@ def test_paid_request_does_not_retry_ambiguous_failure(monkeypatch):
     with pytest.raises(httpx.ReadTimeout):
         resilience.request(post, 'https://example.test/', service='model', credentials='a', retry_transport=False)
     assert len(calls) == 1
+
+
+def test_request_forwards_per_call_kwargs_to_the_pooled_transport(monkeypatch):
+    seen = []
+    monkeypatch.setattr(resilience, 'pooled_get', lambda url, **kwargs: seen.append(kwargs) or response(200))
+    result = resilience.request(resilience.pooled_get, 'https://example.test/', service='bars', credentials='a', retry_transport=True, timeout=15)
+    assert result.status_code == 200 and seen == [{'timeout': 15}]
+
+
+def test_pooled_get_routes_through_the_shared_client(monkeypatch):
+    seen = []
+    def handler(request):
+        seen.append(str(request.url))
+        return httpx.Response(200)
+    monkeypatch.setattr(resilience, '_client', httpx.Client(transport=httpx.MockTransport(handler)))
+    assert resilience.pooled_get('https://example.test/', timeout=15).status_code == 200
+    assert seen == ['https://example.test/']

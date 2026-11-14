@@ -4,15 +4,17 @@ import re
 import copy
 import hashlib
 import json
+import logging
 import httpx
 from collections import OrderedDict
 from concurrent.futures import ThreadPoolExecutor
 from threading import Lock
 from time import monotonic
 import pandas as pd
-from .resilience import CircuitOpen, request
+from .resilience import CircuitOpen, pooled_get, request
 
 INTERVALS = {'1m': 60, '2m': 120, '5m': 300, '10m': 600, '15m': 900, '30m': 1800, '60m': 3600, '90m': 5400}
+logger = logging.getLogger(__name__)
 _market_cache = OrderedDict()
 _market_cache_lock = Lock()
 
@@ -141,7 +143,7 @@ def alpaca_news(symbol, as_of):
     if not all(headers.values()):
         raise ValueError('News unavailable')
     try:
-        response = request(httpx.get, 'https://data.alpaca.markets/v1beta1/news', service='alpaca-data', credentials=list(headers.values()), retry_transport=True, headers=headers, params={
+        response = request(pooled_get, 'https://data.alpaca.markets/v1beta1/news', service='alpaca-data', credentials=list(headers.values()), retry_transport=True, headers=headers, params={
             'symbols': symbol, 'start': (as_of - pd.Timedelta(days=7)).isoformat(),
             'end': as_of.isoformat(), 'sort': 'desc', 'limit': 10,
         }, timeout=5)
@@ -181,7 +183,8 @@ def _yahoo_request(operation):
             raise httpx.ConnectError('Yahoo connection failed') from exc
         except YFDataException as exc:
             return httpx.Response(503 if str(exc) == '*** YAHOO! FINANCE IS CURRENTLY DOWN! ***' else 400)
-        except Exception:
+        except Exception as exc:
+            logger.warning('Yahoo request failed: %s', exc)
             return httpx.Response(400)
         return httpx.Response(200, extensions={'yahoo_result': result})
 
@@ -220,11 +223,13 @@ def yahoo(symbol, timeframe, as_of):
         try:
             info = info_future.result()
             details = {k: info.get(k) for k in ('shortName', 'currency', 'exchange', 'exchangeTimezoneName') if info.get(k) is not None}
-        except Exception:
+        except Exception as exc:
+            logger.warning('Yahoo info unavailable: %s', exc)
             details = {}
         try:
             news = headlines(news_future.result(), as_of)
-        except Exception:
+        except Exception as exc:
+            logger.warning('Yahoo news unavailable: %s', exc)
             news = []
     return frame, details, news
 
@@ -243,8 +248,9 @@ def alpaca(symbol, timeframe, as_of, *, credentials=None):
     params = {'timeframe': intervals[timeframe], 'feed': 'iex', 'adjustment': 'raw', 'start': (as_of - pd.Timedelta(days=30)).isoformat(), 'end': as_of.isoformat(), 'sort': 'desc', 'limit': 1000}
     bars = []
     try:
-        while True:
-            response = request(httpx.get, f'https://data.alpaca.markets/v2/stocks/{symbol}/bars', service='alpaca-data', credentials=[key, secret], retry_transport=True, headers=headers, params=params, timeout=15)
+        # Each page must be nonempty and add at least one bar, so 51 pages suffice for the 50-candle minimum.
+        for _ in range(51):
+            response = request(pooled_get, f'https://data.alpaca.markets/v2/stocks/{symbol}/bars', service='alpaca-data', credentials=[key, secret], retry_transport=True, headers=headers, params=params, timeout=15)
             if response.status_code in (401, 403):
                 raise ValueError('Alpaca credentials or data access rejected')
             if response.status_code == 429:

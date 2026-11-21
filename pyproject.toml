@@ -35,7 +35,7 @@ forecast = [
 
 [dependency-groups]
 dev = [
-    "exchange-calendars==4.13.2",
+    "exchange-calendars==4.13.3",
     "pytest>=8",
 ]
 
